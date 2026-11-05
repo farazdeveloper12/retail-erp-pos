@@ -1,6 +1,8 @@
 import { notFound } from "next/navigation";
 import { Hammer } from "lucide-react";
+import AccessDenied from "@/components/AccessDenied";
 import { navItems } from "@/lib/navigation";
+import { canViewPage, getMyPermissions } from "@/lib/permissions";
 
 export default async function ModulePage({
   params,
@@ -12,6 +14,11 @@ export default async function ModulePage({
 
   if (!item) {
     notFound();
+  }
+
+  const permissions = await getMyPermissions();
+  if (!canViewPage(permissions, item.slug)) {
+    return <AccessDenied />;
   }
 
   return (
