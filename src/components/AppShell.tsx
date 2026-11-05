@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, type ReactNode } from "react";
-import { Menu, Store, X } from "lucide-react";
+import { LogOut, Menu, Store, X } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
+import { signOut } from "@/app/(app)/actions";
 import { bottomNavSlugs, navItems } from "@/lib/navigation";
 
 function isActive(pathname: string, href: string) {
@@ -60,7 +61,15 @@ function NavLinks({
   );
 }
 
-export default function AppShell({ children }: { children: ReactNode }) {
+export default function AppShell({
+  children,
+  userName,
+  userRole,
+}: {
+  children: ReactNode;
+  userName: string;
+  userRole: string;
+}) {
   const pathname = usePathname();
   const [drawerOpen, setDrawerOpen] = useState(false);
 
@@ -79,7 +88,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
           <NavLinks pathname={pathname} />
         </div>
         <div className="border-t border-slate-200 px-4 py-3 text-xs text-slate-500 dark:border-slate-800 dark:text-slate-400">
-          Phase 3: UI skeleton
+          Phase 4: Login
         </div>
       </aside>
 
@@ -128,10 +137,28 @@ export default function AppShell({ children }: { children: ReactNode }) {
               GWADAR TECH HUB
             </span>
           </div>
-          <div className="hidden text-sm text-slate-500 lg:block dark:text-slate-400">
-            Login system Phase 4 mein aayega
+          <div className="hidden lg:block" />
+
+          <div className="flex items-center gap-2">
+            <div className="hidden text-right leading-tight sm:block">
+              <p className="text-sm font-semibold">{userName}</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                {userRole}
+              </p>
+            </div>
+            <ThemeToggle />
+            <form action={signOut}>
+              <button
+                type="submit"
+                aria-label="Logout"
+                title="Logout"
+                className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+              >
+                <LogOut className="h-5 w-5" />
+                <span className="hidden sm:inline">Logout</span>
+              </button>
+            </form>
           </div>
-          <ThemeToggle />
         </header>
 
         <main className="px-4 py-6 pb-24 sm:px-6 lg:px-8 lg:pb-8">
