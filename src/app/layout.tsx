@@ -1,7 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 import "./globals.css";
-import AppShell from "@/components/AppShell";
 
 export const metadata: Metadata = {
   title: {
@@ -41,7 +40,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
       <body className="bg-slate-50 text-slate-900 antialiased dark:bg-slate-950 dark:text-slate-100">
-        <AppShell>{children}</AppShell>
+        {children}
       </body>
     </html>
   );
