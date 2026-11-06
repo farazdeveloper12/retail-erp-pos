@@ -6,7 +6,7 @@ import { useState, type ReactNode } from "react";
 import { LogOut, Menu, Store, X } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
 import { signOut } from "@/app/(app)/actions";
-import { bottomNavSlugs, navItems } from "@/lib/navigation";
+import { bottomNavSlugs, navItems, type NavItem } from "@/lib/navigation";
 
 function isActive(pathname: string, href: string) {
   if (href === "/") return pathname === "/";
@@ -30,15 +30,17 @@ function Brand() {
 }
 
 function NavLinks({
+  items,
   pathname,
   onNavigate,
 }: {
+  items: NavItem[];
   pathname: string;
   onNavigate?: () => void;
 }) {
   return (
     <nav className="flex flex-col gap-1">
-      {navItems.map((item) => {
+      {items.map((item) => {
         const active = isActive(pathname, item.href);
         return (
           <Link
@@ -65,15 +67,21 @@ export default function AppShell({
   children,
   userName,
   userRole,
+  allowedSlugs,
 }: {
   children: ReactNode;
   userName: string;
   userRole: string;
+  allowedSlugs: string[];
 }) {
   const pathname = usePathname();
   const [drawerOpen, setDrawerOpen] = useState(false);
 
-  const bottomItems = navItems.filter((item) =>
+  // Sirf wohi items jin ki ijazat hai
+  const visibleItems = navItems.filter((item) =>
+    allowedSlugs.includes(item.slug)
+  );
+  const bottomItems = visibleItems.filter((item) =>
     bottomNavSlugs.includes(item.slug)
   );
 
@@ -85,10 +93,10 @@ export default function AppShell({
           <Brand />
         </div>
         <div className="flex-1 overflow-y-auto p-3">
-          <NavLinks pathname={pathname} />
+          <NavLinks items={visibleItems} pathname={pathname} />
         </div>
         <div className="border-t border-slate-200 px-4 py-3 text-xs text-slate-500 dark:border-slate-800 dark:text-slate-400">
-          Phase 4: Login
+          Phase 5: Roles
         </div>
       </aside>
 
@@ -113,6 +121,7 @@ export default function AppShell({
             </div>
             <div className="flex-1 overflow-y-auto p-3">
               <NavLinks
+                items={visibleItems}
                 pathname={pathname}
                 onNavigate={() => setDrawerOpen(false)}
               />
@@ -167,7 +176,12 @@ export default function AppShell({
       </div>
 
       {/* Mobile bottom navigation */}
-      <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-slate-200 bg-white pb-[env(safe-area-inset-bottom)] lg:hidden dark:border-slate-800 dark:bg-slate-900">
+      <nav
+        className="fixed inset-x-0 bottom-0 z-30 grid border-t border-slate-200 bg-white pb-[env(safe-area-inset-bottom)] lg:hidden dark:border-slate-800 dark:bg-slate-900"
+        style={{
+          gridTemplateColumns: `repeat(${bottomItems.length + 1}, minmax(0, 1fr))`,
+        }}
+      >
         {bottomItems.map((item) => {
           const active = isActive(pathname, item.href);
           return (

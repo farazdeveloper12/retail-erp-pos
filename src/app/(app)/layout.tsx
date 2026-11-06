@@ -2,6 +2,8 @@ import type { ReactNode } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { signOut } from "@/app/(app)/actions";
 import AppShell from "@/components/AppShell";
+import { navItems } from "@/lib/navigation";
+import { canViewPage, getMyPermissions } from "@/lib/permissions";
 
 const roleLabels: Record<string, string> = {
   owner: "Owner",
@@ -52,10 +54,17 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
     );
   }
 
+  // Sidebar mein kaun se items dikhne chahiye
+  const permissions = await getMyPermissions();
+  const allowedSlugs = navItems
+    .filter((item) => canViewPage(permissions, item.slug))
+    .map((item) => item.slug);
+
   return (
     <AppShell
       userName={profile.full_name}
       userRole={roleLabels[profile.role] ?? profile.role}
+      allowedSlugs={allowedSlugs}
     >
       {children}
     </AppShell>
