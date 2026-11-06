@@ -3,6 +3,7 @@ import { UserCog } from "lucide-react";
 import AccessDenied from "@/components/AccessDenied";
 import { createClient } from "@/lib/supabase/server";
 import { canViewPage, getMyPermissions } from "@/lib/permissions";
+import CreateUserForm from "@/app/(app)/users/CreateUserForm";
 
 export const metadata: Metadata = {
   title: "Users & Roles",
@@ -56,6 +57,8 @@ export default async function UsersPage() {
           </p>
         </div>
       </div>
+
+      <CreateUserForm />
 
       {error ? (
         <div
