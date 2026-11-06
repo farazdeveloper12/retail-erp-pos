@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { UserCog } from "lucide-react";
 import AccessDenied from "@/components/AccessDenied";
 import { createClient } from "@/lib/supabase/server";
@@ -69,7 +70,7 @@ export default async function UsersPage() {
         </div>
       ) : (
         <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-          <table className="w-full min-w-[640px] text-left text-sm">
+          <table className="w-full min-w-[720px] text-left text-sm">
             <thead className="border-b border-slate-200 text-xs uppercase text-slate-500 dark:border-slate-800 dark:text-slate-400">
               <tr>
                 <th className="px-4 py-3 font-medium">Naam</th>
@@ -77,6 +78,7 @@ export default async function UsersPage() {
                 <th className="px-4 py-3 font-medium">Role</th>
                 <th className="px-4 py-3 font-medium">Status</th>
                 <th className="px-4 py-3 font-medium">Aakhri login</th>
+                <th className="px-4 py-3 font-medium" />
               </tr>
             </thead>
             <tbody>
@@ -106,6 +108,16 @@ export default async function UsersPage() {
                   </td>
                   <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
                     {formatDate(user.last_sign_in_at)}
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    {user.role !== "owner" && (
+                      <Link
+                        href={`/users/manage?id=${user.id}`}
+                        className="font-medium text-blue-600 hover:underline dark:text-blue-400"
+                      >
+                        Manage
+                      </Link>
+                    )}
                   </td>
                 </tr>
               ))}
