@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 import { Plus_Jakarta_Sans } from "next/font/google";
+import { DEFAULT_WORKSPACE_NAME, getMyBusiness } from "@/lib/business";
 import "./globals.css";
 
 const jakarta = Plus_Jakarta_Sans({
@@ -9,13 +10,25 @@ const jakarta = Plus_Jakarta_Sans({
   display: "swap",
 });
 
-export const metadata: Metadata = {
-  title: {
-    default: "GWADAR TECH HUB",
-    template: "%s | GWADAR TECH HUB",
-  },
-  description: "Retail management system for mobile phones and accessories",
-};
+// The tab title uses the business name. On the login page (no session)
+// or on any error it falls back to a neutral name, so it never breaks a page.
+export async function generateMetadata(): Promise<Metadata> {
+  let name = DEFAULT_WORKSPACE_NAME;
+  try {
+    const business = await getMyBusiness();
+    if (business?.name?.trim()) name = business.name.trim();
+  } catch {
+    // Keep the fallback name
+  }
+
+  return {
+    title: {
+      default: name,
+      template: `%s | ${name}`,
+    },
+    description: "Retail management system",
+  };
+}
 
 export const viewport: Viewport = {
   width: "device-width",

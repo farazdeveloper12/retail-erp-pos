@@ -8,8 +8,8 @@ import ThemeToggle from "@/components/ThemeToggle";
 import { signOut } from "@/app/(app)/actions";
 import { bottomNavSlugs, navItems, type NavItem } from "@/lib/navigation";
 
-// Neutral placeholder until the business name comes from business settings.
-const WORKSPACE_NAME = "Retail workspace";
+// Shown when the business name is not available.
+const FALLBACK_NAME = "Retail workspace";
 
 function isActive(pathname: string, href: string) {
   if (href === "/") return pathname === "/";
@@ -25,14 +25,14 @@ function initials(name: string) {
     .join("");
 }
 
-function Brand() {
+function Brand({ name }: { name: string }) {
   return (
-    <div className="flex items-center gap-3">
-      <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-accent text-accent-ink shadow-soft">
+    <div className="flex min-w-0 items-center gap-3">
+      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-accent text-accent-ink shadow-soft">
         <Store className="h-5 w-5" />
       </div>
-      <div className="leading-tight">
-        <p className="text-sm font-bold text-ink">{WORKSPACE_NAME}</p>
+      <div className="min-w-0 leading-tight">
+        <p className="truncate text-sm font-bold text-ink">{name}</p>
         <p className="text-xs text-ink-muted">Business management</p>
       </div>
     </div>
@@ -79,13 +79,16 @@ export default function AppShell({
   userName,
   userRole,
   allowedSlugs,
+  businessName,
 }: {
   children: ReactNode;
   userName: string;
   userRole: string;
   allowedSlugs: string[];
+  businessName?: string | null;
 }) {
   const pathname = usePathname();
+  const workspaceName = businessName?.trim() || FALLBACK_NAME;
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   // Only the items this user is allowed to open
@@ -101,13 +104,13 @@ export default function AppShell({
       {/* Desktop sidebar */}
       <aside className="fixed inset-y-3 left-3 z-30 hidden w-64 flex-col rounded-card border border-line bg-surface shadow-soft lg:flex">
         <div className="px-5 pb-4 pt-5">
-          <Brand />
+          <Brand name={workspaceName} />
         </div>
         <div className="flex-1 overflow-y-auto px-3 pb-3">
           <NavLinks items={visibleItems} pathname={pathname} />
         </div>
         <div className="m-3 rounded-2xl bg-surface-muted px-4 py-3">
-          <p className="text-xs font-semibold text-ink">{WORKSPACE_NAME}</p>
+          <p className="truncate text-xs font-semibold text-ink">{workspaceName}</p>
           <p className="text-xs text-ink-muted">Signed in as {userRole}</p>
         </div>
       </aside>
@@ -120,8 +123,8 @@ export default function AppShell({
             onClick={() => setDrawerOpen(false)}
           />
           <div className="absolute inset-y-0 left-0 flex w-72 max-w-[85%] flex-col rounded-r-card bg-surface shadow-soft">
-            <div className="flex items-center justify-between px-4 pb-3 pt-5">
-              <Brand />
+            <div className="flex items-center justify-between gap-2 px-4 pb-3 pt-5">
+              <Brand name={workspaceName} />
               <button
                 type="button"
                 aria-label="Close menu"
@@ -160,7 +163,7 @@ export default function AppShell({
                 <Menu className="h-5 w-5" />
               </button>
               <span className="truncate text-sm font-bold text-ink">
-                {WORKSPACE_NAME}
+                {workspaceName}
               </span>
             </div>
             <p className="hidden pl-2 text-sm text-ink-muted lg:block">

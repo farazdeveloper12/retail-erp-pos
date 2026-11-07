@@ -4,6 +4,7 @@ import { signOut } from "@/app/(app)/actions";
 import AppShell from "@/components/AppShell";
 import { navItems } from "@/lib/navigation";
 import { canViewPage, getMyPermissions } from "@/lib/permissions";
+import { getMyBusiness } from "@/lib/business";
 
 const roleLabels: Record<string, string> = {
   owner: "Owner",
@@ -55,8 +56,11 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
     );
   }
 
-  // Which items should appear in the sidebar
-  const permissions = await getMyPermissions();
+  // Which items should appear in the sidebar, and the business name
+  const [permissions, business] = await Promise.all([
+    getMyPermissions(),
+    getMyBusiness(),
+  ]);
   const allowedSlugs = navItems
     .filter((item) => canViewPage(permissions, item.slug))
     .map((item) => item.slug);
@@ -66,6 +70,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
       userName={profile.full_name}
       userRole={roleLabels[profile.role] ?? profile.role}
       allowedSlugs={allowedSlugs}
+      businessName={business?.name ?? null}
     >
       {children}
     </AppShell>

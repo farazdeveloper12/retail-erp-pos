@@ -57,7 +57,17 @@ export async function createEmployee(
     return fail("The two passwords do not match.");
   }
 
-  // 3) Create the account
+  // 3) Read the creator's business on the server (never from the browser).
+  //    The new employee joins the same business.
+  const { data: businessId, error: businessError } =
+    await supabase.rpc("my_business_id");
+  if (businessError || typeof businessId !== "string" || businessId === "") {
+    return fail(
+      "Your account is not linked to a business, so employees cannot be created."
+    );
+  }
+
+  // 4) Create the account
   const admin = createAdminClient();
   const { data: created, error: createError } =
     await admin.auth.admin.createUser({
@@ -76,10 +86,14 @@ export async function createEmployee(
     );
   }
 
-  // 4) Create the profile. If that fails, remove the new account again.
-  const { error: profileError } = await admin
-    .from("profiles")
-    .insert({ id: created.user.id, full_name: fullName, role });
+  // 5) Create the profile in the creator's business.
+  //    If that fails, remove the new account again.
+  const { error: profileError } = await admin.from("profiles").insert({
+    id: created.user.id,
+    full_name: fullName,
+    role,
+    business_id: businessId,
+  });
 
   if (profileError) {
     await admin.auth.admin.deleteUser(created.user.id);
