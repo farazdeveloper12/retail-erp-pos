@@ -9,7 +9,7 @@ export const pagePermissions: Record<string, string[]> = {
   sales: ["sales.create", "sales.view_own", "sales.view_all"],
   purchases: ["purchases.view"],
   inventory: ["inventory.view"],
-  catalog: ["catalog.view"],
+  catalog: ["catalog.view", "catalog.create"],
   customers: ["customers.view"],
   suppliers: ["suppliers.view"],
   expenses: ["expenses.view"],

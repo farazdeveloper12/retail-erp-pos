@@ -23,6 +23,7 @@ import {
   formatVariant,
 } from "@/lib/catalog";
 import { AddBrandForm } from "@/app/(app)/catalog/CatalogForms";
+import CatalogTabs from "@/app/(app)/catalog/CatalogTabs";
 
 export const metadata: Metadata = {
   title: "Product Catalog",
@@ -133,6 +134,8 @@ export default async function CatalogPage({
           )
         }
       />
+
+      <CatalogTabs active="models" />
 
       {/* Search and filters */}
       <section className={cardClass + " space-y-4"}>
