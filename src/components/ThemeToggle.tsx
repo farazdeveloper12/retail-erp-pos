@@ -9,7 +9,7 @@ export default function ThemeToggle() {
     try {
       localStorage.setItem("theme", isNowDark ? "dark" : "light");
     } catch {
-      // Agar browser save na karne de to koi masla nahi
+      // Ignore if the browser does not allow saving
     }
   }
 
@@ -17,8 +17,9 @@ export default function ThemeToggle() {
     <button
       type="button"
       onClick={toggleTheme}
-      aria-label="Light ya Dark mode badlein"
-      className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+      aria-label="Switch between light and dark mode"
+      title="Switch theme"
+      className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-line bg-surface text-ink hover:bg-surface-muted"
     >
       <Moon className="h-5 w-5 dark:hidden" />
       <Sun className="hidden h-5 w-5 dark:block" />

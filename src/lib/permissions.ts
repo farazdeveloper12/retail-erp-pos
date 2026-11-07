@@ -1,9 +1,9 @@
 import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 
-// Har page ke liye kaun si ijazat chahiye.
-// Neeche di hui ijazaton mein se koi ek bhi ho to page khul jata hai.
-// Key wahi hai jo navigation.ts mein "slug" hai (Dashboard ke liye khali).
+// The permissions required for each page.
+// Having any one of the listed permissions opens the page.
+// The key is the same as "slug" in navigation.ts (empty for the dashboard).
 export const pagePermissions: Record<string, string[]> = {
   "": ["dashboard.view"],
   sales: ["sales.create", "sales.view_own", "sales.view_all"],
@@ -21,8 +21,8 @@ export const pagePermissions: Record<string, string[]> = {
   settings: ["settings.manage"],
 };
 
-// Is user ki saari ijazatein (database se).
-// cache() ka matlab: ek hi request mein bar bar database se na poochho.
+// All permissions of the current user (from the database).
+// cache() means the database is asked only once per request.
 export const getMyPermissions = cache(async (): Promise<string[]> => {
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("my_permissions");
@@ -39,9 +39,9 @@ export function hasAny(permissions: string[], anyOf: string[]): boolean {
   return anyOf.some((p) => permissions.includes(p));
 }
 
-// Kya ye user is page (slug) ko khol sakta hai?
+// Can this user open this page (slug)?
 export function canViewPage(permissions: string[], slug: string): boolean {
   const needed = pagePermissions[slug];
-  if (!needed) return false; // Jo page list mein nahi, wahan default "mana"
+  if (!needed) return false; // Pages not in the list are denied by default
   return hasAny(permissions, needed);
 }

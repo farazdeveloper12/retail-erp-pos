@@ -6,15 +6,19 @@ import {
   createEmployee,
   type CreateUserState,
 } from "@/app/(app)/users/actions";
+import {
+  Notice,
+  cardClass,
+  inputClass,
+  labelClass,
+  primaryButtonClass,
+} from "@/components/ui";
 
 const initialState: CreateUserState = {
   error: null,
   success: null,
   values: { full_name: "", email: "", role: "sales" },
 };
-
-const inputClass =
-  "w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/30 dark:border-slate-700 dark:bg-slate-950";
 
 export default function CreateUserForm() {
   const [state, formAction, pending] = useActionState(
@@ -23,29 +27,38 @@ export default function CreateUserForm() {
   );
 
   return (
-    <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-      <div className="mb-4 flex items-center gap-2">
-        <UserPlus className="h-5 w-5 text-blue-600" />
-        <h2 className="font-semibold">Naya employee banayein</h2>
+    <section className={cardClass}>
+      <div className="mb-5 flex items-center gap-3">
+        <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-mint text-ink">
+          <UserPlus className="h-5 w-5" />
+        </span>
+        <div>
+          <h2 className="text-base font-bold text-ink">Add an employee</h2>
+          <p className="text-xs text-ink-muted">
+            The employee signs in with this email and password.
+          </p>
+        </div>
       </div>
 
       <form action={formAction} className="grid gap-4 sm:grid-cols-2">
         <div>
-          <label htmlFor="full_name" className="mb-1 block text-sm font-medium">
-            Naam
+          <label htmlFor="full_name" className={labelClass}>
+            Full name
           </label>
           <input
             id="full_name"
             name="full_name"
             type="text"
             required
+            autoComplete="name"
+            placeholder="e.g. Ali Raza"
             defaultValue={state.values.full_name}
             className={inputClass}
           />
         </div>
 
         <div>
-          <label htmlFor="email" className="mb-1 block text-sm font-medium">
+          <label htmlFor="email" className={labelClass}>
             Email
           </label>
           <input
@@ -53,13 +66,15 @@ export default function CreateUserForm() {
             name="email"
             type="email"
             required
+            autoComplete="off"
+            placeholder="name@example.com"
             defaultValue={state.values.email}
             className={inputClass}
           />
         </div>
 
         <div>
-          <label htmlFor="role" className="mb-1 block text-sm font-medium">
+          <label htmlFor="role" className={labelClass}>
             Role
           </label>
           <select
@@ -76,8 +91,8 @@ export default function CreateUserForm() {
         <div className="hidden sm:block" />
 
         <div>
-          <label htmlFor="password" className="mb-1 block text-sm font-medium">
-            Password (kam az kam 12 characters)
+          <label htmlFor="password" className={labelClass}>
+            Password
           </label>
           <input
             id="password"
@@ -86,16 +101,17 @@ export default function CreateUserForm() {
             autoComplete="new-password"
             required
             minLength={12}
+            aria-describedby="password-hint"
             className={inputClass}
           />
+          <p id="password-hint" className="mt-1 text-xs text-ink-muted">
+            At least 12 characters.
+          </p>
         </div>
 
         <div>
-          <label
-            htmlFor="confirm_password"
-            className="mb-1 block text-sm font-medium"
-          >
-            Password dobara likhein
+          <label htmlFor="confirm_password" className={labelClass}>
+            Confirm password
           </label>
           <input
             id="confirm_password"
@@ -109,30 +125,24 @@ export default function CreateUserForm() {
         </div>
 
         {state.error && (
-          <p
-            role="alert"
-            className="rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800 sm:col-span-2 dark:border-red-800/60 dark:bg-red-950/40 dark:text-red-200"
-          >
-            {state.error}
-          </p>
+          <div className="sm:col-span-2">
+            <Notice kind="error">{state.error}</Notice>
+          </div>
         )}
 
         {state.success && (
-          <p
-            role="status"
-            className="rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm text-emerald-800 sm:col-span-2 dark:border-emerald-800/60 dark:bg-emerald-950/40 dark:text-emerald-200"
-          >
-            {state.success}
-          </p>
+          <div className="sm:col-span-2">
+            <Notice kind="success">{state.success}</Notice>
+          </div>
         )}
 
         <div className="sm:col-span-2">
           <button
             type="submit"
             disabled={pending}
-            className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
+            className={primaryButtonClass + " w-full sm:w-auto"}
           >
-            {pending ? "Account ban raha hai..." : "Account banayein"}
+            {pending ? "Creating account..." : "Create account"}
           </button>
         </div>
       </form>

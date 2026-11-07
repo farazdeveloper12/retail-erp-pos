@@ -1,17 +1,121 @@
 @import "tailwindcss";
 
-/* Dark mode ko "dark" class se control karne ke liye */
+/* Dark mode is controlled by the "dark" class on <html> */
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* Design tokens: light theme (default) */
 :root {
   color-scheme: light;
+
+  --background: #f7f3ea;
+  --surface: #ffffff;
+  --surface-muted: #fbf8f1;
+  --border: #ece6d8;
+  --border-strong: #ddd5c3;
+
+  --foreground: #1f2a2a;
+  --muted-foreground: #5b6b6b;
+
+  --accent: #0f8b8d;
+  --accent-strong: #0b7173;
+  --accent-soft: #d8f1ee;
+  --accent-foreground: #ffffff;
+
+  --pill: #d9f56a;
+  --pill-foreground: #1f2a2a;
+
+  --coral: #ff8a65;
+  --amber: #f2a93b;
+  --purple: #6b4fb8;
+
+  --peach: #ffe6d6;
+  --lavender: #ebe3fa;
+  --aqua: #d8f1ee;
+  --mint: #e3f5c9;
+
+  --danger: #c2410c;
+  --danger-soft: #fdebe3;
+
+  --shadow-soft: 0 1px 2px rgb(31 42 42 / 0.04),
+    0 8px 24px -8px rgb(31 42 42 / 0.08);
 }
 
+/* Design tokens: dark theme (warm charcoal, not blue) */
 :root.dark {
   color-scheme: dark;
+
+  --background: #1b1916;
+  --surface: #25221e;
+  --surface-muted: #2d2a25;
+  --border: #38332c;
+  --border-strong: #4a443b;
+
+  --foreground: #f3eee4;
+  --muted-foreground: #b2a898;
+
+  --accent: #3bb7b4;
+  --accent-strong: #5cc9c6;
+  --accent-soft: #1f3836;
+  --accent-foreground: #102120;
+
+  --pill: #d9f56a;
+  --pill-foreground: #1f2a2a;
+
+  --coral: #ff9a7a;
+  --amber: #f5b950;
+  --purple: #a48ae6;
+
+  --peach: #3a2c24;
+  --lavender: #2f2a3b;
+  --aqua: #1f3533;
+  --mint: #2b3322;
+
+  --danger: #ff9a7a;
+  --danger-soft: #3a2420;
+
+  --shadow-soft: 0 1px 2px rgb(0 0 0 / 0.3), 0 8px 24px -8px rgb(0 0 0 / 0.45);
+}
+
+/* Expose tokens to Tailwind as utilities (bg-canvas, text-ink, shadow-soft, ...) */
+@theme inline {
+  --font-sans: var(--font-jakarta), system-ui, -apple-system, "Segoe UI",
+    Arial, sans-serif;
+
+  --color-canvas: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-line: var(--border);
+  --color-line-strong: var(--border-strong);
+
+  --color-ink: var(--foreground);
+  --color-ink-muted: var(--muted-foreground);
+
+  --color-accent: var(--accent);
+  --color-accent-strong: var(--accent-strong);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-ink: var(--accent-foreground);
+
+  --color-pill: var(--pill);
+  --color-pill-ink: var(--pill-foreground);
+
+  --color-coral: var(--coral);
+  --color-amber: var(--amber);
+  --color-purple: var(--purple);
+
+  --color-peach: var(--peach);
+  --color-lavender: var(--lavender);
+  --color-aqua: var(--aqua);
+  --color-mint: var(--mint);
+
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+
+  --radius-card: 22px;
+  --shadow-soft: var(--shadow-soft);
 }
 
 body {
-  font-family: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial,
-    sans-serif;
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
 }

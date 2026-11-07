@@ -8,22 +8,32 @@ import ThemeToggle from "@/components/ThemeToggle";
 import { signOut } from "@/app/(app)/actions";
 import { bottomNavSlugs, navItems, type NavItem } from "@/lib/navigation";
 
+// Neutral placeholder until the business name comes from business settings.
+const WORKSPACE_NAME = "Retail workspace";
+
 function isActive(pathname: string, href: string) {
   if (href === "/") return pathname === "/";
   return pathname === href || pathname.startsWith(href + "/");
 }
 
+function initials(name: string) {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  return parts
+    .slice(0, 2)
+    .map((part) => part[0]!.toUpperCase())
+    .join("");
+}
+
 function Brand() {
   return (
     <div className="flex items-center gap-3">
-      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 text-white">
+      <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-accent text-accent-ink shadow-soft">
         <Store className="h-5 w-5" />
       </div>
       <div className="leading-tight">
-        <p className="text-sm font-bold tracking-wide">GWADAR TECH HUB</p>
-        <p className="text-xs text-slate-500 dark:text-slate-400">
-          Business Management
-        </p>
+        <p className="text-sm font-bold text-ink">{WORKSPACE_NAME}</p>
+        <p className="text-xs text-ink-muted">Business management</p>
       </div>
     </div>
   );
@@ -47,11 +57,12 @@ function NavLinks({
             key={item.href}
             href={item.href}
             onClick={onNavigate}
+            aria-current={active ? "page" : undefined}
             className={
-              "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors " +
+              "flex min-h-11 items-center gap-3 rounded-full px-4 py-2.5 text-sm font-medium transition-colors " +
               (active
-                ? "bg-blue-600 text-white"
-                : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800")
+                ? "bg-pill font-semibold text-pill-ink"
+                : "text-ink-muted hover:bg-surface-muted hover:text-ink")
             }
           >
             <item.icon className="h-5 w-5 shrink-0" />
@@ -77,7 +88,7 @@ export default function AppShell({
   const pathname = usePathname();
   const [drawerOpen, setDrawerOpen] = useState(false);
 
-  // Sirf wohi items jin ki ijazat hai
+  // Only the items this user is allowed to open
   const visibleItems = navItems.filter((item) =>
     allowedSlugs.includes(item.slug)
   );
@@ -86,17 +97,18 @@ export default function AppShell({
   );
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-canvas">
       {/* Desktop sidebar */}
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-slate-200 bg-white lg:flex dark:border-slate-800 dark:bg-slate-900">
-        <div className="border-b border-slate-200 px-4 py-4 dark:border-slate-800">
+      <aside className="fixed inset-y-3 left-3 z-30 hidden w-64 flex-col rounded-card border border-line bg-surface shadow-soft lg:flex">
+        <div className="px-5 pb-4 pt-5">
           <Brand />
         </div>
-        <div className="flex-1 overflow-y-auto p-3">
+        <div className="flex-1 overflow-y-auto px-3 pb-3">
           <NavLinks items={visibleItems} pathname={pathname} />
         </div>
-        <div className="border-t border-slate-200 px-4 py-3 text-xs text-slate-500 dark:border-slate-800 dark:text-slate-400">
-          Phase 5: Roles
+        <div className="m-3 rounded-2xl bg-surface-muted px-4 py-3">
+          <p className="text-xs font-semibold text-ink">{WORKSPACE_NAME}</p>
+          <p className="text-xs text-ink-muted">Signed in as {userRole}</p>
         </div>
       </aside>
 
@@ -104,82 +116,95 @@ export default function AppShell({
       {drawerOpen && (
         <div className="fixed inset-0 z-50 lg:hidden">
           <div
-            className="absolute inset-0 bg-black/50"
+            className="absolute inset-0 bg-black/40"
             onClick={() => setDrawerOpen(false)}
           />
-          <div className="absolute inset-y-0 left-0 flex w-72 max-w-[85%] flex-col bg-white shadow-xl dark:bg-slate-900">
-            <div className="flex items-center justify-between border-b border-slate-200 px-4 py-4 dark:border-slate-800">
+          <div className="absolute inset-y-0 left-0 flex w-72 max-w-[85%] flex-col rounded-r-card bg-surface shadow-soft">
+            <div className="flex items-center justify-between px-4 pb-3 pt-5">
               <Brand />
               <button
                 type="button"
-                aria-label="Menu band karein"
+                aria-label="Close menu"
                 onClick={() => setDrawerOpen(false)}
-                className="rounded-lg p-2 hover:bg-slate-100 dark:hover:bg-slate-800"
+                className="inline-flex h-11 w-11 items-center justify-center rounded-full text-ink-muted hover:bg-surface-muted hover:text-ink"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <div className="flex-1 overflow-y-auto p-3">
+            <div className="flex-1 overflow-y-auto px-3 pb-4">
               <NavLinks
                 items={visibleItems}
                 pathname={pathname}
                 onNavigate={() => setDrawerOpen(false)}
               />
             </div>
+            <div className="m-3 rounded-2xl bg-surface-muted px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+              <p className="text-sm font-semibold text-ink">{userName}</p>
+              <p className="text-xs text-ink-muted">{userRole}</p>
+            </div>
           </div>
         </div>
       )}
 
       {/* Right side: top bar + page content */}
-      <div className="lg:pl-64">
-        <header className="sticky top-0 z-20 flex h-14 items-center justify-between border-b border-slate-200 bg-white/90 px-4 backdrop-blur sm:px-6 dark:border-slate-800 dark:bg-slate-900/90">
-          <div className="flex items-center gap-3 lg:hidden">
-            <button
-              type="button"
-              aria-label="Menu kholein"
-              onClick={() => setDrawerOpen(true)}
-              className="rounded-lg p-2 hover:bg-slate-100 dark:hover:bg-slate-800"
-            >
-              <Menu className="h-5 w-5" />
-            </button>
-            <span className="text-sm font-bold tracking-wide">
-              GWADAR TECH HUB
-            </span>
-          </div>
-          <div className="hidden lg:block" />
-
-          <div className="flex items-center gap-2">
-            <div className="hidden text-right leading-tight sm:block">
-              <p className="text-sm font-semibold">{userName}</p>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                {userRole}
-              </p>
-            </div>
-            <ThemeToggle />
-            <form action={signOut}>
+      <div className="lg:pl-[17.5rem]">
+        <header className="sticky top-0 z-20 bg-canvas/85 px-4 pt-3 backdrop-blur sm:px-6 lg:px-8">
+          <div className="flex h-16 items-center justify-between gap-3 rounded-card border border-line bg-surface px-3 shadow-soft sm:px-4">
+            <div className="flex min-w-0 items-center gap-2 lg:hidden">
               <button
-                type="submit"
-                aria-label="Logout"
-                title="Logout"
-                className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                type="button"
+                aria-label="Open menu"
+                onClick={() => setDrawerOpen(true)}
+                className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-ink hover:bg-surface-muted"
               >
-                <LogOut className="h-5 w-5" />
-                <span className="hidden sm:inline">Logout</span>
+                <Menu className="h-5 w-5" />
               </button>
-            </form>
+              <span className="truncate text-sm font-bold text-ink">
+                {WORKSPACE_NAME}
+              </span>
+            </div>
+            <p className="hidden pl-2 text-sm text-ink-muted lg:block">
+              Welcome back,{" "}
+              <span className="font-semibold text-ink">{userName}</span>
+            </p>
+
+            <div className="flex shrink-0 items-center gap-2">
+              <div className="hidden items-center gap-2 sm:flex">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-lavender text-sm font-bold text-purple">
+                  {initials(userName)}
+                </div>
+                <div className="text-left leading-tight">
+                  <p className="text-sm font-semibold text-ink">{userName}</p>
+                  <p className="text-xs text-ink-muted">{userRole}</p>
+                </div>
+              </div>
+              <ThemeToggle />
+              <form action={signOut}>
+                <button
+                  type="submit"
+                  aria-label="Log out"
+                  title="Log out"
+                  className="inline-flex h-10 items-center justify-center gap-2 rounded-full border border-line bg-surface px-3 text-sm font-medium text-ink hover:bg-surface-muted"
+                >
+                  <LogOut className="h-5 w-5" />
+                  <span className="hidden sm:inline">Log out</span>
+                </button>
+              </form>
+            </div>
           </div>
         </header>
 
-        <main className="px-4 py-6 pb-24 sm:px-6 lg:px-8 lg:pb-8">
+        <main className="px-4 py-6 pb-28 sm:px-6 lg:px-8 lg:pb-10">
           {children}
         </main>
       </div>
 
       {/* Mobile bottom navigation */}
       <nav
-        className="fixed inset-x-0 bottom-0 z-30 grid border-t border-slate-200 bg-white pb-[env(safe-area-inset-bottom)] lg:hidden dark:border-slate-800 dark:bg-slate-900"
+        className="fixed inset-x-3 bottom-3 z-30 grid rounded-card border border-line bg-surface p-1.5 shadow-soft lg:hidden"
         style={{
           gridTemplateColumns: `repeat(${bottomItems.length + 1}, minmax(0, 1fr))`,
+          marginBottom: "env(safe-area-inset-bottom)",
         }}
       >
         {bottomItems.map((item) => {
@@ -188,11 +213,10 @@ export default function AppShell({
             <Link
               key={item.href}
               href={item.href}
+              aria-current={active ? "page" : undefined}
               className={
-                "flex flex-col items-center gap-1 py-2 text-[11px] font-medium " +
-                (active
-                  ? "text-blue-600 dark:text-blue-400"
-                  : "text-slate-500 dark:text-slate-400")
+                "flex min-h-12 flex-col items-center justify-center gap-0.5 rounded-2xl py-1.5 text-[11px] font-medium transition-colors " +
+                (active ? "bg-pill font-semibold text-pill-ink" : "text-ink-muted")
               }
             >
               <item.icon className="h-5 w-5" />
@@ -205,7 +229,7 @@ export default function AppShell({
         <button
           type="button"
           onClick={() => setDrawerOpen(true)}
-          className="flex flex-col items-center gap-1 py-2 text-[11px] font-medium text-slate-500 dark:text-slate-400"
+          className="flex min-h-12 flex-col items-center justify-center gap-0.5 rounded-2xl py-1.5 text-[11px] font-medium text-ink-muted"
         >
           <Menu className="h-5 w-5" />
           <span>Menu</span>

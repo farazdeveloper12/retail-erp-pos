@@ -17,12 +17,12 @@ import {
 } from "lucide-react";
 
 export type NavItem = {
-  slug: string; // URL ka hissa. Dashboard ke liye khali.
+  slug: string; // Part of the URL. Empty for the dashboard.
   href: string;
   label: string;
   icon: LucideIcon;
   description: string;
-  phase: string; // Ye module kis phase mein banega
+  phase: string; // The phase in which this module will be built
 };
 
 export const navItems: NavItem[] = [
@@ -31,7 +31,7 @@ export const navItems: NavItem[] = [
     href: "/",
     label: "Dashboard",
     icon: LayoutDashboard,
-    description: "Karobar ka poora khulasa ek nazar mein.",
+    description: "A complete overview of your business at a glance.",
     phase: "Phase 3",
   },
   {
@@ -39,7 +39,7 @@ export const navItems: NavItem[] = [
     href: "/sales",
     label: "Sales / POS",
     icon: ShoppingCart,
-    description: "Phones aur accessories ki tez bikri aur bills.",
+    description: "Fast checkout and invoices for phones and accessories.",
     phase: "Phase 8",
   },
   {
@@ -47,7 +47,7 @@ export const navItems: NavItem[] = [
     href: "/purchases",
     label: "Purchases",
     icon: PackagePlus,
-    description: "Supplier se maal ki kharidari aur landed cost.",
+    description: "Purchase stock from suppliers and track landed cost.",
     phase: "Phase 7",
   },
   {
@@ -55,7 +55,7 @@ export const navItems: NavItem[] = [
     href: "/inventory",
     label: "Inventory",
     icon: Boxes,
-    description: "Phones (IMEI ke saath) aur accessories ka stock.",
+    description: "Stock of phones (with IMEI) and accessories.",
     phase: "Phase 6",
   },
   {
@@ -63,7 +63,7 @@ export const navItems: NavItem[] = [
     href: "/catalog",
     label: "Product Catalog",
     icon: BookOpen,
-    description: "Phone models ki searchable list.",
+    description: "A searchable list of phone models.",
     phase: "Phase 6",
   },
   {
@@ -71,7 +71,7 @@ export const navItems: NavItem[] = [
     href: "/customers",
     label: "Customers",
     icon: Users,
-    description: "Customers, ledger aur baqaya raqam.",
+    description: "Customers, ledgers and outstanding balances.",
     phase: "Phase 10",
   },
   {
@@ -79,7 +79,7 @@ export const navItems: NavItem[] = [
     href: "/suppliers",
     label: "Suppliers",
     icon: Truck,
-    description: "Suppliers, ledger aur ada karne wali raqam.",
+    description: "Suppliers, ledgers and amounts payable.",
     phase: "Phase 10",
   },
   {
@@ -87,7 +87,7 @@ export const navItems: NavItem[] = [
     href: "/expenses",
     label: "Expenses",
     icon: Receipt,
-    description: "Kiraya, bijli, tankhwah aur dosray akhrajat.",
+    description: "Rent, utilities, salaries and other expenses.",
     phase: "Phase 11",
   },
   {
@@ -95,7 +95,7 @@ export const navItems: NavItem[] = [
     href: "/finance",
     label: "Cash & Bank",
     icon: Landmark,
-    description: "Cash, bank, wallets aur transaction ledger.",
+    description: "Cash, bank accounts, wallets and the transaction ledger.",
     phase: "Phase 11",
   },
   {
@@ -103,7 +103,7 @@ export const navItems: NavItem[] = [
     href: "/returns",
     label: "Returns & Warranty",
     icon: RotateCcw,
-    description: "Wapsi, exchange aur warranty claims.",
+    description: "Returns, exchanges and warranty claims.",
     phase: "Phase 13",
   },
   {
@@ -111,7 +111,7 @@ export const navItems: NavItem[] = [
     href: "/reports",
     label: "Reports",
     icon: TrendingUp,
-    description: "Profit and loss aur dosri reports.",
+    description: "Profit and loss and other business reports.",
     phase: "Phase 14",
   },
   {
@@ -119,7 +119,7 @@ export const navItems: NavItem[] = [
     href: "/ai-assistant",
     label: "AI Assistant",
     icon: Sparkles,
-    description: "Karobar ke baare mein sawal aur mashwaray.",
+    description: "Ask questions and get suggestions about your business.",
     phase: "Phase 15",
   },
   {
@@ -127,7 +127,7 @@ export const navItems: NavItem[] = [
     href: "/users",
     label: "Users & Roles",
     icon: UserCog,
-    description: "Employees aur unki permissions.",
+    description: "Employees and their permissions.",
     phase: "Phase 5",
   },
   {
@@ -135,10 +135,10 @@ export const navItems: NavItem[] = [
     href: "/settings",
     label: "Settings",
     icon: Settings,
-    description: "System aur business ki settings.",
+    description: "System and business settings.",
     phase: "Phase 21",
   },
 ];
 
-// Phone ke neeche wale bar mein kaun se items dikhein
+// Items shown in the bottom navigation bar on phones
 export const bottomNavSlugs = ["", "sales", "inventory", "customers"];

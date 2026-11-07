@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
-import { Hammer } from "lucide-react";
+import Link from "next/link";
+import { ArrowLeft, Sparkles } from "lucide-react";
 import AccessDenied from "@/components/AccessDenied";
 import { navItems } from "@/lib/navigation";
 import { canViewPage, getMyPermissions } from "@/lib/permissions";
@@ -24,23 +25,38 @@ export default async function ModulePage({
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <div className="flex items-center gap-3">
-        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-600 text-white">
+        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-accent text-accent-ink shadow-soft">
           <item.icon className="h-6 w-6" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold">{item.label}</h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400">
-            {item.description}
-          </p>
+          <h1 className="text-2xl font-bold text-ink">{item.label}</h1>
+          <p className="text-sm text-ink-muted">{item.description}</p>
         </div>
       </div>
 
-      <div className="rounded-xl border border-dashed border-slate-300 bg-white p-8 text-center dark:border-slate-700 dark:bg-slate-900">
-        <Hammer className="mx-auto h-8 w-8 text-slate-400" />
-        <p className="mt-3 font-medium">Ye module abhi bana nahi</p>
-        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-          {item.phase} mein is ko asli functionality ke saath banayenge.
+      <div className="rounded-card border border-line bg-surface px-6 py-12 text-center shadow-soft">
+        {/* Illustration-style icon */}
+        <div className="relative mx-auto h-24 w-24">
+          <div className="absolute inset-0 rounded-full bg-aqua" />
+          <div className="absolute inset-4 flex items-center justify-center rounded-3xl border-2 border-ink bg-surface">
+            <item.icon className="h-8 w-8 text-accent" />
+          </div>
+          <div className="absolute -right-1 top-1 flex h-8 w-8 items-center justify-center rounded-full bg-pill text-pill-ink shadow-soft">
+            <Sparkles className="h-4 w-4" />
+          </div>
+        </div>
+        <p className="mt-5 text-lg font-bold text-ink">Coming soon</p>
+        <p className="mx-auto mt-1 max-w-sm text-sm text-ink-muted">
+          We are building {item.label}. It will appear here as soon as it is
+          ready.
         </p>
+        <Link
+          href="/"
+          className="mt-6 inline-flex min-h-11 items-center gap-2 rounded-full border border-line bg-surface px-5 text-sm font-semibold text-ink hover:bg-surface-muted"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back to dashboard
+        </Link>
       </div>
     </div>
   );

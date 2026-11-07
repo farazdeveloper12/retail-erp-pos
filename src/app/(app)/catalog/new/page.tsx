@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
 import AccessDenied from "@/components/AccessDenied";
+import { BackLink, PageHeader, cardClass } from "@/components/ui";
 import { createClient } from "@/lib/supabase/server";
 import { getMyPermissions } from "@/lib/permissions";
 import { NewModelForm } from "@/app/(app)/catalog/CatalogForms";
+import { PackagePlus } from "lucide-react";
 
 export const metadata: Metadata = {
-  title: "Naya model",
+  title: "New model",
 };
 
 export default async function NewModelPage() {
@@ -27,23 +27,15 @@ export default async function NewModelPage() {
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <div className="space-y-3">
-        <Link
-          href="/catalog"
-          className="inline-flex items-center gap-1 text-sm text-blue-600 hover:underline dark:text-blue-400"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Catalog par wapas
-        </Link>
-        <div>
-          <h1 className="text-2xl font-bold">Naya model</h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400">
-            Model banane ke baad uske storage/RAM variants aur colors add
-            karein.
-          </p>
-        </div>
+        <BackLink href="/catalog">Back to catalog</BackLink>
+        <PageHeader
+          icon={PackagePlus}
+          title="New model"
+          description="After creating the model, add its storage/RAM variants and colors."
+        />
       </div>
 
-      <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+      <div className={cardClass}>
         <NewModelForm brands={brands} />
       </div>
     </div>

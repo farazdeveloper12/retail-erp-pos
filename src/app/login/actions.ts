@@ -13,22 +13,22 @@ export async function signIn(
   const password = String(formData.get("password") ?? "");
 
   if (!email || !password) {
-    return { error: "Email aur password dono likhein." };
+    return { error: "Please enter both your email and password." };
   }
 
   const supabase = await createClient();
 
-  // 1) Email aur password check
+  // 1) Check email and password
   const { data, error } = await supabase.auth.signInWithPassword({
     email,
     password,
   });
 
   if (error || !data.user) {
-    return { error: "Email ya password galat hai." };
+    return { error: "Incorrect email or password." };
   }
 
-  // 2) Profile check: profile maujood ho aur account active ho
+  // 2) Check the profile: it must exist and the account must be active
   const { data: profile, error: profileError } = await supabase
     .from("profiles")
     .select("is_active")
@@ -39,7 +39,7 @@ export async function signIn(
     await supabase.auth.signOut();
     return {
       error:
-        "Ye account istemal nahi ho sakta. Owner se rabta karein.",
+        "This account cannot be used. Please contact the owner.",
     };
   }
 

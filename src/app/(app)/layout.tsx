@@ -32,21 +32,22 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
     profile = data as Profile | null;
   }
 
-  // Profile na ho ya account band ho: app ke andar jaane nahi dena
+  // No profile or an inactive account: do not allow access to the app
   if (!profile || !profile.is_active) {
     return (
-      <main className="flex min-h-screen items-center justify-center px-4">
-        <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-sm dark:border-slate-800 dark:bg-slate-900">
-          <h1 className="text-lg font-bold">Account istemal nahi ho sakta</h1>
-          <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
-            Aap ka profile mojood nahi ya band hai. Owner se rabta karein.
+      <main className="flex min-h-screen items-center justify-center bg-canvas px-4">
+        <div className="w-full max-w-sm rounded-card border border-line bg-surface p-6 text-center shadow-soft">
+          <h1 className="text-lg font-bold text-ink">Account unavailable</h1>
+          <p className="mt-2 text-sm text-ink-muted">
+            Your profile is missing or has been deactivated. Please contact the
+            owner.
           </p>
           <form action={signOut} className="mt-5">
             <button
               type="submit"
-              className="w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700"
+              className="min-h-11 w-full rounded-full bg-accent px-4 py-2.5 text-sm font-semibold text-accent-ink hover:bg-accent-strong"
             >
-              Logout
+              Log out
             </button>
           </form>
         </div>
@@ -54,7 +55,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
     );
   }
 
-  // Sidebar mein kaun se items dikhne chahiye
+  // Which items should appear in the sidebar
   const permissions = await getMyPermissions();
   const allowedSlugs = navItems
     .filter((item) => canViewPage(permissions, item.slug))

@@ -25,13 +25,13 @@ function ok(message: string): ManageState {
   return { error: null, success: message };
 }
 
-// Account band ya chalu karna
+// Activate or deactivate an account
 export async function updateUserStatus(
   _previousState: ManageState,
   formData: FormData
 ): Promise<ManageState> {
   const userId = readUserId(formData);
-  if (!userId) return fail("User ki pehchaan ghalat hai.");
+  if (!userId) return fail("Invalid user ID.");
 
   const makeActive = String(formData.get("active")) === "true";
 
@@ -43,23 +43,21 @@ export async function updateUserStatus(
   if (error) return fail(error.message);
 
   return ok(
-    makeActive
-      ? "Account chalu kar diya gaya."
-      : "Account band kar diya gaya."
+    makeActive ? "The account has been activated." : "The account has been deactivated."
   );
 }
 
-// Role badalna
+// Change the role
 export async function updateUserRole(
   _previousState: ManageState,
   formData: FormData
 ): Promise<ManageState> {
   const userId = readUserId(formData);
-  if (!userId) return fail("User ki pehchaan ghalat hai.");
+  if (!userId) return fail("Invalid user ID.");
 
   const role = String(formData.get("role") ?? "");
   if (role !== "manager" && role !== "sales") {
-    return fail("Role Manager ya Sales Employee chunein.");
+    return fail("Please choose either Manager or Sales Employee.");
   }
 
   const supabase = await createClient();
@@ -69,27 +67,27 @@ export async function updateUserRole(
   });
   if (error) return fail(error.message);
 
-  return ok("Role badal diya gaya.");
+  return ok("The role has been updated.");
 }
 
-// Ijazatein save karna
+// Save permission overrides
 export async function saveUserPermissions(
   _previousState: ManageState,
   formData: FormData
 ): Promise<ManageState> {
   const userId = readUserId(formData);
-  if (!userId) return fail("User ki pehchaan ghalat hai.");
+  if (!userId) return fail("Invalid user ID.");
 
   const changes: Record<string, string> = {};
   for (const [name, value] of formData.entries()) {
     if (!name.startsWith("perm:")) continue;
     const mode = String(value);
-    if (!MODES.has(mode)) return fail("Ghalat chunav mila.");
+    if (!MODES.has(mode)) return fail("Invalid option selected.");
     changes[name.slice(5)] = mode;
   }
 
   if (Object.keys(changes).length === 0) {
-    return fail("Koi ijazat nahi mili.");
+    return fail("No permissions were submitted.");
   }
 
   const supabase = await createClient();
@@ -99,5 +97,5 @@ export async function saveUserPermissions(
   });
   if (error) return fail(error.message);
 
-  return ok("Ijazatein save ho gayin.");
+  return ok("Permissions saved.");
 }

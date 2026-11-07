@@ -24,17 +24,17 @@ export async function updateSession(request: NextRequest) {
     },
   });
 
-  // Check: kya user login hai? (sahi login token hona zaroori hai)
+  // Check whether the user is signed in (requires a valid login token)
   const { data } = await supabase.auth.getClaims();
   const isLoggedIn = Boolean(data?.claims);
   const isLoginPage = request.nextUrl.pathname === "/login";
 
-  // Login nahi hai aur /login ke ilawa kuch khola: /login par bhejo
+  // Not signed in and opening any page other than /login: send to /login
   if (!isLoggedIn && !isLoginPage) {
     return redirectTo(request, "/login", response);
   }
 
-  // Login hai aur /login khola: Dashboard par bhejo
+  // Signed in and opening /login: send to the dashboard
   if (isLoggedIn && isLoginPage) {
     return redirectTo(request, "/", response);
   }
@@ -52,7 +52,7 @@ function redirectTo(
   target.search = "";
 
   const redirectResponse = NextResponse.redirect(target);
-  // Session ke tazaa cookies redirect ke saath bhi bhejna zaroori hai
+  // The fresh session cookies must also be sent with the redirect
   sessionResponse.cookies.getAll().forEach((cookie) => {
     redirectResponse.cookies.set(cookie);
   });

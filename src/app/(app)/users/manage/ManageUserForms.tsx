@@ -7,6 +7,14 @@ import {
   updateUserStatus,
   type ManageState,
 } from "@/app/(app)/users/manage-actions";
+import {
+  Notice,
+  cardClass,
+  dangerButtonClass,
+  inputClass,
+  labelClass,
+  primaryButtonClass,
+} from "@/components/ui";
 
 export type ManagedUser = {
   id: string;
@@ -28,31 +36,19 @@ export type MatrixRow = {
 
 const initialState: ManageState = { error: null, success: null };
 
-const inputClass =
-  "rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/30 dark:border-slate-700 dark:bg-slate-950";
-
-const cardClass =
-  "rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900";
-
 function Message({ state }: { state: ManageState }) {
   if (state.error) {
     return (
-      <p
-        role="alert"
-        className="mt-3 rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800 dark:border-red-800/60 dark:bg-red-950/40 dark:text-red-200"
-      >
-        {state.error}
-      </p>
+      <div className="mt-4">
+        <Notice kind="error">{state.error}</Notice>
+      </div>
     );
   }
   if (state.success) {
     return (
-      <p
-        role="status"
-        className="mt-3 rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm text-emerald-800 dark:border-emerald-800/60 dark:bg-emerald-950/40 dark:text-emerald-200"
-      >
-        {state.success}
-      </p>
+      <div className="mt-4">
+        <Notice kind="success">{state.success}</Notice>
+      </div>
     );
   }
   return null;
@@ -84,10 +80,10 @@ export default function ManageUserForms({
     <div className="space-y-6">
       {/* Account status */}
       <section className={cardClass}>
-        <h2 className="font-semibold">Account ki halat</h2>
-        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-          Band account se employee login nahi kar sakta. Uska record aur purani
-          bikri mehfooz rehti hai.
+        <h2 className="text-base font-bold text-ink">Account status</h2>
+        <p className="mt-1 text-sm text-ink-muted">
+          A deactivated employee cannot sign in. Their records and past sales
+          are kept safe.
         </p>
         <form
           action={statusAction}
@@ -96,7 +92,7 @@ export default function ManageUserForms({
             if (
               user.is_active &&
               !window.confirm(
-                "Is account ko band karna chahte hain? Ye employee login nahi kar sakega."
+                "Deactivate this account? This employee will no longer be able to sign in."
               )
             ) {
               event.preventDefault();
@@ -112,14 +108,9 @@ export default function ManageUserForms({
           <button
             type="submit"
             disabled={statusPending}
-            className={
-              "rounded-lg px-4 py-2 text-sm font-semibold text-white disabled:opacity-60 " +
-              (user.is_active
-                ? "bg-red-600 hover:bg-red-700"
-                : "bg-emerald-600 hover:bg-emerald-700")
-            }
+            className={user.is_active ? dangerButtonClass : primaryButtonClass}
           >
-            {user.is_active ? "Account band karein" : "Account chalu karein"}
+            {user.is_active ? "Deactivate account" : "Activate account"}
           </button>
         </form>
         <Message state={statusState} />
@@ -127,24 +118,35 @@ export default function ManageUserForms({
 
       {/* Role */}
       <section className={cardClass}>
-        <h2 className="font-semibold">Role</h2>
-        <form action={roleAction} className="mt-4 flex flex-wrap items-center gap-3">
+        <h2 className="text-base font-bold text-ink">Role</h2>
+        <p className="mt-1 text-sm text-ink-muted">
+          The role sets the default permissions for this person.
+        </p>
+        <form
+          action={roleAction}
+          className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end"
+        >
           <input type="hidden" name="user_id" value={user.id} />
-          <select
-            name="role"
-            defaultValue={user.role}
-            className={inputClass}
-            aria-label="Role"
-          >
-            <option value="sales">Sales Employee</option>
-            <option value="manager">Manager</option>
-          </select>
+          <div className="sm:w-64">
+            <label htmlFor="manage-role" className={labelClass}>
+              Role
+            </label>
+            <select
+              id="manage-role"
+              name="role"
+              defaultValue={user.role}
+              className={inputClass}
+            >
+              <option value="sales">Sales Employee</option>
+              <option value="manager">Manager</option>
+            </select>
+          </div>
           <button
             type="submit"
             disabled={rolePending}
-            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
+            className={primaryButtonClass}
           >
-            Role badlein
+            {rolePending ? "Saving..." : "Update role"}
           </button>
         </form>
         <Message state={roleState} />
@@ -152,54 +154,53 @@ export default function ManageUserForms({
 
       {/* Permissions */}
       <section className={cardClass}>
-        <h2 className="font-semibold">Ijazatein</h2>
-        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-          &quot;Default&quot; ka matlab role ke mutabiq. Kisi ek ijazat ko
-          alag se dene ya wapas lene ke liye drop-down badlein, phir neeche
-          Save dabayein.
+        <h2 className="text-base font-bold text-ink">Permissions</h2>
+        <p className="mt-1 text-sm text-ink-muted">
+          &quot;Default&quot; follows the role. To grant or remove a single
+          permission for this person, change its option and then press Save.
         </p>
 
-        <form action={permAction} className="mt-4 space-y-6">
+        <form action={permAction} className="mt-5 space-y-6">
           <input type="hidden" name="user_id" value={user.id} />
 
           {modules.map((module) => (
             <div key={module}>
-              <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+              <h3 className="mb-2 text-xs font-bold uppercase tracking-wide text-ink-muted">
                 {module}
               </h3>
-              <div className="divide-y divide-slate-100 rounded-lg border border-slate-200 dark:divide-slate-800 dark:border-slate-800">
+              <div className="divide-y divide-line overflow-hidden rounded-2xl border border-line">
                 {matrix
                   .filter((row) => row.module === module)
                   .map((row) => (
                     <div
                       key={`${row.permission_key}-${row.override_mode}`}
-                      className="flex flex-col gap-2 p-3 sm:flex-row sm:items-center sm:justify-between"
+                      className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between"
                     >
                       <div className="min-w-0">
-                        <p className="text-sm font-medium">{row.description}</p>
-                        <p className="text-xs text-slate-500 dark:text-slate-400">
-                          Role ka default:{" "}
-                          {row.role_default ? "Haan" : "Nahi"} · Abhi:{" "}
+                        <p className="text-sm font-semibold text-ink">
+                          {row.description}
+                        </p>
+                        <p className="mt-1 flex flex-wrap items-center gap-2 text-xs text-ink-muted">
+                          Role default: {row.role_default ? "Yes" : "No"}
                           <span
                             className={
-                              row.effective
-                                ? "font-semibold text-emerald-600 dark:text-emerald-400"
-                                : "font-semibold text-red-600 dark:text-red-400"
+                              "rounded-full px-2 py-0.5 font-semibold text-ink " +
+                              (row.effective ? "bg-mint" : "bg-peach")
                             }
                           >
-                            {row.effective ? "Ijazat hai" : "Ijazat nahi"}
+                            {row.effective ? "Allowed" : "Not allowed"}
                           </span>
                         </p>
                       </div>
                       <select
                         name={`perm:${row.permission_key}`}
                         defaultValue={row.override_mode}
-                        className={inputClass}
+                        className={inputClass + " sm:w-60"}
                         aria-label={row.description}
                       >
-                        <option value="default">Default (role ke mutabiq)</option>
-                        <option value="allow">Zabardasti ijazat do</option>
-                        <option value="deny">Zabardasti mana karo</option>
+                        <option value="default">Default (follow role)</option>
+                        <option value="allow">Always allow</option>
+                        <option value="deny">Always deny</option>
                       </select>
                     </div>
                   ))}
@@ -211,9 +212,9 @@ export default function ManageUserForms({
             <button
               type="submit"
               disabled={permPending}
-              className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
+              className={primaryButtonClass + " w-full sm:w-auto"}
             >
-              {permPending ? "Save ho raha hai..." : "Ijazatein save karein"}
+              {permPending ? "Saving..." : "Save permissions"}
             </button>
             <Message state={permState} />
           </div>

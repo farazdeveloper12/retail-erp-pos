@@ -5,13 +5,19 @@ import { signIn, type LoginState } from "@/app/login/actions";
 
 const initialState: LoginState = { error: null };
 
+const inputClass =
+  "w-full rounded-2xl border border-line-strong bg-surface px-4 py-3 text-sm text-ink outline-none transition placeholder:text-ink-muted/70 focus:border-accent focus:ring-4 focus:ring-accent/15";
+
 export default function LoginForm() {
   const [state, formAction, pending] = useActionState(signIn, initialState);
 
   return (
     <form action={formAction} className="space-y-4">
       <div>
-        <label htmlFor="email" className="mb-1 block text-sm font-medium">
+        <label
+          htmlFor="email"
+          className="mb-1.5 block text-sm font-semibold text-ink"
+        >
           Email
         </label>
         <input
@@ -19,13 +25,17 @@ export default function LoginForm() {
           name="email"
           type="email"
           autoComplete="email"
+          placeholder="you@example.com"
           required
-          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/30 dark:border-slate-700 dark:bg-slate-950"
+          className={inputClass}
         />
       </div>
 
       <div>
-        <label htmlFor="password" className="mb-1 block text-sm font-medium">
+        <label
+          htmlFor="password"
+          className="mb-1.5 block text-sm font-semibold text-ink"
+        >
           Password
         </label>
         <input
@@ -33,15 +43,16 @@ export default function LoginForm() {
           name="password"
           type="password"
           autoComplete="current-password"
+          placeholder="Enter your password"
           required
-          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/30 dark:border-slate-700 dark:bg-slate-950"
+          className={inputClass}
         />
       </div>
 
       {state.error && (
         <p
           role="alert"
-          className="rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800 dark:border-red-800/60 dark:bg-red-950/40 dark:text-red-200"
+          className="rounded-2xl bg-danger-soft px-4 py-3 text-sm font-medium text-danger"
         >
           {state.error}
         </p>
@@ -50,9 +61,9 @@ export default function LoginForm() {
       <button
         type="submit"
         disabled={pending}
-        className="w-full rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60"
+        className="min-h-12 w-full rounded-full bg-accent px-4 py-3 text-sm font-semibold text-accent-ink shadow-soft transition hover:bg-accent-strong disabled:opacity-60"
       >
-        {pending ? "Login ho raha hai..." : "Login"}
+        {pending ? "Signing in..." : "Sign in"}
       </button>
     </form>
   );

@@ -6,7 +6,7 @@ export const PRODUCT_TYPE_LABELS: Record<string, string> = {
   smartwatch: "Smartwatch",
 };
 
-// 1024 GB ko "1TB" likhna
+// Show 1024 GB as "1TB"
 export function formatStorage(gb: number): string {
   if (gb >= 1024 && gb % 1024 === 0) return `${gb / 1024}TB`;
   return `${gb}GB`;

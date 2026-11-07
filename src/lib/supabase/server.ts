@@ -2,7 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { getSupabaseEnv } from "@/lib/supabase/env";
 
-// Server (pages, server actions) ke liye Supabase connection
+// Supabase connection for the server (pages, server actions)
 export async function createClient() {
   const cookieStore = await cookies();
   const { url, key } = getSupabaseEnv();
@@ -18,8 +18,8 @@ export async function createClient() {
             cookieStore.set(name, value, options)
           );
         } catch {
-          // Server Component se cookie set nahi ho sakti.
-          // Ye theek hai, session ko proxy file refresh karegi (agle step mein).
+          // Cookies cannot be set from a Server Component.
+          // This is fine: the proxy refreshes the session instead.
         }
       },
     },

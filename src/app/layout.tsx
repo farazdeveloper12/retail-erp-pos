@@ -1,13 +1,20 @@
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
+import { Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
+
+const jakarta = Plus_Jakarta_Sans({
+  subsets: ["latin"],
+  variable: "--font-jakarta",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: {
     default: "GWADAR TECH HUB",
     template: "%s | GWADAR TECH HUB",
   },
-  description: "Mobile phones aur accessories shop management system",
+  description: "Retail management system for mobile phones and accessories",
 };
 
 export const viewport: Viewport = {
@@ -15,31 +22,30 @@ export const viewport: Viewport = {
   initialScale: 1,
   viewportFit: "cover",
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
-    { media: "(prefers-color-scheme: dark)", color: "#0f172a" },
+    { media: "(prefers-color-scheme: light)", color: "#f7f3ea" },
+    { media: "(prefers-color-scheme: dark)", color: "#1b1916" },
   ],
 };
 
-// Page khulte hi saved theme lagata hai, taake screen "flash" na kare
+// Applies the saved theme before the page paints, so the screen does not flash.
+// Light is the default unless the user has chosen dark.
 const themeScript = `
 (function () {
   try {
-    var saved = localStorage.getItem("theme");
-    var useDark = saved
-      ? saved === "dark"
-      : window.matchMedia("(prefers-color-scheme: dark)").matches;
-    if (useDark) document.documentElement.classList.add("dark");
+    if (localStorage.getItem("theme") === "dark") {
+      document.documentElement.classList.add("dark");
+    }
   } catch (e) {}
 })();
 `;
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" className={jakarta.variable} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
-      <body className="bg-slate-50 text-slate-900 antialiased dark:bg-slate-950 dark:text-slate-100">
+      <body className="bg-canvas font-sans text-ink antialiased">
         {children}
       </body>
     </html>

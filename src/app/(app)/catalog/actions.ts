@@ -15,7 +15,7 @@ type Db = Awaited<ReturnType<typeof createClient>>;
 
 class ValidationError extends Error {}
 
-// Form mein jo likha tha wo wapas dikhane ke liye
+// Keeps what the user typed so the form can show it again
 function snapshot(formData: FormData): Record<string, string> {
   const values: Record<string, string> = {};
   for (const [name, value] of formData.entries()) {
@@ -46,7 +46,7 @@ function readText(
   const value = String(formData.get(name) ?? "").trim();
   if (value === "") return null;
   if (value.length > max) {
-    throw new ValidationError(`${label} ${max} harf se zyada nahi ho sakta.`);
+    throw new ValidationError(`${label} cannot be longer than ${max} characters.`);
   }
   return value;
 }
@@ -58,7 +58,7 @@ function requireText(
   label: string
 ): string {
   const value = readText(formData, name, max, label);
-  if (!value) throw new ValidationError(`${label} likhna zaroori hai.`);
+  if (!value) throw new ValidationError(`${label} is required.`);
   return value;
 }
 
@@ -72,11 +72,11 @@ function readInt(
   const raw = String(formData.get(name) ?? "").trim();
   if (raw === "") return null;
   if (!/^\d+$/.test(raw)) {
-    throw new ValidationError(`${label} sirf number hona chahiye.`);
+    throw new ValidationError(`${label} must be a whole number.`);
   }
   const value = Number(raw);
   if (value < min || value > max) {
-    throw new ValidationError(`${label} ${min} se ${max} ke darmiyan hona chahiye.`);
+    throw new ValidationError(`${label} must be between ${min} and ${max}.`);
   }
   return value;
 }
@@ -84,7 +84,7 @@ function readInt(
 function readId(formData: FormData, name: string): string {
   const value = String(formData.get(name) ?? "");
   if (!UUID_PATTERN.test(value)) {
-    throw new ValidationError("Pehchaan ghalat hai.");
+    throw new ValidationError("Invalid ID.");
   }
   return value;
 }
@@ -94,11 +94,11 @@ function dbMessage(
   duplicateMessage: string
 ): string {
   if (error.code === "23505") return duplicateMessage;
-  if (error.code === "42501") return "Is kaam ki ijazat nahi hai.";
-  return "Database mein masla aaya: " + error.message;
+  if (error.code === "42501") return "You do not have permission to do this.";
+  return "A database error occurred: " + error.message;
 }
 
-// Har action pehle ijazat check karta hai
+// Every action checks permission first
 async function run(
   formData: FormData,
   task: (supabase: Db) => Promise<FormState>
@@ -109,7 +109,7 @@ async function run(
       perm: "catalog.manage",
     });
     if (error || data !== true) {
-      return fail("Aap ko catalog badalne ki ijazat nahi hai.", formData);
+      return fail("You do not have permission to change the catalog.", formData);
     }
     return await task(supabase);
   } catch (e) {
@@ -121,21 +121,21 @@ async function run(
 function readModelFields(formData: FormData) {
   const productType = String(formData.get("product_type") ?? "");
   if (productType !== "phone" && productType !== "smartwatch") {
-    throw new ValidationError("Type Phone ya Smartwatch chunein.");
+    throw new ValidationError("Please choose Phone or Smartwatch as the type.");
   }
 
   const specSource = readText(formData, "spec_source", 500, "Source link");
   if (specSource && !/^https?:\/\//i.test(specSource)) {
     throw new ValidationError(
-      "Source link http:// ya https:// se shuru hona chahiye."
+      "Source link must start with http:// or https://."
     );
   }
 
   return {
-    name: requireText(formData, "name", 100, "Model ka naam"),
+    name: requireText(formData, "name", 100, "Model name"),
     product_type: productType,
     series: readText(formData, "series", 60, "Series"),
-    release_year: readInt(formData, "release_year", 2000, 2100, "Saal"),
+    release_year: readInt(formData, "release_year", 2000, 2100, "Release year"),
     display_info: readText(formData, "display_info", 300, "Display"),
     chipset: readText(formData, "chipset", 150, "Chipset"),
     camera_info: readText(formData, "camera_info", 300, "Camera"),
@@ -151,12 +151,12 @@ export async function addBrand(
   formData: FormData
 ): Promise<FormState> {
   return run(formData, async (supabase) => {
-    const name = requireText(formData, "name", 60, "Brand ka naam");
+    const name = requireText(formData, "name", 60, "Brand name");
     const { error } = await supabase.from("brands").insert({ name });
     if (error) {
-      return fail(dbMessage(error, "Ye brand pehle se maujood hai."), formData);
+      return fail(dbMessage(error, "This brand already exists."), formData);
     }
-    return ok(`${name} brand add ho gaya.`);
+    return ok(`Brand "${name}" has been added.`);
   });
 }
 
@@ -177,8 +177,8 @@ export async function createModel(
     if (error || !data) {
       return fail(
         dbMessage(
-          error ?? { message: "Model nahi ban saka." },
-          "Is brand mein ye model pehle se maujood hai."
+          error ?? { message: "The model could not be created." },
+          "This model already exists for this brand."
         ),
         formData
       );
@@ -204,11 +204,11 @@ export async function updateModel(
 
     if (error) {
       return fail(
-        dbMessage(error, "Is brand mein is naam ka model pehle se maujood hai."),
+        dbMessage(error, "A model with this name already exists for this brand."),
         formData
       );
     }
-    return ok("Model ki maloomat save ho gayin.");
+    return ok("Model details saved.");
   });
 }
 
@@ -221,15 +221,15 @@ export async function addVariant(
 
     const storage = readInt(formData, "storage", 1, 4096, "Storage");
     if (storage === null) {
-      throw new ValidationError("Storage likhna zaroori hai.");
+      throw new ValidationError("Storage is required.");
     }
     const unit = String(formData.get("storage_unit") ?? "");
     if (unit !== "GB" && unit !== "TB") {
-      throw new ValidationError("Storage ki unit GB ya TB chunein.");
+      throw new ValidationError("Please choose GB or TB as the storage unit.");
     }
     const storageGb = unit === "TB" ? storage * 1024 : storage;
     if (storageGb > 4096) {
-      throw new ValidationError("Storage 4TB se zyada nahi ho sakta.");
+      throw new ValidationError("Storage cannot be more than 4TB.");
     }
 
     const ramGb = readInt(formData, "ram", 1, 64, "RAM");
@@ -241,11 +241,11 @@ export async function addVariant(
     });
     if (error) {
       return fail(
-        dbMessage(error, "Ye storage aur RAM ka variant pehle se maujood hai."),
+        dbMessage(error, "A variant with this storage and RAM already exists."),
         formData
       );
     }
-    return ok("Variant add ho gaya.");
+    return ok("Variant added.");
   });
 }
 
@@ -255,15 +255,15 @@ export async function addColor(
 ): Promise<FormState> {
   return run(formData, async (supabase) => {
     const modelId = readId(formData, "model_id");
-    const name = requireText(formData, "name", 60, "Color ka naam");
+    const name = requireText(formData, "name", 60, "Color name");
 
     const { error } = await supabase
       .from("model_colors")
       .insert({ model_id: modelId, name });
     if (error) {
-      return fail(dbMessage(error, "Ye color pehle se maujood hai."), formData);
+      return fail(dbMessage(error, "This color already exists."), formData);
     }
-    return ok(`${name} color add ho gaya.`);
+    return ok(`Color "${name}" has been added.`);
   });
 }
 
@@ -273,7 +273,7 @@ const TABLES = {
   color: "model_colors",
 } as const;
 
-// Model, variant ya color ko band / chalu karna (delete nahi hota)
+// Activate or deactivate a model, variant or color (nothing is deleted)
 export async function setActive(
   _previousState: FormState,
   formData: FormData
@@ -281,7 +281,7 @@ export async function setActive(
   return run(formData, async (supabase) => {
     const kind = String(formData.get("kind") ?? "");
     if (kind !== "model" && kind !== "variant" && kind !== "color") {
-      throw new ValidationError("Ghalat chunav.");
+      throw new ValidationError("Invalid option.");
     }
     const id = readId(formData, "id");
     const active = String(formData.get("active")) === "true";
@@ -291,8 +291,8 @@ export async function setActive(
       .update({ is_active: active })
       .eq("id", id);
     if (error) {
-      return fail(dbMessage(error, "Ye nahi ho saka."), formData);
+      return fail(dbMessage(error, "This change could not be saved."), formData);
     }
-    return ok(active ? "Chalu kar diya gaya." : "Band kar diya gaya.");
+    return ok(active ? "Activated." : "Deactivated.");
   });
 }

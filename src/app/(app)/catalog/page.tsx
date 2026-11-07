@@ -1,7 +1,20 @@
 import type { Metadata } from "next";
+import type { ReactNode } from "react";
 import Link from "next/link";
-import { BookOpen, Plus } from "lucide-react";
+import { BookOpen, Plus, Search, SearchX, Tag } from "lucide-react";
 import AccessDenied from "@/components/AccessDenied";
+import DeviceIllustration from "@/components/illustrations/DeviceIllustration";
+import {
+  EmptyState,
+  Notice,
+  PageHeader,
+  Pill,
+  cardClass,
+  inputClass,
+  labelClass,
+  primaryButtonClass,
+  secondaryButtonClass,
+} from "@/components/ui";
 import { createClient } from "@/lib/supabase/server";
 import { canViewPage, getMyPermissions } from "@/lib/permissions";
 import {
@@ -25,10 +38,45 @@ type ModelRow = {
   model_colors: { is_active: boolean }[];
 };
 
-const inputClass =
-  "rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/30 dark:border-slate-700 dark:bg-slate-950";
-
 const PAGE_SIZE = 200;
+
+// Pastel tile backgrounds, picked by position so the grid feels varied
+const TILE_TONES = ["bg-aqua", "bg-peach", "bg-lavender", "bg-mint"];
+
+// Builds a /catalog link that keeps the other filters
+function catalogHref(params: { q?: string; brand?: string; type?: string }) {
+  const search = new URLSearchParams();
+  if (params.q) search.set("q", params.q);
+  if (params.brand) search.set("brand", params.brand);
+  if (params.type) search.set("type", params.type);
+  const text = search.toString();
+  return text ? `/catalog?${text}` : "/catalog";
+}
+
+function Chip({
+  href,
+  active,
+  children,
+}: {
+  href: string;
+  active: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <Link
+      href={href}
+      aria-current={active ? "true" : undefined}
+      className={
+        "inline-flex min-h-11 shrink-0 items-center rounded-full px-4 text-sm font-semibold transition-colors " +
+        (active
+          ? "bg-pill text-pill-ink shadow-soft"
+          : "border border-line bg-surface text-ink-muted hover:text-ink")
+      }
+    >
+      {children}
+    </Link>
+  );
+}
 
 export default async function CatalogPage({
   searchParams,
@@ -68,189 +116,214 @@ export default async function CatalogPage({
   const { data, error } = await query;
   const models = (data ?? []) as unknown as ModelRow[];
   const filtering = Boolean(cleaned || UUID_PATTERN.test(brand) || type);
+  const activeBrand = UUID_PATTERN.test(brand) ? brand : "";
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-600 text-white">
-            <BookOpen className="h-6 w-6" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold">Product Catalog</h1>
-            <p className="text-sm text-slate-500 dark:text-slate-400">
-              Phone models ki searchable list.
-            </p>
-          </div>
-        </div>
-        {canManage && (
-          <Link
-            href="/catalog/new"
-            className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700"
-          >
-            <Plus className="h-4 w-4" />
-            Naya model
-          </Link>
-        )}
-      </div>
+      <PageHeader
+        icon={BookOpen}
+        title="Product Catalog"
+        description="A searchable list of phone and smartwatch models."
+        action={
+          canManage && (
+            <Link href="/catalog/new" className={primaryButtonClass}>
+              <Plus className="h-4 w-4" />
+              New model
+            </Link>
+          )
+        }
+      />
 
-      <form
-        method="get"
-        className="flex flex-wrap items-end gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900"
-      >
-        <div className="min-w-[180px] flex-1">
-          <label htmlFor="q" className="mb-1 block text-xs font-medium">
-            Model ka naam
-          </label>
-          <input
-            id="q"
-            name="q"
-            type="text"
-            defaultValue={q}
-            placeholder="Search..."
-            className={inputClass + " w-full"}
-          />
-        </div>
-        <div>
-          <label htmlFor="brand" className="mb-1 block text-xs font-medium">
-            Brand
-          </label>
-          <select id="brand" name="brand" defaultValue={brand} className={inputClass}>
-            <option value="">Sab brands</option>
-            {brands.map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.name}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label htmlFor="type" className="mb-1 block text-xs font-medium">
-            Type
-          </label>
-          <select id="type" name="type" defaultValue={type} className={inputClass}>
-            <option value="">Sab</option>
-            <option value="phone">Phone</option>
-            <option value="smartwatch">Smartwatch</option>
-          </select>
-        </div>
-        <button
-          type="submit"
-          className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
-        >
-          Dhoondhein
-        </button>
-        {filtering && (
-          <Link
-            href="/catalog"
-            className="py-2 text-sm text-blue-600 hover:underline dark:text-blue-400"
-          >
-            Saaf karein
-          </Link>
+      {/* Search and filters */}
+      <section className={cardClass + " space-y-4"}>
+        <form method="get" className="flex flex-col gap-3 sm:flex-row sm:items-end">
+          {activeBrand && <input type="hidden" name="brand" value={activeBrand} />}
+          <div className="flex-1">
+            <label htmlFor="q" className={labelClass}>
+              Model name
+            </label>
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-muted" />
+              <input
+                id="q"
+                name="q"
+                type="search"
+                defaultValue={q}
+                placeholder="Search models..."
+                className={inputClass + " pl-10"}
+              />
+            </div>
+          </div>
+          <div className="sm:w-44">
+            <label htmlFor="type" className={labelClass}>
+              Type
+            </label>
+            <select id="type" name="type" defaultValue={type} className={inputClass}>
+              <option value="">All types</option>
+              <option value="phone">Phone</option>
+              <option value="smartwatch">Smartwatch</option>
+            </select>
+          </div>
+          <div className="flex gap-2">
+            <button type="submit" className={primaryButtonClass + " flex-1 sm:flex-none"}>
+              Search
+            </button>
+            {filtering && (
+              <Link href="/catalog" className={secondaryButtonClass + " flex-1 sm:flex-none"}>
+                Clear
+              </Link>
+            )}
+          </div>
+        </form>
+
+        {brands.length > 0 && (
+          <div>
+            <p className="mb-2 text-xs font-bold uppercase tracking-wide text-ink-muted">
+              Brands
+            </p>
+            <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+              <Chip href={catalogHref({ q, type })} active={!activeBrand}>
+                All brands
+              </Chip>
+              {brands.map((b) => (
+                <Chip
+                  key={b.id}
+                  href={catalogHref({ q, brand: b.id, type })}
+                  active={activeBrand === b.id}
+                >
+                  {b.name}
+                </Chip>
+              ))}
+            </div>
+          </div>
         )}
-      </form>
+      </section>
 
       {error ? (
-        <div
-          role="alert"
-          className="rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-800/60 dark:bg-red-950/40 dark:text-red-200"
-        >
-          Catalog nahi mil saka: {error.message}
-        </div>
+        <Notice kind="error">Could not load the catalog: {error.message}</Notice>
       ) : models.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400">
-          {filtering
-            ? "Is search se koi model nahi mila."
-            : "Catalog abhi khali hai. Models ka verified data Phase 6B mein aayega, ya aap Naya model se khud add kar sakte hain."}
-        </div>
+        filtering ? (
+          <EmptyState
+            icon={SearchX}
+            title="No models match your search"
+            text="Try a different name, brand or type."
+            action={
+              <Link href="/catalog" className={secondaryButtonClass}>
+                Clear filters
+              </Link>
+            }
+          />
+        ) : (
+          <EmptyState
+            icon={BookOpen}
+            title="Your catalog is empty"
+            text="Verified model data will be added later. You can also add models yourself."
+            action={
+              canManage && (
+                <Link href="/catalog/new" className={primaryButtonClass}>
+                  <Plus className="h-4 w-4" />
+                  Add the first model
+                </Link>
+              )
+            }
+          />
+        )
       ) : (
-        <>
-          <p className="text-sm text-slate-500 dark:text-slate-400">
-            {models.length} model
+        <section aria-label="Models" className="space-y-3">
+          <p className="text-sm text-ink-muted">
+            {models.length} {models.length === 1 ? "model" : "models"}
             {models.length === PAGE_SIZE &&
-              ` (sirf pehle ${PAGE_SIZE} dikhaye gaye hain, search se chhota karein)`}
+              ` (only the first ${PAGE_SIZE} are shown; narrow your search)`}
           </p>
-          <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-            <table className="w-full min-w-[720px] text-left text-sm">
-              <thead className="border-b border-slate-200 text-xs uppercase text-slate-500 dark:border-slate-800 dark:text-slate-400">
-                <tr>
-                  <th className="px-4 py-3 font-medium">Brand</th>
-                  <th className="px-4 py-3 font-medium">Model</th>
-                  <th className="px-4 py-3 font-medium">Type</th>
-                  <th className="px-4 py-3 font-medium">Variants</th>
-                  <th className="px-4 py-3 font-medium">Colors</th>
-                  <th className="px-4 py-3 font-medium">Status</th>
-                  <th className="px-4 py-3 font-medium" />
-                </tr>
-              </thead>
-              <tbody>
-                {models.map((model) => {
-                  const variants = model.model_variants
-                    .filter((v) => v.is_active)
-                    .sort(
-                      (a, b) =>
-                        a.storage_gb - b.storage_gb ||
-                        (a.ram_gb ?? 0) - (b.ram_gb ?? 0)
-                    );
-                  const shown = variants
-                    .slice(0, 3)
-                    .map((v) => formatVariant(v.storage_gb, v.ram_gb))
-                    .join(", ");
-                  const extra =
-                    variants.length > 3 ? ` +${variants.length - 3}` : "";
-                  const variantText = variants.length ? shown + extra : "—";
-                  const colorCount = model.model_colors.filter(
-                    (c) => c.is_active
-                  ).length;
+          <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {models.map((model, index) => {
+              const variants = model.model_variants
+                .filter((v) => v.is_active)
+                .sort(
+                  (a, b) =>
+                    a.storage_gb - b.storage_gb ||
+                    (a.ram_gb ?? 0) - (b.ram_gb ?? 0)
+                );
+              const shown = variants.slice(0, 3);
+              const extra = variants.length - shown.length;
+              const colorCount = model.model_colors.filter(
+                (c) => c.is_active
+              ).length;
 
-                  return (
-                    <tr
-                      key={model.id}
-                      className="border-b border-slate-100 last:border-0 dark:border-slate-800"
+              return (
+                <li key={model.id}>
+                  <Link
+                    href={`/catalog/model?id=${model.id}`}
+                    className="group flex h-full flex-col overflow-hidden rounded-card border border-line bg-surface shadow-soft transition hover:-translate-y-0.5 hover:border-line-strong"
+                  >
+                    <div
+                      className={
+                        "relative flex h-36 items-center justify-center " +
+                        TILE_TONES[index % TILE_TONES.length]
+                      }
                     >
-                      <td className="px-4 py-3">{model.brands?.name ?? "—"}</td>
-                      <td className="px-4 py-3 font-medium">{model.name}</td>
-                      <td className="px-4 py-3">
-                        {PRODUCT_TYPE_LABELS[model.product_type] ??
-                          model.product_type}
-                      </td>
-                      <td className="px-4 py-3 text-slate-600 dark:text-slate-300">
-                        {variantText}
-                      </td>
-                      <td className="px-4 py-3">{colorCount || "—"}</td>
-                      <td className="px-4 py-3">
-                        <span
-                          className={
-                            "inline-block rounded-full px-2.5 py-0.5 text-xs font-medium " +
-                            (model.is_active
-                              ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300"
-                              : "bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300")
-                          }
-                        >
-                          {model.is_active ? "Active" : "Band"}
+                      <DeviceIllustration
+                        kind={model.product_type}
+                        className="h-24 w-24 transition group-hover:scale-105"
+                      />
+                      <span className="absolute left-3 top-3">
+                        <Pill tone={model.is_active ? "mint" : "coral"}>
+                          {model.is_active ? "Active" : "Inactive"}
+                        </Pill>
+                      </span>
+                    </div>
+                    <div className="flex flex-1 flex-col gap-3 p-4">
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-wide text-ink-muted">
+                          {model.brands?.name ?? "No brand"} ·{" "}
+                          {PRODUCT_TYPE_LABELS[model.product_type] ??
+                            model.product_type}
+                        </p>
+                        <p className="mt-0.5 text-base font-bold text-ink">
+                          {model.name}
+                        </p>
+                      </div>
+                      <div className="mt-auto flex flex-wrap gap-1.5">
+                        {shown.length === 0 ? (
+                          <span className="rounded-full border border-dashed border-line-strong px-2.5 py-1 text-xs text-ink-muted">
+                            No variants yet
+                          </span>
+                        ) : (
+                          shown.map((v) => (
+                            <span
+                              key={`${v.storage_gb}-${v.ram_gb}`}
+                              className="rounded-full bg-surface-muted px-2.5 py-1 text-xs font-medium text-ink"
+                            >
+                              {formatVariant(v.storage_gb, v.ram_gb)}
+                            </span>
+                          ))
+                        )}
+                        {extra > 0 && (
+                          <span className="rounded-full bg-surface-muted px-2.5 py-1 text-xs font-medium text-ink-muted">
+                            +{extra} more
+                          </span>
+                        )}
+                        <span className="inline-flex items-center gap-1 rounded-full bg-surface-muted px-2.5 py-1 text-xs font-medium text-ink-muted">
+                          <Tag className="h-3 w-3" />
+                          {colorCount === 0
+                            ? "No colors"
+                            : `${colorCount} ${colorCount === 1 ? "color" : "colors"}`}
                         </span>
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <Link
-                          href={`/catalog/model?id=${model.id}`}
-                          className="font-medium text-blue-600 hover:underline dark:text-blue-400"
-                        >
-                          Dekhein
-                        </Link>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </>
+                      </div>
+                    </div>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
       )}
 
       {canManage && (
-        <details className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-          <summary className="cursor-pointer text-sm font-semibold">
-            Naya brand add karein
+        <details className={cardClass + " group"}>
+          <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 text-base font-bold text-ink [&::-webkit-details-marker]:hidden">
+            Add a new brand
+            <Plus className="h-5 w-5 text-ink-muted transition-transform group-open:rotate-45" />
           </summary>
           <div className="mt-4">
             <AddBrandForm />

@@ -22,7 +22,7 @@ export async function createEmployee(
   const password = String(formData.get("password") ?? "");
   const confirmPassword = String(formData.get("confirm_password") ?? "");
 
-  // Password kabhi wapas form mein nahi bheja jata
+  // The password is never sent back to the form
   const values = { full_name: fullName, email, role };
   const fail = (error: string): CreateUserState => ({
     error,
@@ -30,34 +30,34 @@ export async function createEmployee(
     values,
   });
 
-  // 1) Server par ijazat check
+  // 1) Check permission on the server
   const supabase = await createClient();
   const { data: allowed, error: permError } = await supabase.rpc(
     "has_permission",
     { perm: "users.manage" }
   );
   if (permError || allowed !== true) {
-    return fail("Aap ko naye users banane ki ijazat nahi hai.");
+    return fail("You do not have permission to create users.");
   }
 
-  // 2) Data ki jaanch
+  // 2) Validate the input
   if (fullName.length < 2 || fullName.length > 80) {
-    return fail("Naam 2 se 80 harf ke darmiyan likhein.");
+    return fail("Name must be between 2 and 80 characters.");
   }
   if (!EMAIL_PATTERN.test(email)) {
-    return fail("Email sahi likhein.");
+    return fail("Please enter a valid email address.");
   }
   if (role !== "manager" && role !== "sales") {
-    return fail("Role Manager ya Sales Employee chunein.");
+    return fail("Please choose either Manager or Sales Employee.");
   }
   if (password.length < 12) {
-    return fail("Password kam az kam 12 characters ka hona chahiye.");
+    return fail("Password must be at least 12 characters long.");
   }
   if (password !== confirmPassword) {
-    return fail("Dono password barabar nahi hain.");
+    return fail("The two passwords do not match.");
   }
 
-  // 3) Account banana
+  // 3) Create the account
   const admin = createAdminClient();
   const { data: created, error: createError } =
     await admin.auth.admin.createUser({
@@ -69,12 +69,14 @@ export async function createEmployee(
   if (createError || !created.user) {
     const message = createError?.message ?? "";
     if (createError?.code === "email_exists" || /already/i.test(message)) {
-      return fail("Ye email pehle se maujood hai.");
+      return fail("An account with this email already exists.");
     }
-    return fail("Account nahi ban saka: " + (message || "wajah maloom nahi"));
+    return fail(
+      "The account could not be created: " + (message || "unknown reason")
+    );
   }
 
-  // 4) Profile banana. Na ban sake to account wapas hata do.
+  // 4) Create the profile. If that fails, remove the new account again.
   const { error: profileError } = await admin
     .from("profiles")
     .insert({ id: created.user.id, full_name: fullName, role });
@@ -82,7 +84,7 @@ export async function createEmployee(
   if (profileError) {
     await admin.auth.admin.deleteUser(created.user.id);
     return fail(
-      "Profile nahi ban saka, is liye account wapas hata diya gaya: " +
+      "The profile could not be created, so the account was removed: " +
         profileError.message
     );
   }
@@ -91,7 +93,7 @@ export async function createEmployee(
 
   return {
     error: null,
-    success: `${fullName} ka account ban gaya. Ab ye email aur password se login kar sakte hain.`,
+    success: `Account created for ${fullName}. They can now sign in with this email and password.`,
     values: { full_name: "", email: "", role: "sales" },
   };
 }

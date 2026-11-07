@@ -1,8 +1,14 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ShieldCheck } from "lucide-react";
 import AccessDenied from "@/components/AccessDenied";
+import {
+  BackLink,
+  Notice,
+  RolePill,
+  StatusPill,
+  cardClass,
+} from "@/components/ui";
 import { createClient } from "@/lib/supabase/server";
 import { canViewPage, getMyPermissions } from "@/lib/permissions";
 import ManageUserForms, {
@@ -11,28 +17,11 @@ import ManageUserForms, {
 } from "@/app/(app)/users/manage/ManageUserForms";
 
 export const metadata: Metadata = {
-  title: "User manage karein",
+  title: "Manage user",
 };
 
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-const roleLabels: Record<string, string> = {
-  owner: "Owner",
-  manager: "Manager",
-  sales: "Sales Employee",
-};
-
-function ErrorBox({ message }: { message: string }) {
-  return (
-    <div
-      role="alert"
-      className="rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-800/60 dark:bg-red-950/40 dark:text-red-200"
-    >
-      {message}
-    </div>
-  );
-}
 
 export default async function ManageUserPage({
   searchParams,
@@ -54,21 +43,13 @@ export default async function ManageUserPage({
   const { data: usersData, error: usersError } =
     await supabase.rpc("list_users");
 
-  const backLink = (
-    <Link
-      href="/users"
-      className="inline-flex items-center gap-1 text-sm text-blue-600 hover:underline dark:text-blue-400"
-    >
-      <ArrowLeft className="h-4 w-4" />
-      Users ki list par wapas
-    </Link>
-  );
+  const backLink = <BackLink href="/users">Back to users</BackLink>;
 
   if (usersError) {
     return (
       <div className="mx-auto max-w-3xl space-y-4">
         {backLink}
-        <ErrorBox message={`User nahi mil saka: ${usersError.message}`} />
+        <Notice kind="error">Could not load this user: {usersError.message}</Notice>
       </div>
     );
   }
@@ -81,12 +62,20 @@ export default async function ManageUserPage({
   const header = (
     <div className="space-y-3">
       {backLink}
-      <div>
-        <h1 className="text-2xl font-bold">{user.full_name}</h1>
-        <p className="text-sm text-slate-500 dark:text-slate-400">
-          {user.email} · {roleLabels[user.role] ?? user.role} ·{" "}
-          {user.is_active ? "Active" : "Band"}
-        </p>
+      <div className={cardClass + " flex flex-wrap items-center gap-4"}>
+        <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-lavender text-lg font-bold text-purple">
+          {user.full_name.trim().charAt(0).toUpperCase() || "?"}
+        </span>
+        <div className="min-w-0 flex-1">
+          <h1 className="truncate text-2xl font-bold text-ink">
+            {user.full_name}
+          </h1>
+          <p className="truncate text-sm text-ink-muted">{user.email}</p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <RolePill role={user.role} />
+          <StatusPill active={user.is_active} />
+        </div>
       </div>
     </div>
   );
@@ -95,9 +84,14 @@ export default async function ManageUserPage({
     return (
       <div className="mx-auto max-w-3xl space-y-6">
         {header}
-        <div className="rounded-xl border border-slate-200 bg-white p-5 text-sm shadow-sm dark:border-slate-800 dark:bg-slate-900">
-          Owner ko hamesha sab ijazatein milti hain, aur Owner ka account yahan
-          se badla nahi ja sakta. Ye aap ke karobar ki hifazat ke liye hai.
+        <div className={cardClass + " flex items-start gap-3"}>
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-lavender text-purple">
+            <ShieldCheck className="h-5 w-5" />
+          </span>
+          <p className="text-sm text-ink-muted">
+            The owner always has every permission, and the owner account cannot
+            be changed from here. This protects your business.
+          </p>
         </div>
       </div>
     );
@@ -115,7 +109,9 @@ export default async function ManageUserPage({
     return (
       <div className="mx-auto max-w-3xl space-y-6">
         {header}
-        <ErrorBox message={`Ijazatein nahi mil sakin: ${matrixError.message}`} />
+        <Notice kind="error">
+          Could not load permissions: {matrixError.message}
+        </Notice>
       </div>
     );
   }
