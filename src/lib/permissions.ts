@@ -11,7 +11,12 @@ export const pagePermissions: Record<string, string[]> = {
   inventory: ["inventory.view"],
   catalog: ["catalog.view", "catalog.create"],
   customers: ["customers.view"],
-  suppliers: ["suppliers.view"],
+  suppliers: [
+    "suppliers.view",
+    "suppliers.manage",
+    "purchases.view",
+    "purchases.manage",
+  ],
   expenses: ["expenses.view"],
   finance: ["finance.view"],
   returns: ["returns.manage"],
