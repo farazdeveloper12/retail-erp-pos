@@ -7,7 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 export const pagePermissions: Record<string, string[]> = {
   "": ["dashboard.view"],
   sales: ["sales.create", "sales.view_own", "sales.view_all"],
-  purchases: ["purchases.view"],
+  purchases: ["purchases.view", "purchases.manage"],
   inventory: ["inventory.view"],
   catalog: ["catalog.view", "catalog.create"],
   customers: ["customers.view"],

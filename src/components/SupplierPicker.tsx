@@ -16,6 +16,9 @@ type Option =
   | { kind: "create"; name: string };
 
 const DEBOUNCE_MS = 250;
+// Give up on a search after this long so the spinner can never hang
+const SEARCH_TIMEOUT_MS = 8000;
+const TIMED_OUT = Symbol("timed-out");
 
 // A type-ahead supplier search. Reusable in the purchase screens.
 // - onSelect: called with the chosen (or newly created) supplier
@@ -45,6 +48,7 @@ export default function SupplierPicker({
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [timedOut, setTimedOut] = useState(false);
 
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const requestId = useRef(0);
@@ -71,36 +75,53 @@ export default function SupplierPicker({
 
   function search(value: string) {
     if (timer.current) clearTimeout(timer.current);
+    // A new id on every keystroke, so older answers are always ignored
+    const id = ++requestId.current;
+    setTimedOut(false);
     const query = value.trim();
     if (!query) {
-      requestId.current += 1;
       setResults([]);
       setLoading(false);
       return;
     }
     setLoading(true);
     timer.current = setTimeout(async () => {
-      const id = ++requestId.current;
       let found: PickedSupplier[] = [];
+      let didTimeOut = false;
+      let timeoutId: ReturnType<typeof setTimeout> | undefined;
       try {
-        found = await searchSuppliers(query);
+        const outcome = await Promise.race([
+          searchSuppliers(query),
+          new Promise<typeof TIMED_OUT>((resolve) => {
+            timeoutId = setTimeout(() => resolve(TIMED_OUT), SEARCH_TIMEOUT_MS);
+          }),
+        ]);
+        if (outcome === TIMED_OUT) didTimeOut = true;
+        else found = outcome;
       } catch {
         found = [];
+      } finally {
+        if (timeoutId) clearTimeout(timeoutId);
+        // Only the latest search may update the list and stop the spinner
+        if (id === requestId.current) {
+          setResults(found);
+          setTimedOut(didTimeOut);
+          setHighlight(0);
+          setLoading(false);
+        }
       }
-      // Ignore answers to older searches
-      if (id !== requestId.current) return;
-      setResults(found);
-      setHighlight(0);
-      setLoading(false);
     }, DEBOUNCE_MS);
   }
 
   function reset() {
+    if (timer.current) clearTimeout(timer.current);
     requestId.current += 1;
     setText("");
     setResults([]);
     setOpen(false);
     setHighlight(0);
+    setTimedOut(false);
+    setLoading(false);
   }
 
   async function choose(option: Option) {
@@ -155,7 +176,8 @@ export default function SupplierPicker({
     }
   }
 
-  const showList = open && trimmed !== "" && (options.length > 0 || loading);
+  const showList =
+    open && trimmed !== "" && (options.length > 0 || loading || timedOut);
   const activeId =
     showList && options[highlight] ? `${listId}-option-${highlight}` : undefined;
 
@@ -203,6 +225,11 @@ export default function SupplierPicker({
           {loading && options.length === 0 && (
             <li className="px-3 py-3 text-sm text-ink-muted">Searching...</li>
           )}
+          {timedOut && !loading && (
+            <li role="alert" className="px-3 py-3 text-sm font-medium text-danger">
+              Search is taking too long. Please try again.
+            </li>
+          )}
           {options.map((option, index) => {
             const active = index === highlight;
             const base =
@@ -247,7 +274,7 @@ export default function SupplierPicker({
         </ul>
       )}
 
-      {open && trimmed !== "" && !loading && options.length === 0 && (
+      {open && trimmed !== "" && !loading && !timedOut && options.length === 0 && (
         <p className="mt-2 text-xs text-ink-muted">No matching suppliers.</p>
       )}
       {error && (
