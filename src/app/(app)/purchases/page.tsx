@@ -14,7 +14,14 @@ export const metadata: Metadata = {
 
 const LIMIT = 30;
 
-type PurchaseRow = Record<string, unknown>;
+type PurchaseRow = {
+  id: string;
+  purchase_no: number | string | null;
+  supplier_id: string | null;
+  purchase_date: string | null;
+  total: number | string | null;
+  paid_amount: number | string | null;
+};
 
 type ListItem = {
   id: string;
@@ -25,15 +32,6 @@ type ListItem = {
   paid: bigint | null;
   balance: bigint | null;
 };
-
-// Reads the first of several possible column names, so the list keeps
-// working if a column is named slightly differently.
-function pick(row: PurchaseRow, names: string[]): unknown {
-  for (const name of names) {
-    if (row[name] !== undefined && row[name] !== null) return row[name];
-  }
-  return null;
-}
 
 function formatDate(value: string | null) {
   if (!value) return "—";
@@ -58,24 +56,18 @@ export default async function PurchasesPage() {
   const business = await getMyBusiness();
   const currency = business?.currency_code || "PKR";
 
-  // Latest first. Falls back to an unordered read if created_at is missing.
-  let { data, error } = await supabase
+  // Latest first
+  const { data, error } = await supabase
     .from("purchases")
-    .select("*")
-    .order("created_at", { ascending: false })
+    .select("id, purchase_no, supplier_id, purchase_date, total, paid_amount")
+    .order("purchase_date", { ascending: false })
+    .order("purchase_no", { ascending: false })
     .limit(LIMIT);
-  if (error) {
-    ({ data, error } = await supabase.from("purchases").select("*").limit(LIMIT));
-  }
   const rows = (data ?? []) as PurchaseRow[];
 
   // Supplier names in one extra query
   const supplierIds = [
-    ...new Set(
-      rows
-        .map((row) => row.supplier_id)
-        .filter((id): id is string => typeof id === "string")
-    ),
+    ...new Set(rows.map((row) => row.supplier_id).filter((id): id is string => Boolean(id))),
   ];
   const supplierNames = new Map<string, string>();
   if (supplierIds.length > 0) {
@@ -89,18 +81,15 @@ export default async function PurchasesPage() {
   }
 
   const items: ListItem[] = rows.map((row) => {
-    const total = toCents(pick(row, ["total", "total_amount", "grand_total"]));
-    const paid = toCents(pick(row, ["paid_amount", "paid", "amount_paid"]));
-    const number = pick(row, ["purchase_no", "number"]);
-    const date = pick(row, ["purchase_date", "created_at"]);
+    const total = toCents(row.total);
+    const paid = toCents(row.paid_amount);
     return {
-      id: String(row.id),
-      number: number === null ? "—" : String(number),
-      date: typeof date === "string" ? date : null,
-      supplier:
-        typeof row.supplier_id === "string"
-          ? supplierNames.get(row.supplier_id) ?? "Unknown supplier"
-          : "—",
+      id: row.id,
+      number: row.purchase_no === null ? "—" : String(row.purchase_no),
+      date: row.purchase_date,
+      supplier: row.supplier_id
+        ? supplierNames.get(row.supplier_id) ?? "Unknown supplier"
+        : "—",
       total,
       paid,
       balance: total !== null && paid !== null ? total - paid : null,
@@ -138,41 +127,44 @@ export default async function PurchasesPage() {
         />
       ) : (
         <section aria-label="Latest purchases" className="space-y-3">
-          {/* Phone: cards */}
+          {/* Phone: tappable cards */}
           <ul className="space-y-3 md:hidden">
             {items.map((item) => (
-              <li
-                key={item.id}
-                className="rounded-card border border-line bg-surface p-4 shadow-soft"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="text-xs font-semibold text-ink-muted">
-                      No. {item.number} · {formatDate(item.date)}
+              <li key={item.id}>
+                <Link
+                  href={`/purchases/${item.id}`}
+                  aria-label={`Open purchase ${item.number}`}
+                  className="block rounded-card border border-line bg-surface p-4 shadow-soft transition active:scale-[0.99] hover:border-line-strong focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-accent/20"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-xs font-semibold text-ink-muted">
+                        No. {item.number} · {formatDate(item.date)}
+                      </p>
+                      <p className="mt-0.5 truncate font-semibold text-ink">{item.supplier}</p>
+                    </div>
+                    <p className="text-right text-sm font-bold text-ink">
+                      {formatMoney(item.total, currency)}
                     </p>
-                    <p className="mt-0.5 truncate font-semibold text-ink">{item.supplier}</p>
                   </div>
-                  <p className="text-right text-sm font-bold text-ink">
-                    {formatMoney(item.total, currency)}
-                  </p>
-                </div>
-                <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
-                  <div className="rounded-2xl bg-mint px-3 py-2">
-                    <span className="block text-ink-muted">Paid</span>
-                    <span className="font-semibold text-ink">{formatMoney(item.paid, currency)}</span>
+                  <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                    <div className="rounded-2xl bg-mint px-3 py-2">
+                      <span className="block text-ink-muted">Paid</span>
+                      <span className="font-semibold text-ink">{formatMoney(item.paid, currency)}</span>
+                    </div>
+                    <div className="rounded-2xl bg-peach px-3 py-2">
+                      <span className="block text-ink-muted">Balance</span>
+                      <span className="font-semibold text-ink">
+                        {formatMoney(item.balance, currency)}
+                      </span>
+                    </div>
                   </div>
-                  <div className="rounded-2xl bg-peach px-3 py-2">
-                    <span className="block text-ink-muted">Balance</span>
-                    <span className="font-semibold text-ink">
-                      {formatMoney(item.balance, currency)}
-                    </span>
-                  </div>
-                </div>
+                </Link>
               </li>
             ))}
           </ul>
 
-          {/* Tablet and laptop: table */}
+          {/* Tablet and laptop: table with clickable rows */}
           <div className="hidden overflow-x-auto rounded-card border border-line bg-surface shadow-soft md:block">
             <table className="w-full text-left text-sm">
               <thead className="border-b border-line bg-surface-muted text-xs font-semibold uppercase tracking-wide text-ink-muted">
@@ -187,8 +179,19 @@ export default async function PurchasesPage() {
               </thead>
               <tbody>
                 {items.map((item) => (
-                  <tr key={item.id} className="border-b border-line last:border-0">
-                    <td className="px-5 py-3 font-semibold text-ink">{item.number}</td>
+                  <tr
+                    key={item.id}
+                    className="relative border-b border-line last:border-0 hover:bg-surface-muted focus-within:bg-surface-muted"
+                  >
+                    <td className="px-5 py-3 font-semibold text-ink">
+                      {/* The link covers the whole row, so one Tab stop opens it */}
+                      <Link
+                        href={`/purchases/${item.id}`}
+                        className="after:absolute after:inset-0 after:content-[''] focus-visible:outline-none"
+                      >
+                        {item.number}
+                      </Link>
+                    </td>
                     <td className="px-5 py-3 text-ink-muted">{formatDate(item.date)}</td>
                     <td className="px-5 py-3 text-ink">{item.supplier}</td>
                     <td className="px-5 py-3 text-right font-semibold text-ink">

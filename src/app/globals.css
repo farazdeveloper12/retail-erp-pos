@@ -119,3 +119,12 @@ body {
   color: var(--foreground);
   font-family: var(--font-sans);
 }
+
+/* Printing: plain white paper, whatever theme is active on screen */
+@media print {
+  html,
+  body {
+    background: #ffffff !important;
+    color: #1f2a2a !important;
+  }
+}

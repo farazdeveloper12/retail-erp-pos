@@ -100,9 +100,9 @@ export default function AppShell({
   );
 
   return (
-    <div className="min-h-screen bg-canvas">
+    <div className="min-h-screen bg-canvas print:min-h-0 print:bg-white">
       {/* Desktop sidebar */}
-      <aside className="fixed inset-y-3 left-3 z-30 hidden w-64 flex-col rounded-card border border-line bg-surface shadow-soft lg:flex">
+      <aside className="fixed inset-y-3 left-3 z-30 hidden w-64 flex-col rounded-card border border-line bg-surface shadow-soft lg:flex print:hidden!">
         <div className="px-5 pb-4 pt-5">
           <Brand name={workspaceName} />
         </div>
@@ -150,8 +150,8 @@ export default function AppShell({
       )}
 
       {/* Right side: top bar + page content */}
-      <div className="lg:pl-[17.5rem]">
-        <header className="sticky top-0 z-20 bg-canvas/85 px-4 pt-3 backdrop-blur sm:px-6 lg:px-8">
+      <div className="lg:pl-[17.5rem] print:pl-0!">
+        <header className="sticky top-0 z-20 bg-canvas/85 px-4 pt-3 backdrop-blur sm:px-6 lg:px-8 print:hidden">
           <div className="flex h-16 items-center justify-between gap-3 rounded-card border border-line bg-surface px-3 shadow-soft sm:px-4">
             <div className="flex min-w-0 items-center gap-2 lg:hidden">
               <button
@@ -197,14 +197,14 @@ export default function AppShell({
           </div>
         </header>
 
-        <main className="px-4 py-6 pb-28 sm:px-6 lg:px-8 lg:pb-10">
+        <main className="px-4 py-6 pb-28 sm:px-6 lg:px-8 lg:pb-10 print:p-0!">
           {children}
         </main>
       </div>
 
       {/* Mobile bottom navigation */}
       <nav
-        className="fixed inset-x-3 bottom-3 z-30 grid rounded-card border border-line bg-surface p-1.5 shadow-soft lg:hidden"
+        className="fixed inset-x-3 bottom-3 z-30 grid rounded-card border border-line bg-surface p-1.5 shadow-soft lg:hidden print:hidden!"
         style={{
           gridTemplateColumns: `repeat(${bottomItems.length + 1}, minmax(0, 1fr))`,
           marginBottom: "env(safe-area-inset-bottom)",
