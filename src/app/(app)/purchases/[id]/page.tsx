@@ -9,6 +9,8 @@ import { UUID_PATTERN } from "@/lib/catalog";
 import { centsToPlain, formatMoney, toCents } from "@/lib/money";
 import { formatDateTime, paymentMethodLabel } from "@/lib/format";
 import PaySupplier from "@/app/(app)/purchases/[id]/PaySupplier";
+import { cancelPurchase } from "@/app/(app)/purchases/[id]/actions";
+import CancelDocument from "@/components/CancelDocument";
 
 export const metadata: Metadata = {
   title: "Purchase details",
@@ -119,11 +121,13 @@ export default async function PurchaseDetailPage({
   const { data: purchaseData } = await supabase
     .from("purchases")
     .select(
-      "id, purchase_no, supplier_id, purchase_date, supplier_invoice_no, subtotal, extra_cost, total, paid_amount, payment_method, notes"
+      "id, purchase_no, supplier_id, purchase_date, supplier_invoice_no, subtotal, extra_cost, total, paid_amount, payment_method, notes, status, voided_at, void_reason"
     )
     .eq("id", id)
     .maybeSingle();
-  const purchase = purchaseData as PurchaseRow | null;
+  const purchase = purchaseData as
+    | (PurchaseRow & { status: string | null; voided_at: string | null; void_reason: string | null })
+    | null;
   if (!purchase) return <NotFound />;
 
   const [
@@ -196,8 +200,12 @@ export default async function PurchaseDetailPage({
     BigInt(0)
   );
   const paidAtPurchase = totalPaid - paidLater;
-  const balance = total !== null ? total - totalPaid : null;
+  const cancelled = purchase.status === "void";
+  // A cancelled purchase owes nothing; the money paid was recorded as returned
+  const balance = cancelled ? BigInt(0) : total !== null ? total - totalPaid : null;
+  const canCancel = !cancelled && permissions.includes("purchases.manage");
   const canPay =
+    !cancelled &&
     balance !== null &&
     balance > BigInt(0) &&
     hasAny(permissions, ["purchases.manage", "suppliers.manage"]);
@@ -216,6 +224,28 @@ export default async function PurchaseDetailPage({
         <BackLink href="/purchases">Back to purchases</BackLink>
         <PageHeader title={`Purchase ${purchaseNo}`} description="Stock received from a supplier." />
       </div>
+
+      {cancelled && (
+        <div role="status" className="rounded-card border-2 border-danger bg-danger-soft px-5 py-4 text-danger">
+          <p className="text-lg font-black tracking-widest">CANCELLED</p>
+          <p className="text-sm">
+            Cancelled on {formatDateTime(purchase.voided_at)}
+            {purchase.void_reason?.trim() ? ` · Reason: ${purchase.void_reason.trim()}` : ""}
+          </p>
+        </div>
+      )}
+
+      {canCancel && (
+        <div className="flex flex-wrap print:hidden">
+          <CancelDocument
+            id={purchase.id}
+            buttonLabel="Cancel purchase"
+            explanation="This removes the phones and accessories of this purchase from stock and records the money paid to the supplier as returned."
+            keepLabel="Keep purchase"
+            action={cancelPurchase}
+          />
+        </div>
+      )}
 
       <section className={cardClass}>
         <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">

@@ -3,7 +3,7 @@ import Link from "next/link";
 import { FileX, ReceiptText, Truck } from "lucide-react";
 import AccessDenied from "@/components/AccessDenied";
 import BalancePill from "@/components/BalancePill";
-import { BackLink, EmptyState, PageHeader, StatusPill, cardClass } from "@/components/ui";
+import { BackLink, EmptyState, PageHeader, Pill, StatusPill, cardClass } from "@/components/ui";
 import { createClient } from "@/lib/supabase/server";
 import { getMyBusiness } from "@/lib/business";
 import { canViewPage, getMyPermissions } from "@/lib/permissions";
@@ -29,6 +29,7 @@ type PurchaseRow = {
   purchase_date: string | null;
   total: number | string | null;
   paid_amount: number | string | null;
+  status: string | null;
 };
 
 function formatDate(value: string | null) {
@@ -81,7 +82,7 @@ export default async function SupplierDetailPage({
     supabase.from("supplier_balances").select("balance").eq("supplier_id", id).maybeSingle(),
     supabase
       .from("purchases")
-      .select("id, purchase_no, purchase_date, total, paid_amount")
+      .select("id, purchase_no, purchase_date, total, paid_amount, status")
       .eq("supplier_id", id)
       .order("purchase_date", { ascending: false })
       .order("purchase_no", { ascending: false })
@@ -102,7 +103,10 @@ export default async function SupplierDetailPage({
       date: formatDate(p.purchase_date),
       total,
       paid,
-      balance: total !== null && paid !== null ? total - paid : null,
+      cancelled: p.status === "void",
+      // A cancelled purchase owes nothing
+      balance:
+        p.status === "void" ? BigInt(0) : total !== null && paid !== null ? total - paid : null,
     };
   });
 
@@ -165,6 +169,11 @@ export default async function SupplierDetailPage({
                     <div className="flex items-start justify-between gap-3">
                       <p className="text-sm font-semibold text-ink">
                         No. {row.number}
+                        {row.cancelled && (
+                          <span className="ml-2 align-middle">
+                            <Pill tone="neutral">Cancelled</Pill>
+                          </span>
+                        )}
                         <span className="block text-xs font-normal text-ink-muted">{row.date}</span>
                       </p>
                       <p className="text-sm font-bold text-ink">{formatMoney(row.total, currency)}</p>
@@ -203,6 +212,11 @@ export default async function SupplierDetailPage({
                         >
                           {row.number}
                         </Link>
+                        {row.cancelled && (
+                          <span className="ml-2 align-middle">
+                            <Pill tone="neutral">Cancelled</Pill>
+                          </span>
+                        )}
                       </td>
                       <td className="px-5 py-3 text-ink-muted">{row.date}</td>
                       <td className="px-5 py-3 text-right font-semibold text-ink">

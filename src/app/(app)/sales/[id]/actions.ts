@@ -48,6 +48,17 @@ export async function receiveSalePayment(input: unknown): Promise<ReceivePayment
     }
 
     const supabase = await createClient();
+
+    // A cancelled invoice cannot receive payments
+    const { data: sale } = await supabase
+      .from("sales")
+      .select("status")
+      .eq("id", saleId)
+      .maybeSingle();
+    if ((sale as { status?: string } | null)?.status === "void") {
+      return fail("This invoice is cancelled, so it cannot receive payments.");
+    }
+
     const { data, error } = await supabase.rpc("record_customer_payment", {
       p_payload: { sale_id: saleId, amount, payment_method: method },
     });
@@ -68,5 +79,42 @@ export async function receiveSalePayment(input: unknown): Promise<ReceivePayment
   } catch (e) {
     console.error("receiveSalePayment error:", e);
     return fail("The payment could not be saved. Please try again.");
+  }
+}
+
+export type CancelSaleResult = { ok: boolean; error: string | null };
+
+// Cancels an invoice: the database puts the items back in stock and records
+// the refund of everything the customer paid.
+export async function cancelSale(input: { id: string; reason: string }): Promise<CancelSaleResult> {
+  try {
+    const permissions = await getMyPermissions();
+    if (!permissions.includes("returns.manage")) {
+      return { ok: false, error: "You do not have permission to cancel invoices." };
+    }
+    const saleId = input?.id;
+    if (typeof saleId !== "string" || !UUID_PATTERN.test(saleId)) {
+      return { ok: false, error: "The sale is not valid." };
+    }
+    const reason = typeof input.reason === "string" ? input.reason.trim().slice(0, 200) : "";
+
+    const supabase = await createClient();
+    const { error } = await supabase.rpc("cancel_sale", {
+      p_payload: reason ? { sale_id: saleId, reason } : { sale_id: saleId },
+    });
+    if (error) {
+      // The database raises clear English messages; show them as they are
+      return { ok: false, error: error.message };
+    }
+
+    revalidatePath(`/sales/${saleId}`);
+    revalidatePath("/sales");
+    revalidatePath("/customers", "layout");
+    revalidatePath("/inventory");
+    revalidatePath("/");
+    return { ok: true, error: null };
+  } catch (e) {
+    console.error("cancelSale error:", e);
+    return { ok: false, error: "The invoice could not be cancelled. Please try again." };
   }
 }

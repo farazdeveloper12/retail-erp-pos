@@ -3,7 +3,7 @@ import Link from "next/link";
 import { FileX, ReceiptText, UserRound } from "lucide-react";
 import AccessDenied from "@/components/AccessDenied";
 import BalancePill from "@/components/BalancePill";
-import { BackLink, EmptyState, PageHeader, StatusPill, cardClass } from "@/components/ui";
+import { BackLink, EmptyState, PageHeader, Pill, StatusPill, cardClass } from "@/components/ui";
 import { createClient } from "@/lib/supabase/server";
 import { getMyBusiness } from "@/lib/business";
 import { canViewPage, getMyPermissions } from "@/lib/permissions";
@@ -30,6 +30,7 @@ type SaleRow = {
   created_at: string;
   total: number | string | null;
   paid_amount: number | string | null;
+  status: string | null;
 };
 
 function NotFound() {
@@ -72,7 +73,7 @@ export default async function CustomerDetailPage({
     // RLS decides which of this customer's sales the user may see
     supabase
       .from("sales")
-      .select("id, invoice_no, created_at, total, paid_amount")
+      .select("id, invoice_no, created_at, total, paid_amount, status")
       .eq("customer_id", id)
       .order("created_at", { ascending: false })
       .limit(100),
@@ -89,7 +90,10 @@ export default async function CustomerDetailPage({
       date: formatDateTime(sale.created_at),
       total,
       paid,
-      remaining: total !== null && paid !== null ? total - paid : null,
+      cancelled: sale.status === "void",
+      // A cancelled invoice owes nothing
+      remaining:
+        sale.status === "void" ? BigInt(0) : total !== null && paid !== null ? total - paid : null,
     };
   });
 
@@ -153,6 +157,11 @@ export default async function CustomerDetailPage({
                     <div className="flex items-start justify-between gap-3">
                       <p className="font-mono text-xs font-semibold text-ink">
                         {sale.invoice}
+                        {sale.cancelled && (
+                          <span className="ml-2 align-middle font-sans">
+                            <Pill tone="neutral">Cancelled</Pill>
+                          </span>
+                        )}
                         <span className="block font-sans font-normal text-ink-muted">{sale.date}</span>
                       </p>
                       <p className="text-sm font-bold text-ink">{formatMoney(sale.total, currency)}</p>
@@ -191,6 +200,11 @@ export default async function CustomerDetailPage({
                         >
                           {sale.invoice}
                         </Link>
+                        {sale.cancelled && (
+                          <span className="ml-2 align-middle font-sans">
+                            <Pill tone="neutral">Cancelled</Pill>
+                          </span>
+                        )}
                       </td>
                       <td className="px-5 py-3 text-ink-muted">{sale.date}</td>
                       <td className="px-5 py-3 text-right font-semibold text-ink">

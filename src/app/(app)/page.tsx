@@ -26,7 +26,7 @@ import BalancePill from "@/components/BalancePill";
 import PeriodSelector from "@/components/PeriodSelector";
 import DailyChart from "@/components/charts/DailyChart";
 import EmptyLineChart from "@/components/charts/EmptyLineChart";
-import { Notice, cardClass } from "@/components/ui";
+import { Notice, Pill, cardClass } from "@/components/ui";
 import { createClient } from "@/lib/supabase/server";
 import { getMyBusiness } from "@/lib/business";
 import { canViewPage, getMyPermissions } from "@/lib/permissions";
@@ -82,6 +82,7 @@ type RecentSale = {
   customer_id: string | null;
   total: number | string | null;
   paid_amount: number | string | null;
+  status: string | null;
 };
 
 export default async function DashboardPage({
@@ -105,7 +106,7 @@ export default async function DashboardPage({
     canSeeSales
       ? supabase
           .from("sales")
-          .select("id, invoice_no, customer_name, customer_id, total, paid_amount")
+          .select("id, invoice_no, customer_name, customer_id, total, paid_amount, status")
           .order("created_at", { ascending: false })
           .limit(5)
       : Promise.resolve({ data: null, error: null }),
@@ -348,6 +349,7 @@ export default async function DashboardPage({
                     {recentSales.map((sale) => {
                       const total = toCents(sale.total);
                       const paid = toCents(sale.paid_amount);
+                      const cancelled = sale.status === "void";
                       return (
                         <li key={sale.id}>
                           <Link
@@ -355,8 +357,13 @@ export default async function DashboardPage({
                             className="flex min-h-11 items-center justify-between gap-3 rounded-xl px-2 py-2 text-sm hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-accent/20"
                           >
                             <span className="min-w-0">
-                              <span className="block font-mono text-xs font-semibold text-ink">
+                              <span className="flex items-center gap-2 font-mono text-xs font-semibold text-ink">
                                 {formatInvoiceNo(sale.invoice_no)}
+                                {cancelled && (
+                                  <span className="font-sans">
+                                    <Pill tone="neutral">Cancelled</Pill>
+                                  </span>
+                                )}
                               </span>
                               <span className="block truncate text-xs text-ink-muted">
                                 {sale.customer_name?.trim() ||
@@ -365,7 +372,7 @@ export default async function DashboardPage({
                             </span>
                             <span className="flex shrink-0 flex-col items-end gap-1">
                               <span className="font-semibold text-ink">{money(total)}</span>
-                              {total !== null && paid !== null && total - paid > BigInt(0) && (
+                              {!cancelled && total !== null && paid !== null && total - paid > BigInt(0) && (
                                 <BalancePill value={total - paid} currency={currency} />
                               )}
                             </span>

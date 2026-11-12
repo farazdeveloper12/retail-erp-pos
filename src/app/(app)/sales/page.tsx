@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ReceiptText, ShoppingCart } from "lucide-react";
 import AccessDenied from "@/components/AccessDenied";
-import { EmptyState, Notice, PageHeader, primaryButtonClass } from "@/components/ui";
+import { EmptyState, Notice, PageHeader, Pill, primaryButtonClass } from "@/components/ui";
 import { createClient } from "@/lib/supabase/server";
 import { getMyBusiness } from "@/lib/business";
 import { canViewPage, getMyPermissions } from "@/lib/permissions";
@@ -24,6 +24,7 @@ type SaleRow = {
   customer_name: string | null;
   total: number | string | null;
   paid_amount: number | string | null;
+  status: string | null;
 };
 
 type SaleItem = {
@@ -34,6 +35,7 @@ type SaleItem = {
   total: bigint | null;
   paid: bigint | null;
   remaining: bigint | null;
+  cancelled: boolean;
 };
 
 function RemainingPill({ value, currency }: { value: bigint | null; currency: string }) {
@@ -63,7 +65,7 @@ export default async function SalesPage() {
   // Latest first; RLS decides which sales this user may see
   const { data, error } = await supabase
     .from("sales")
-    .select("id, invoice_no, created_at, customer_id, customer_name, total, paid_amount")
+    .select("id, invoice_no, created_at, customer_id, customer_name, total, paid_amount, status")
     .order("created_at", { ascending: false })
     .limit(LIMIT);
   const rows = (data ?? []) as SaleRow[];
@@ -83,7 +85,10 @@ export default async function SalesPage() {
           : "Walk-in customer",
       total,
       paid,
-      remaining: total !== null && paid !== null ? total - paid : null,
+      cancelled: row.status === "void",
+      // A cancelled invoice owes nothing
+      remaining:
+        row.status === "void" ? ZERO : total !== null && paid !== null ? total - paid : null,
     };
   });
 
@@ -129,7 +134,10 @@ export default async function SalesPage() {
                 >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="font-mono text-xs font-semibold text-ink-muted">{sale.invoice}</p>
+                    <p className="flex items-center gap-2 font-mono text-xs font-semibold text-ink-muted">
+                      {sale.invoice}
+                      {sale.cancelled && <Pill tone="neutral">Cancelled</Pill>}
+                    </p>
                     <p className="mt-0.5 truncate font-semibold text-ink">{sale.customer}</p>
                     <p className="text-xs text-ink-muted">{sale.date}</p>
                   </div>
@@ -175,6 +183,11 @@ export default async function SalesPage() {
                       >
                         {sale.invoice}
                       </Link>
+                      {sale.cancelled && (
+                        <span className="ml-2 align-middle">
+                          <Pill tone="neutral">Cancelled</Pill>
+                        </span>
+                      )}
                     </td>
                     <td className="px-5 py-3 text-ink-muted">{sale.date}</td>
                     <td className="px-5 py-3 text-ink">{sale.customer}</td>

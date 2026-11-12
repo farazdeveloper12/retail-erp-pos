@@ -48,11 +48,14 @@ export default function InvoiceActions({
   saleId,
   whatsappUrl,
   autoPrint,
+  extraActions,
   children,
 }: {
   saleId: string;
   whatsappUrl: string;
   autoPrint: boolean;
+  // More buttons for the actions bar, for example "Cancel invoice"
+  extraActions?: ReactNode;
   children: ReactNode;
 }) {
   const router = useRouter();
@@ -121,6 +124,7 @@ export default function InvoiceActions({
             <ArrowLeft className="h-4 w-4" />
             Back to sales
           </Link>
+          {extraActions}
         </div>
         <div className="space-y-0.5 text-xs text-ink-muted">
           <p>Download PDF: choose &quot;Save as PDF&quot; as the destination in the print dialog.</p>

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { PackagePlus, ReceiptText } from "lucide-react";
 import AccessDenied from "@/components/AccessDenied";
-import { EmptyState, Notice, PageHeader, primaryButtonClass } from "@/components/ui";
+import { EmptyState, Notice, PageHeader, Pill, primaryButtonClass } from "@/components/ui";
 import { createClient } from "@/lib/supabase/server";
 import { getMyBusiness } from "@/lib/business";
 import { canViewPage, getMyPermissions } from "@/lib/permissions";
@@ -21,6 +21,7 @@ type PurchaseRow = {
   purchase_date: string | null;
   total: number | string | null;
   paid_amount: number | string | null;
+  status: string | null;
 };
 
 type ListItem = {
@@ -31,6 +32,7 @@ type ListItem = {
   total: bigint | null;
   paid: bigint | null;
   balance: bigint | null;
+  cancelled: boolean;
 };
 
 function formatDate(value: string | null) {
@@ -59,7 +61,7 @@ export default async function PurchasesPage() {
   // Latest first
   const { data, error } = await supabase
     .from("purchases")
-    .select("id, purchase_no, supplier_id, purchase_date, total, paid_amount")
+    .select("id, purchase_no, supplier_id, purchase_date, total, paid_amount, status")
     .order("purchase_date", { ascending: false })
     .order("purchase_no", { ascending: false })
     .limit(LIMIT);
@@ -93,7 +95,10 @@ export default async function PurchasesPage() {
         : "—",
       total,
       paid,
-      balance: total !== null && paid !== null ? total - paid : null,
+      cancelled: row.status === "void",
+      // A cancelled purchase owes nothing
+      balance:
+        row.status === "void" ? BigInt(0) : total !== null && paid !== null ? total - paid : null,
     };
   });
 
@@ -139,8 +144,9 @@ export default async function PurchasesPage() {
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="text-xs font-semibold text-ink-muted">
+                      <p className="flex flex-wrap items-center gap-2 text-xs font-semibold text-ink-muted">
                         No. {item.number} · {formatDate(item.date)}
+                        {item.cancelled && <Pill tone="neutral">Cancelled</Pill>}
                       </p>
                       <p className="mt-0.5 truncate font-semibold text-ink">{item.supplier}</p>
                     </div>
@@ -192,6 +198,11 @@ export default async function PurchasesPage() {
                       >
                         {item.number}
                       </Link>
+                      {item.cancelled && (
+                        <span className="ml-2 align-middle">
+                          <Pill tone="neutral">Cancelled</Pill>
+                        </span>
+                      )}
                     </td>
                     <td className="px-5 py-3 text-ink-muted">{formatDate(item.date)}</td>
                     <td className="px-5 py-3 text-ink">{item.supplier}</td>

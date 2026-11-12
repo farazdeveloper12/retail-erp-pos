@@ -48,6 +48,17 @@ export async function paySupplier(input: unknown): Promise<PaySupplierResult> {
     }
 
     const supabase = await createClient();
+
+    // A cancelled purchase cannot be paid
+    const { data: purchase } = await supabase
+      .from("purchases")
+      .select("status")
+      .eq("id", purchaseId)
+      .maybeSingle();
+    if ((purchase as { status?: string } | null)?.status === "void") {
+      return fail("This purchase is cancelled, so it cannot be paid.");
+    }
+
     const { data, error } = await supabase.rpc("record_supplier_payment", {
       p_payload: { purchase_id: purchaseId, amount, payment_method: method },
     });
@@ -65,5 +76,46 @@ export async function paySupplier(input: unknown): Promise<PaySupplierResult> {
   } catch (e) {
     console.error("paySupplier error:", e);
     return fail("The payment could not be saved. Please try again.");
+  }
+}
+
+export type CancelPurchaseResult = { ok: boolean; error: string | null };
+
+// Cancels a purchase: the database removes its items from stock and records
+// the money paid to the supplier as returned. It refuses when something from
+// this purchase was already sold or used.
+export async function cancelPurchase(input: {
+  id: string;
+  reason: string;
+}): Promise<CancelPurchaseResult> {
+  try {
+    const permissions = await getMyPermissions();
+    if (!permissions.includes("purchases.manage")) {
+      return { ok: false, error: "You do not have permission to cancel purchases." };
+    }
+    const purchaseId = input?.id;
+    if (typeof purchaseId !== "string" || !UUID_PATTERN.test(purchaseId)) {
+      return { ok: false, error: "The purchase is not valid." };
+    }
+    const reason = typeof input.reason === "string" ? input.reason.trim().slice(0, 200) : "";
+
+    const supabase = await createClient();
+    const { error } = await supabase.rpc("cancel_purchase", {
+      p_payload: reason ? { purchase_id: purchaseId, reason } : { purchase_id: purchaseId },
+    });
+    if (error) {
+      // The database raises clear English messages; show them as they are
+      return { ok: false, error: error.message };
+    }
+
+    revalidatePath(`/purchases/${purchaseId}`);
+    revalidatePath("/purchases");
+    revalidatePath("/suppliers", "layout");
+    revalidatePath("/inventory");
+    revalidatePath("/");
+    return { ok: true, error: null };
+  } catch (e) {
+    console.error("cancelPurchase error:", e);
+    return { ok: false, error: "The purchase could not be cancelled. Please try again." };
   }
 }

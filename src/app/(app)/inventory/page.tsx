@@ -89,9 +89,9 @@ function storageLabel(gb: number | null, ram: number | null) {
 }
 
 function formatDate(value: string | null) {
-  if (!value) return "â€”";
+  if (!value) return "—";
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "â€”";
+  if (Number.isNaN(date.getTime())) return "—";
   return new Intl.DateTimeFormat("en-GB", { dateStyle: "medium", timeZone: "Asia/Karachi" }).format(date);
 }
 
@@ -108,7 +108,7 @@ function StatusPill({ status }: { status: string | null }) {
   if (status === "in_stock") return <Pill tone="mint">In stock</Pill>;
   if (status === "sold") return <Pill tone="neutral">Sold</Pill>;
   if (status === "returned_to_supplier") return <Pill tone="neutral">Returned to supplier</Pill>;
-  if (status === "written_off") return <Pill tone="coral">Written off</Pill>;
+  if (status === "written_off") return <Pill tone="neutral">Written off</Pill>;
   return <Pill tone="neutral">{status ?? "Unknown"}</Pill>;
 }
 
@@ -313,7 +313,7 @@ async function PhonesTab({
         Sold {formatDate(phone.sold_at)}
         {canOpenSales && phone.sale_id && (
           <>
-            {" Â· "}
+            {" · "}
             <Link
               href={`/sales/${phone.sale_id}`}
               className="font-semibold text-accent hover:text-accent-strong"
@@ -426,7 +426,7 @@ async function PhonesTab({
                       <p className="text-xs text-ink-muted">
                         {[storageLabel(phone.storage_gb, phone.ram_gb), phone.color_name, phone.condition ? CONDITION_LABELS[phone.condition] ?? phone.condition : null]
                           .filter(Boolean)
-                          .join(" Â· ")}
+                          .join(" · ")}
                       </p>
                       <p className="mt-1 font-mono text-xs text-ink">IMEI {phone.imei}</p>
                     </div>
@@ -471,12 +471,12 @@ async function PhonesTab({
                         {`${phone.brand_name ?? ""} ${phone.model_name ?? ""}`.trim() || "Phone"}
                       </p>
                       <p className="text-xs text-ink-muted">
-                        {[storageLabel(phone.storage_gb, phone.ram_gb), phone.color_name].filter(Boolean).join(" Â· ")}
+                        {[storageLabel(phone.storage_gb, phone.ram_gb), phone.color_name].filter(Boolean).join(" · ")}
                       </p>
                     </td>
                     <td className="px-4 py-3 font-mono text-xs text-ink">{phone.imei}</td>
                     <td className="px-4 py-3 text-ink-muted">
-                      {phone.condition ? CONDITION_LABELS[phone.condition] ?? phone.condition : "â€”"}
+                      {phone.condition ? CONDITION_LABELS[phone.condition] ?? phone.condition : "—"}
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-right font-semibold text-ink">
                       {formatMoney(phone.sale_price, currency)}
@@ -705,7 +705,7 @@ async function AccessoriesTab({
                   <p className="font-semibold text-ink">{item.name}</p>
                   <p className="mt-1 text-xs text-ink-muted">
                     Sale price <span className="font-semibold text-ink">{formatMoney(item.salePrice, currency)}</span>
-                    {seesCost && <> Â· Avg cost {formatMoney(item.avgCost, currency)}</>}
+                    {seesCost && <> · Avg cost {formatMoney(item.avgCost, currency)}</>}
                   </p>
                 </div>
                 <div className="flex flex-col items-end gap-1">

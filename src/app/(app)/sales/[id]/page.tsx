@@ -16,6 +16,8 @@ import {
 } from "@/lib/format";
 import InvoiceActions from "@/app/(app)/sales/[id]/InvoiceActions";
 import ReceivePayment from "@/app/(app)/sales/[id]/ReceivePayment";
+import { cancelSale } from "@/app/(app)/sales/[id]/actions";
+import CancelDocument from "@/components/CancelDocument";
 
 export const metadata: Metadata = {
   title: "Invoice",
@@ -104,11 +106,11 @@ export default async function InvoicePage({
   const { data: saleData } = await supabase
     .from("sales")
     .select(
-      "id, invoice_no, created_at, customer_id, customer_name, customer_phone, subtotal, discount, total, paid_amount, payment_method, warranty_terms, notes, status"
+      "id, invoice_no, created_at, customer_id, customer_name, customer_phone, subtotal, discount, total, paid_amount, payment_method, warranty_terms, notes, status, voided_at, void_reason"
     )
     .eq("id", id)
     .maybeSingle();
-  const sale = saleData as SaleRow | null;
+  const sale = saleData as (SaleRow & { voided_at: string | null; void_reason: string | null }) | null;
   if (!sale) return <NotFound />;
 
   const [{ data: itemData }, { data: paymentData }, business] = await Promise.all([
@@ -134,9 +136,12 @@ export default async function InvoicePage({
   const date = formatDateTime(sale.created_at);
   const customerName = sale.customer_name?.trim() || "Walk-in customer";
 
+  const cancelled = sale.status === "void";
   const total = toCents(sale.total) ?? ZERO;
   const paid = toCents(sale.paid_amount) ?? ZERO;
-  const remaining = total - paid;
+  // A cancelled invoice owes nothing; everything paid was refunded
+  const remaining = cancelled ? ZERO : total - paid;
+  const canCancel = !cancelled && permissions.includes("returns.manage");
 
   // Cash, Bank, or both when the payments used both
   const methods = new Set(payments.map((p) => p.method).filter(Boolean));
@@ -148,12 +153,12 @@ export default async function InvoicePage({
         : paymentMethodLabel(sale.payment_method);
 
   const canReceive =
-    remaining > ZERO && hasAny(permissions, ["sales.create", "customers.manage"]);
+    !cancelled && remaining > ZERO && hasAny(permissions, ["sales.create", "customers.manage"]);
 
   // Plain English WhatsApp message
   const lines = [
     shopName,
-    `Invoice ${invoiceNo}`,
+    cancelled ? `Invoice ${invoiceNo} (CANCELLED)` : `Invoice ${invoiceNo}`,
     `Date: ${date}`,
     `Customer: ${customerName}`,
     "",
@@ -185,15 +190,49 @@ export default async function InvoicePage({
         <BackLink href="/sales">Back to sales</BackLink>
       </div>
 
-      <InvoiceActions saleId={sale.id} whatsappUrl={whatsappUrl} autoPrint={print === "1"}>
+      <InvoiceActions
+        saleId={sale.id}
+        whatsappUrl={whatsappUrl}
+        autoPrint={print === "1"}
+        extraActions={
+          canCancel ? (
+            <CancelDocument
+              id={sale.id}
+              buttonLabel="Cancel invoice"
+              explanation={`This puts the items back in stock and records a refund of ${formatMoney(paid, currency)} paid by the customer.`}
+              keepLabel="Keep invoice"
+              action={cancelSale}
+            />
+          ) : null
+        }
+      >
         <article
           className={
-            "mx-auto rounded-card border bg-white p-5 shadow-soft sm:p-8 " +
+            "relative mx-auto overflow-hidden rounded-card border bg-white p-5 shadow-soft sm:p-8 " +
             `${LINE} ${INK} ` +
             "print:rounded-none print:border-0 print:p-0 print:shadow-none " +
             "group-data-[paper=thermal]:max-w-[80mm] group-data-[paper=thermal]:p-3 group-data-[paper=thermal]:text-[11px]"
           }
         >
+          {cancelled && (
+            <>
+              {/* Faint watermark behind the content; printed too */}
+              <p
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-x-0 top-1/2 -translate-y-1/2 select-none text-center text-6xl font-black tracking-[0.3em] text-[#c2410c]/10 group-data-[paper=thermal]:text-3xl"
+              >
+                CANCELLED
+              </p>
+              <div className="relative mb-4 rounded-2xl border-2 border-[#c2410c] px-4 py-3 text-center text-[#c2410c]">
+                <p className="text-lg font-black tracking-widest group-data-[paper=thermal]:text-sm">CANCELLED</p>
+                <p className="text-xs">
+                  Cancelled on {formatDateTime(sale.voided_at)}
+                  {sale.void_reason?.trim() ? ` · Reason: ${sale.void_reason.trim()}` : ""}
+                </p>
+              </div>
+            </>
+          )}
+
           {/* Header */}
           <header
             className={
