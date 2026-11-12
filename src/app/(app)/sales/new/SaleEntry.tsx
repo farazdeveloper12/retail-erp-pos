@@ -7,12 +7,16 @@ import {
   CheckCircle2,
   FileText,
   Headphones,
+  PackagePlus,
   Plus,
   Printer,
   ShoppingCart,
   Smartphone,
   Trash2,
+  Truck,
+  X,
 } from "lucide-react";
+import SupplierPicker, { type PickedSupplier } from "@/components/SupplierPicker";
 import {
   Notice,
   cardClass,
@@ -24,19 +28,28 @@ import {
 import { centsToPlain, cleanMoneyInput, formatMoney, isValidMoneyInput, toCents } from "@/lib/money";
 import { formatInvoiceNo } from "@/lib/format";
 import {
-  createSale,
+  createQuickSale,
   type SaleItemOption,
   type SaleResult,
 } from "@/app/(app)/sales/new/actions";
+import { loadPurchaseCatalog, type CatalogBrand } from "@/app/(app)/purchases/new/actions";
 import SaleItemSearch from "@/app/(app)/sales/new/SaleItemSearch";
 import CustomerPanel, { type CustomerValue } from "@/app/(app)/sales/new/CustomerPanel";
+import QuickSourceCard, { type SourcedDraft } from "@/app/(app)/sales/new/QuickSourceCard";
 
 // ---------- Types and helpers ----------
+
+type SourceInfo = {
+  modelId: string;
+  variantId: string;
+  colorId: string | null;
+  condition: string;
+};
 
 type SaleLine = {
   key: string;
   kind: "phone" | "accessory";
-  refId: string; // phone_unit_id or product_id
+  refId: string; // phone_unit_id or product_id (for sourced phones: unused)
   title: string;
   detail: string;
   imei: string | null;
@@ -45,12 +58,17 @@ type SaleLine = {
   unitPrice: string;
   discount: string;
   warranty: string;
-  // Present only for users who may see cost; never sent back to the server
+  // In-stock lines: present only for users who may see cost; never sent back
   cost: bigint | null;
+  // Lines bought from a supplier in the same save
+  sourced: boolean;
+  sourceCost: string;
+  source: SourceInfo | null;
 };
 
 const ZERO = BigInt(0);
 const WHOLE = /^\d+$/;
+const MAX_SOURCED_QTY = 100000;
 
 let keyCounter = 0;
 function newKey() {
@@ -61,35 +79,79 @@ function newKey() {
 function lineFromOption(option: SaleItemOption): SaleLine {
   const price = toCents(option.sale_price);
   const cost = "cost" in option ? toCents(option.cost) : null;
+  const base = {
+    key: newKey(),
+    quantity: "1",
+    unitPrice: price === null ? "" : centsToPlain(price),
+    discount: "0",
+    cost,
+    sourced: false,
+    sourceCost: "",
+    source: null,
+  };
   if (option.kind === "phone") {
     return {
-      key: newKey(),
+      ...base,
       kind: "phone",
       refId: option.phone_unit_id,
       title: option.model,
       detail: [option.storage, option.color, option.condition].filter(Boolean).join(" · "),
       imei: option.imei,
       inStock: 1,
-      quantity: "1",
-      unitPrice: price === null ? "" : centsToPlain(price),
-      discount: "0",
       warranty: "7",
-      cost,
     };
   }
   return {
-    key: newKey(),
+    ...base,
     kind: "accessory",
     refId: option.product_id,
     title: option.name,
     detail: "",
     imei: null,
     inStock: option.in_stock,
-    quantity: "1",
-    unitPrice: price === null ? "" : centsToPlain(price),
-    discount: "0",
     warranty: "0",
-    cost,
+  };
+}
+
+function lineFromDraft(draft: SourcedDraft): SaleLine {
+  const base = {
+    key: newKey(),
+    unitPrice: draft.salePrice,
+    discount: "0",
+    cost: null,
+    sourced: true,
+    sourceCost: draft.cost,
+  };
+  if (draft.kind === "phone") {
+    return {
+      ...base,
+      kind: "phone",
+      refId: "",
+      title: draft.title,
+      detail: draft.detail,
+      imei: draft.imei,
+      inStock: 1,
+      quantity: "1",
+      warranty: "7",
+      source: {
+        modelId: draft.modelId,
+        variantId: draft.variantId,
+        colorId: draft.colorId,
+        condition: draft.condition,
+      },
+    };
+  }
+  return {
+    ...base,
+    kind: "accessory",
+    refId: draft.productId,
+    title: draft.title,
+    detail: "",
+    imei: null,
+    inStock: MAX_SOURCED_QTY,
+    quantity: draft.quantity,
+    warranty: "0",
+    source: null,
   };
 }
 
@@ -104,8 +166,8 @@ function plainNumber(value: string): number {
 
 type LineCalc = {
   qty: number | null;
-  gross: bigint | null;
   net: bigint | null;
+  cost: bigint | null;
   problems: string[];
   belowCost: boolean;
 };
@@ -118,7 +180,9 @@ function calculate(line: SaleLine): LineCalc {
   else if (WHOLE.test(qtyText) && Number(qtyText) >= 1 && Number(qtyText) <= line.inStock) {
     qty = Number(qtyText);
   } else {
-    problems.push(`quantity must be from 1 to ${line.inStock}`);
+    problems.push(
+      line.sourced ? "quantity must be a whole number of 1 or more" : `quantity must be from 1 to ${line.inStock}`
+    );
   }
 
   const unit = line.unitPrice.trim() === "" ? null : money(line.unitPrice);
@@ -131,6 +195,13 @@ function calculate(line: SaleLine): LineCalc {
     problems.push("warranty must be 0 to 3650 days");
   }
 
+  // Sourced lines carry the purchase price the user typed
+  let cost = line.cost;
+  if (line.sourced) {
+    cost = isValidMoneyInput(line.sourceCost) ? toCents(line.sourceCost) : null;
+    if (cost === null) problems.push("enter a valid purchase price");
+  }
+
   const gross = qty !== null && unit !== null ? unit * BigInt(qty) : null;
   let net: bigint | null = null;
   if (gross !== null && discount !== null) {
@@ -138,10 +209,8 @@ function calculate(line: SaleLine): LineCalc {
     else net = gross - discount;
   }
 
-  const belowCost =
-    line.cost !== null && net !== null && qty !== null && net < line.cost * BigInt(qty);
-
-  return { qty, gross, net, problems, belowCost };
+  const belowCost = cost !== null && net !== null && qty !== null && net < cost * BigInt(qty);
+  return { qty, net, cost, problems, belowCost };
 }
 
 const emptyCustomer: CustomerValue = { existing: null, name: "", phone: "" };
@@ -151,9 +220,15 @@ const emptyCustomer: CustomerValue = { existing: null, name: "", phone: "" };
 export default function SaleEntry({
   currency,
   seesCost,
+  canSource,
+  canAddModels,
+  canCreateProducts,
 }: {
   currency: string;
   seesCost: boolean;
+  canSource: boolean;
+  canAddModels: boolean;
+  canCreateProducts: boolean;
 }) {
   const rootRef = useRef<HTMLDivElement>(null);
   const addItemRef = useRef<HTMLInputElement>(null);
@@ -169,6 +244,15 @@ export default function SaleEntry({
   const [saveError, setSaveError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [result, setResult] = useState<SaleResult | null>(null);
+
+  // Not-in-stock items bought from a supplier
+  const [sourcingOpen, setSourcingOpen] = useState(false);
+  const [sourcingKey, setSourcingKey] = useState(0);
+  const [catalog, setCatalog] = useState<CatalogBrand[] | null>(null);
+  const [catalogLoading, setCatalogLoading] = useState(false);
+  const [supplier, setSupplier] = useState<PickedSupplier | null>(null);
+  const [supplierPaid, setSupplierPaid] = useState("0");
+  const [supplierMethod, setSupplierMethod] = useState<"cash" | "bank">("cash");
 
   // Focus a field after lines were added, or the Add item box after a reset
   useEffect(() => {
@@ -190,17 +274,19 @@ export default function SaleEntry({
   function addItem(option: SaleItemOption) {
     setNotice(null);
     if (option.kind === "phone") {
-      if (lines.some((l) => l.kind === "phone" && l.refId === option.phone_unit_id)) {
+      if (lines.some((l) => l.kind === "phone" && !l.sourced && l.refId === option.phone_unit_id)) {
         setNotice("This phone is already on the invoice.");
         return;
       }
-      pendingFocus.current = fieldSelector(lines.length);
+      pendingFocus.current = fieldSelector(lines.length, "price");
       setLines((current) => [...current, lineFromOption(option)]);
       return;
     }
 
-    // Same accessory again: add one to the existing line
-    const existing = lines.findIndex((l) => l.kind === "accessory" && l.refId === option.product_id);
+    // Same in-stock accessory again: add one to the existing line
+    const existing = lines.findIndex(
+      (l) => l.kind === "accessory" && !l.sourced && l.refId === option.product_id
+    );
     if (existing >= 0) {
       const line = lines[existing];
       const qty = WHOLE.test(line.quantity.trim()) ? Number(line.quantity.trim()) : 0;
@@ -212,7 +298,7 @@ export default function SaleEntry({
       pendingFocus.current = fieldSelector(existing, "quantity");
       return;
     }
-    pendingFocus.current = fieldSelector(lines.length);
+    pendingFocus.current = fieldSelector(lines.length, "quantity");
     setLines((current) => [...current, lineFromOption(option)]);
   }
 
@@ -225,6 +311,37 @@ export default function SaleEntry({
     setLines((current) => current.filter((_, i) => i !== index));
   }
 
+  async function loadCatalog() {
+    setCatalogLoading(true);
+    try {
+      const fresh = await loadPurchaseCatalog();
+      if (fresh.ok) setCatalog(fresh.brands);
+      else setNotice(fresh.error ?? "The models could not be loaded.");
+    } catch {
+      setNotice("The models could not be loaded.");
+    } finally {
+      setCatalogLoading(false);
+    }
+  }
+
+  function openSourcing() {
+    setNotice(null);
+    setSourcingKey((k) => k + 1);
+    setSourcingOpen(true);
+    if (!catalog && !catalogLoading) void loadCatalog();
+  }
+
+  function closeSourcing() {
+    setSourcingOpen(false);
+    pendingFocus.current = "add-item";
+  }
+
+  function addSourced(draft: SourcedDraft) {
+    pendingFocus.current = fieldSelector(lines.length, "price");
+    setLines((current) => [...current, lineFromDraft(draft)]);
+    setSourcingOpen(false);
+  }
+
   // ---------- Totals (display only; the database calculates the saved values) ----------
 
   const calcs = lines.map(calculate);
@@ -235,20 +352,27 @@ export default function SaleEntry({
   const paidCents = money(paid);
   const remaining = paidCents !== null ? grandTotal - paidCents : grandTotal;
 
+  const hasSourced = lines.some((l) => l.sourced);
+  const sourcedCost = lines.reduce<bigint>((sum, line, i) => {
+    const c = calcs[i];
+    return line.sourced && c.cost !== null && c.qty !== null ? sum + c.cost * BigInt(c.qty) : sum;
+  }, ZERO);
+  const supplierPaidCents = money(supplierPaid);
+  const supplierBalance = sourcedCost - (supplierPaidCents ?? ZERO);
+
   // Estimated profit, only for users who may see cost
   let profit: bigint | null = null;
   let costMissing = false;
   if (seesCost) {
-    profit = ZERO;
-    lines.forEach((line, i) => {
-      const c = calcs[i];
-      if (line.cost === null || c.net === null || c.qty === null) {
+    let sum = ZERO;
+    calcs.forEach((c) => {
+      if (c.cost === null || c.net === null || c.qty === null) {
         costMissing = true;
         return;
       }
-      profit = (profit ?? ZERO) + (c.net - line.cost * BigInt(c.qty));
+      sum += c.net - c.cost * BigInt(c.qty);
     });
-    profit = (profit ?? ZERO) - (discountCents ?? ZERO);
+    profit = sum - (discountCents ?? ZERO);
   }
 
   // ---------- Validation ----------
@@ -263,10 +387,19 @@ export default function SaleEntry({
   if (paidCents === null) reasons.push("Enter a valid amount for Paid now.");
   else if (paidCents > grandTotal) reasons.push("Paid now cannot be more than the grand total.");
 
-  const needsCustomer = remaining > ZERO;
+  // Unpaid money always needs a known customer
+  const needsCustomer = paidCents === null || remaining > ZERO;
   const hasNewCustomer = customer.name.trim() !== "" && customer.phone.trim() !== "";
   if (needsCustomer && !customer.existing && !hasNewCustomer) {
     reasons.push("Customer name and phone are required when part of the amount remains unpaid.");
+  }
+
+  if (hasSourced) {
+    if (!supplier) reasons.push("Choose a supplier for the items that are not in stock.");
+    if (supplierPaidCents === null) reasons.push("Enter a valid amount for Paid to supplier now.");
+    else if (supplierPaidCents > sourcedCost) {
+      reasons.push("Paid to supplier cannot be more than the cost of the sourced items.");
+    }
   }
 
   const canSave = reasons.length === 0 && !saving;
@@ -278,39 +411,57 @@ export default function SaleEntry({
     setSaving(true);
     setSaveError(null);
 
-    const payload: Record<string, unknown> = {
+    const sale: Record<string, unknown> = {
       discount: plainNumber(invoiceDiscount),
       paid_amount: plainNumber(paid),
       payment_method: method,
       notes: notes.trim() || null,
-      items: lines.map((line) =>
-        line.kind === "phone"
-          ? {
-              item_type: "phone",
-              phone_unit_id: line.refId,
-              unit_price: plainNumber(line.unitPrice),
-              discount: plainNumber(line.discount),
-              warranty_days: Number(line.warranty.trim() || "0"),
-            }
-          : {
-              item_type: "accessory",
-              product_id: line.refId,
-              quantity: Number(line.quantity.trim()),
-              unit_price: plainNumber(line.unitPrice),
-              discount: plainNumber(line.discount),
-              warranty_days: Number(line.warranty.trim() || "0"),
-            }
-      ),
+      items: lines.map((line) => {
+        const common = {
+          unit_price: plainNumber(line.unitPrice),
+          discount: plainNumber(line.discount),
+          warranty_days: Number(line.warranty.trim() || "0"),
+        };
+        if (line.kind === "phone" && line.sourced && line.source) {
+          return {
+            item_type: "phone",
+            sourced: true,
+            model_id: line.source.modelId,
+            variant_id: line.source.variantId,
+            color_id: line.source.colorId,
+            condition: line.source.condition,
+            imei: line.imei,
+            unit_cost: plainNumber(line.sourceCost),
+            ...common,
+          };
+        }
+        if (line.kind === "phone") {
+          return { item_type: "phone", phone_unit_id: line.refId, ...common };
+        }
+        return {
+          item_type: "accessory",
+          product_id: line.refId,
+          quantity: Number(line.quantity.trim()),
+          ...(line.sourced ? { sourced: true, unit_cost: plainNumber(line.sourceCost) } : {}),
+          ...common,
+        };
+      }),
     };
-    if (customer.existing) {
-      payload.customer_id = customer.existing.id;
-    } else {
-      if (customer.name.trim()) payload.customer_name = customer.name.trim();
-      if (customer.phone.trim()) payload.customer_phone = customer.phone.trim();
+    // Name and phone are sent with an existing customer too, so the sale
+    // keeps a snapshot of them for the invoice.
+    if (customer.existing) sale.customer_id = customer.existing.id;
+    if (customer.name.trim()) sale.customer_name = customer.name.trim();
+    if (customer.phone.trim()) sale.customer_phone = customer.phone.trim();
+
+    const payload: Record<string, unknown> = { sale };
+    if (hasSourced && supplier) {
+      payload.supplier_id = supplier.id;
+      payload.supplier_paid_amount = plainNumber(supplierPaid);
+      if ((supplierPaidCents ?? ZERO) > ZERO) payload.supplier_payment_method = supplierMethod;
     }
 
     try {
-      const response = await createSale(payload);
+      const response = await createQuickSale(payload);
       if (response.ok && response.result) {
         setResult(response.result);
         window.scrollTo({ top: 0, behavior: "smooth" });
@@ -334,6 +485,10 @@ export default function SaleEntry({
     setSaveError(null);
     setNotice(null);
     setResult(null);
+    setSourcingOpen(false);
+    setSupplier(null);
+    setSupplierPaid("0");
+    setSupplierMethod("cash");
     pendingFocus.current = "add-item";
   }
 
@@ -362,7 +517,7 @@ export default function SaleEntry({
   // ---------- Success panel ----------
 
   if (result) {
-    // Values come straight from create_sale; remaining is the returned balance
+    // Values come straight from create_quick_sale; remaining is the returned balance
     return (
       <section className={cardClass + " mx-auto max-w-xl text-center"}>
         <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-mint">
@@ -385,6 +540,21 @@ export default function SaleEntry({
             </div>
           ))}
         </dl>
+        {result.purchase_no !== undefined && result.purchase_no !== null && (
+          <p className="mt-4 flex items-start justify-center gap-2 rounded-2xl bg-lavender px-4 py-3 text-left text-sm text-ink">
+            <Truck className="mt-0.5 h-4 w-4 shrink-0 text-purple" />
+            <span>
+              Purchase #{result.purchase_no} was created from the supplier.
+              {result.supplier_balance !== undefined && result.supplier_balance !== null && (
+                <>
+                  {" "}
+                  Supplier balance:{" "}
+                  <span className="font-semibold">{formatMoney(result.supplier_balance, currency)}</span>
+                </>
+              )}
+            </span>
+          </p>
+        )}
         <div className="mt-6 flex flex-col flex-wrap justify-center gap-2 sm:flex-row">
           <button type="button" onClick={resetAll} className={primaryButtonClass} autoFocus>
             <Plus className="h-4 w-4" />
@@ -408,6 +578,7 @@ export default function SaleEntry({
 
   // ---------- Entry screen ----------
 
+  const usedImeis = new Set(lines.map((l) => l.imei).filter((i): i is string => Boolean(i)));
   const lineGrid =
     "grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-[minmax(0,2.6fr)_minmax(0,0.8fr)_minmax(0,1fr)_minmax(0,0.9fr)_minmax(0,0.8fr)_minmax(0,1fr)_auto] xl:items-center xl:gap-2";
   const headerCell = "text-xs font-bold uppercase tracking-wide text-ink-muted";
@@ -425,11 +596,29 @@ export default function SaleEntry({
 
           <SaleItemSearch
             onPick={addItem}
-            excludePhoneIds={new Set(lines.filter((l) => l.kind === "phone").map((l) => l.refId))}
+            onNotInStock={canSource ? openSourcing : undefined}
+            excludePhoneIds={
+              new Set(lines.filter((l) => l.kind === "phone" && !l.sourced).map((l) => l.refId))
+            }
             currency={currency}
             inputRef={addItemRef}
           />
           {notice && <Notice kind="error">{notice}</Notice>}
+
+          {sourcingOpen && canSource && (
+            <QuickSourceCard
+              key={sourcingKey}
+              brands={catalog}
+              loadingCatalog={catalogLoading}
+              onReloadCatalog={() => void loadCatalog()}
+              canAddModels={canAddModels}
+              canCreateProducts={canCreateProducts}
+              currency={currency}
+              usedImeis={usedImeis}
+              onAdd={addSourced}
+              onClose={closeSourcing}
+            />
+          )}
 
           {lines.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-line-strong bg-surface-muted px-6 py-10 text-center">
@@ -465,7 +654,7 @@ export default function SaleEntry({
                       className="rounded-2xl border border-line bg-surface p-4 xl:rounded-none xl:border-0 xl:border-b xl:px-0 xl:py-3"
                     >
                       <div className={lineGrid}>
-                        {/* Item (read only) */}
+                        {/* Item (read only, with the purchase price for sourced lines) */}
                         <div className="col-span-2 flex min-w-0 items-start gap-3 md:col-span-4 xl:col-span-1">
                           <span
                             className={
@@ -487,8 +676,31 @@ export default function SaleEntry({
                             {line.imei && (
                               <span className="block font-mono text-xs text-ink-muted">IMEI {line.imei}</span>
                             )}
-                            {line.kind === "accessory" && (
+                            {line.kind === "accessory" && !line.sourced && (
                               <span className="block text-xs text-ink-muted">In stock: {line.inStock}</span>
+                            )}
+                            {line.sourced && (
+                              <span className="mt-1 flex flex-wrap items-center gap-2">
+                                <span className="inline-flex items-center gap-1 rounded-full bg-lavender px-2 py-0.5 text-xs font-semibold text-ink">
+                                  <PackagePlus className="h-3.5 w-3.5 text-purple" />
+                                  From supplier
+                                </span>
+                                <label className="inline-flex items-center gap-1.5 text-xs text-ink-muted">
+                                  Purchase price
+                                  <input
+                                    data-sale-field=""
+                                    data-line={index}
+                                    data-field="cost"
+                                    type="text"
+                                    inputMode="decimal"
+                                    autoComplete="off"
+                                    value={line.sourceCost}
+                                    onChange={(e) => updateLine(index, { sourceCost: e.target.value })}
+                                    aria-label={`Purchase price, line ${n}`}
+                                    className="min-h-11 w-28 rounded-xl border border-line-strong bg-surface px-3 text-sm text-ink outline-none focus:border-accent focus:ring-4 focus:ring-accent/15"
+                                  />
+                                </label>
+                              </span>
                             )}
                             {c.belowCost && (
                               <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-amber/20 px-2 py-0.5 text-xs font-semibold text-ink">
@@ -590,9 +802,7 @@ export default function SaleEntry({
                         </div>
                       </div>
                       {c.problems.length > 0 && (
-                        <p className="mt-2 text-xs font-medium text-danger">
-                          {c.problems.join(", ")}
-                        </p>
+                        <p className="mt-2 text-xs font-medium text-danger">{c.problems.join(", ")}</p>
                       )}
                     </div>
                   );
@@ -626,6 +836,77 @@ export default function SaleEntry({
           </div>
         </section>
       </div>
+
+      {/* Supplier for the items that are not in stock */}
+      {hasSourced && (
+        <section className={cardClass + " space-y-4"}>
+          <div className="flex items-center gap-2">
+            <Truck className="h-5 w-5 text-purple" />
+            <h2 className="text-base font-bold text-ink">Supplier</h2>
+            <span className="text-xs text-ink-muted">for the items that are not in stock</span>
+          </div>
+          <div className="grid gap-4 md:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_minmax(0,1fr)] md:items-start">
+            <div>
+              <p className={labelClass}>Supplier</p>
+              {supplier ? (
+                <div className="flex min-h-11 items-center justify-between gap-2 rounded-2xl border border-line-strong bg-surface-muted px-4">
+                  <span className="truncate text-sm font-semibold text-ink">{supplier.name}</span>
+                  <button
+                    type="button"
+                    onClick={() => setSupplier(null)}
+                    className="inline-flex min-h-11 items-center gap-1 text-xs font-semibold text-accent"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                    Change
+                  </button>
+                </div>
+              ) : (
+                <SupplierPicker
+                  canCreate
+                  label="Supplier"
+                  placeholder="Search or add a supplier..."
+                  onSelect={setSupplier}
+                />
+              )}
+            </div>
+            <div>
+              <label htmlFor="supplier-paid" className={labelClass}>
+                Paid to supplier now ({currency})
+              </label>
+              <input
+                id="supplier-paid"
+                type="text"
+                inputMode="decimal"
+                autoComplete="off"
+                value={supplierPaid}
+                onChange={(e) => setSupplierPaid(e.target.value)}
+                className={inputClass}
+              />
+              {(supplierPaidCents ?? ZERO) > ZERO && (
+                <select
+                  aria-label="Supplier payment method"
+                  value={supplierMethod}
+                  onChange={(e) => setSupplierMethod(e.target.value as "cash" | "bank")}
+                  className={inputClass + " mt-2"}
+                >
+                  <option value="cash">Cash</option>
+                  <option value="bank">Bank</option>
+                </select>
+              )}
+            </div>
+            <dl className="space-y-1 rounded-2xl bg-lavender px-4 py-3 text-sm">
+              <div className="flex justify-between gap-3">
+                <dt className="text-ink-muted">Cost of sourced items</dt>
+                <dd className="font-semibold text-ink">{formatMoney(sourcedCost, currency)}</dd>
+              </div>
+              <div className="flex justify-between gap-3">
+                <dt className="text-ink-muted">Supplier balance</dt>
+                <dd className="font-bold text-ink">{formatMoney(supplierBalance, currency)}</dd>
+              </div>
+            </dl>
+          </div>
+        </section>
+      )}
 
       {/* Footer: totals, payment and save */}
       <section className="sticky bottom-24 z-30 rounded-card border border-line bg-surface p-4 shadow-soft lg:bottom-3 sm:p-5">

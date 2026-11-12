@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useId, useRef, useState, type KeyboardEvent, type RefObject } from "react";
-import { Headphones, Loader2, Search, Smartphone } from "lucide-react";
+import { Headphones, Loader2, PackagePlus, Search, Smartphone } from "lucide-react";
 import { inputClass } from "@/components/ui";
 import { formatMoney } from "@/lib/money";
 import { searchSaleItems, type SaleItemOption } from "@/app/(app)/sales/new/actions";
@@ -16,14 +16,17 @@ function optionKey(option: SaleItemOption) {
 }
 
 // One "Add item" box that finds in-stock phones (by IMEI, brand or model)
-// and accessories (by name).
+// and accessories (by name). When onNotInStock is given, a last option
+// "Not in stock? ..." opens the supplier quick-add card.
 export default function SaleItemSearch({
   onPick,
+  onNotInStock,
   excludePhoneIds,
   currency,
   inputRef,
 }: {
   onPick: (option: SaleItemOption) => void;
+  onNotInStock?: (query: string) => void;
   excludePhoneIds: Set<string>;
   currency: string;
   inputRef: RefObject<HTMLInputElement | null>;
@@ -51,6 +54,8 @@ export default function SaleItemSearch({
     (o) => o.kind !== "phone" || !excludePhoneIds.has(o.phone_unit_id)
   );
   const trimmed = text.trim();
+  // Items plus the optional "Not in stock?" entry at the end
+  const optionCount = options.length + (onNotInStock ? 1 : 0);
 
   function search(value: string) {
     if (timer.current) clearTimeout(timer.current);
@@ -113,18 +118,26 @@ export default function SaleItemSearch({
     onPick(option);
   }
 
+  function chooseNotInStock() {
+    const query = text.trim();
+    reset();
+    onNotInStock?.(query);
+  }
+
   function onKeyDown(event: KeyboardEvent<HTMLInputElement>) {
     if (event.key === "ArrowDown") {
       event.preventDefault();
       setOpen(true);
-      setHighlight((h) => (options.length ? (h + 1) % options.length : 0));
+      setHighlight((h) => (optionCount ? (h + 1) % optionCount : 0));
     } else if (event.key === "ArrowUp") {
       event.preventDefault();
       setOpen(true);
-      setHighlight((h) => (options.length ? (h - 1 + options.length) % options.length : 0));
+      setHighlight((h) => (optionCount ? (h - 1 + optionCount) % optionCount : 0));
     } else if (event.key === "Enter" && !event.ctrlKey && !event.metaKey) {
       event.preventDefault();
-      if (open && options[highlight]) choose(options[highlight]);
+      if (!open || trimmed === "") return;
+      if (options[highlight]) choose(options[highlight]);
+      else if (onNotInStock && highlight === options.length) chooseNotInStock();
     } else if (event.key === "Escape") {
       if (open) {
         event.preventDefault();
@@ -135,7 +148,7 @@ export default function SaleItemSearch({
 
   const showList = open && trimmed !== "";
   const activeId =
-    showList && options[highlight] ? `${listId}-option-${highlight}` : undefined;
+    showList && highlight < optionCount ? `${listId}-option-${highlight}` : undefined;
 
   return (
     <div className="relative">
@@ -189,7 +202,7 @@ export default function SaleItemSearch({
               {error}
             </li>
           )}
-          {!loading && !timedOut && !error && options.length === 0 && (
+          {!loading && !timedOut && !error && options.length === 0 && !onNotInStock && (
             <li className="px-3 py-3 text-sm text-ink-muted">No item in stock matches.</li>
           )}
           {options.map((option, index) => {
@@ -245,6 +258,24 @@ export default function SaleItemSearch({
               </li>
             );
           })}
+          {onNotInStock && (
+            <li
+              id={`${listId}-option-${options.length}`}
+              role="option"
+              aria-selected={highlight === options.length}
+              onMouseEnter={() => setHighlight(options.length)}
+              onClick={chooseNotInStock}
+              className={
+                "mt-1 flex min-h-11 cursor-pointer items-center gap-3 rounded-xl border-t border-line px-3 py-2 text-sm font-semibold text-accent " +
+                (highlight === options.length ? "bg-surface-muted" : "")
+              }
+            >
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-pill text-pill-ink">
+                <PackagePlus className="h-4 w-4" />
+              </span>
+              Not in stock? Add a new item from a supplier
+            </li>
+          )}
         </ul>
       )}
     </div>

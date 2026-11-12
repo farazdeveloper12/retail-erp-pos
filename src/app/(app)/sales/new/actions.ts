@@ -47,13 +47,16 @@ export type CustomerOption = {
   phone: string | null;
 };
 
-// Exactly what the create_sale database function returns
+// Exactly what the create_quick_sale database function returns.
+// purchase_no and supplier_balance exist only when something was sourced.
 export type SaleResult = {
   sale_id: string;
   invoice_no: number;
   total: number;
   paid: number;
   balance: number;
+  purchase_no?: number | null;
+  supplier_balance?: number | null;
 };
 
 export type CreateSaleResult = {
@@ -380,7 +383,27 @@ function optionalText(value: unknown, max: number, label: string): string | null
   return text;
 }
 
-function buildPayload(input: unknown) {
+const CONDITIONS = new Set(["new", "used", "open_box", "refurbished"]);
+const IMEI_PATTERN = /^\d{15}$/;
+
+// Whole cents from a validated amount (at most 2 decimals), for exact sums
+function cents(value: number): bigint {
+  return BigInt(Math.round(value * 100));
+}
+
+function uuid(value: unknown, message: string): string {
+  if (typeof value !== "string" || !UUID_PATTERN.test(value)) throw new InputError(message);
+  return value;
+}
+
+function paymentMethod(value: unknown, message: string): "cash" | "bank" {
+  if (value === "cash" || value === "bank") return value;
+  throw new InputError(message);
+}
+
+// Validates the sale part. Returns the payload for create_sale plus the
+// totals needed for the checks below.
+function buildSale(input: unknown) {
   if (!isRecord(input)) throw new InputError("The sale is not valid.");
   if (!Array.isArray(input.items) || input.items.length === 0) {
     throw new InputError("Add at least one item.");
@@ -388,6 +411,11 @@ function buildPayload(input: unknown) {
   if (input.items.length > 200) throw new InputError("A sale can have at most 200 lines.");
 
   const seenPhones = new Set<string>();
+  const seenImeis = new Set<string>();
+  let lineTotal = BigInt(0);
+  let sourcedCost = BigInt(0);
+  let sourcedCount = 0;
+
   const items = input.items.map((raw, index) => {
     if (!isRecord(raw)) throw new InputError(`Line ${index + 1} is not valid.`);
     const line = `Line ${index + 1}`;
@@ -396,72 +424,134 @@ function buildPayload(input: unknown) {
       discount: amount(raw.discount ?? 0, `${line}: discount`),
       warranty_days: wholeNumber(raw.warranty_days ?? 0, `${line}: warranty days`, 0, 3650),
     };
+    const sourced = raw.sourced === true;
 
-    if (raw.item_type === "phone") {
-      if (typeof raw.phone_unit_id !== "string" || !UUID_PATTERN.test(raw.phone_unit_id)) {
-        throw new InputError(`${line}: the phone is not valid.`);
-      }
-      if (seenPhones.has(raw.phone_unit_id)) {
-        throw new InputError(`${line}: this phone is already on the invoice.`);
-      }
-      seenPhones.add(raw.phone_unit_id);
-      return { item_type: "phone", phone_unit_id: raw.phone_unit_id, ...common };
-    }
+    let quantity = 1;
+    let item: Row;
 
-    if (raw.item_type === "accessory") {
-      if (typeof raw.product_id !== "string" || !UUID_PATTERN.test(raw.product_id)) {
-        throw new InputError(`${line}: the product is not valid.`);
+    if (raw.item_type === "phone" && sourced) {
+      // A phone that is not in stock yet: bought from the supplier in the same save
+      const imei = raw.imei;
+      if (typeof imei !== "string" || !IMEI_PATTERN.test(imei)) {
+        throw new InputError(`${line}: the IMEI must be exactly 15 digits.`);
       }
-      return {
-        item_type: "accessory",
-        product_id: raw.product_id,
-        quantity: wholeNumber(raw.quantity, `${line}: quantity`, 1, 100000),
+      if (seenImeis.has(imei)) throw new InputError(`${line}: IMEI ${imei} is entered twice.`);
+      seenImeis.add(imei);
+      const condition = typeof raw.condition === "string" ? raw.condition : "new";
+      if (!CONDITIONS.has(condition)) throw new InputError(`${line}: condition is not valid.`);
+      item = {
+        item_type: "phone",
+        sourced: true,
+        model_id: uuid(raw.model_id, `${line}: choose a model.`),
+        variant_id: uuid(raw.variant_id, `${line}: choose the storage.`),
+        color_id: raw.color_id ? uuid(raw.color_id, `${line}: the colour is not valid.`) : null,
+        condition,
+        imei,
+        unit_cost: amount(raw.unit_cost, `${line}: purchase price`),
         ...common,
       };
+    } else if (raw.item_type === "phone") {
+      const id = uuid(raw.phone_unit_id, `${line}: the phone is not valid.`);
+      if (seenPhones.has(id)) throw new InputError(`${line}: this phone is already on the invoice.`);
+      seenPhones.add(id);
+      item = { item_type: "phone", phone_unit_id: id, ...common };
+    } else if (raw.item_type === "accessory") {
+      quantity = wholeNumber(raw.quantity, `${line}: quantity`, 1, 100000);
+      item = {
+        item_type: "accessory",
+        product_id: uuid(raw.product_id, `${line}: the product is not valid.`),
+        quantity,
+        ...common,
+      };
+      if (sourced) {
+        item.sourced = true;
+        item.unit_cost = amount(raw.unit_cost, `${line}: purchase price`);
+      }
+    } else {
+      throw new InputError(`${line}: unknown item type.`);
     }
 
-    throw new InputError(`${line}: unknown item type.`);
+    const gross = cents(common.unit_price) * BigInt(quantity);
+    const discount = cents(common.discount);
+    if (discount > gross) {
+      throw new InputError(`${line}: the discount cannot be more than the line amount.`);
+    }
+    lineTotal += gross - discount;
+    if (sourced) {
+      sourcedCount += 1;
+      sourcedCost += cents(item.unit_cost as number) * BigInt(quantity);
+    }
+    return item;
   });
 
-  const paymentMethod =
-    input.payment_method === "cash" || input.payment_method === "bank"
-      ? input.payment_method
-      : null;
-  if (!paymentMethod) throw new InputError("Choose Cash or Bank as the payment method.");
+  const discount = amount(input.discount ?? 0, "Invoice discount");
+  const paid = amount(input.paid_amount ?? 0, "Paid now");
+  const total = lineTotal - cents(discount);
+  if (total < BigInt(0)) throw new InputError("The invoice discount cannot be more than the subtotal.");
+  if (cents(paid) > total) throw new InputError("Paid now cannot be more than the grand total.");
 
-  const payload: Row = {
-    discount: amount(input.discount ?? 0, "Invoice discount"),
-    paid_amount: amount(input.paid_amount ?? 0, "Paid now"),
-    payment_method: paymentMethod,
+  const sale: Row = {
+    discount,
+    paid_amount: paid,
+    payment_method: paymentMethod(input.payment_method, "Choose Cash or Bank as the payment method."),
     notes: optionalText(input.notes, 1000, "Notes"),
     items,
   };
 
+  // The customer's name and phone are always sent too, so the sale keeps a
+  // snapshot of them even when an existing customer was chosen.
+  const name = optionalText(input.customer_name, 120, "Customer name");
+  const phone = optionalText(input.customer_phone, 40, "Customer phone");
   if (input.customer_id !== undefined && input.customer_id !== null) {
-    if (typeof input.customer_id !== "string" || !UUID_PATTERN.test(input.customer_id)) {
-      throw new InputError("The customer is not valid.");
-    }
-    payload.customer_id = input.customer_id;
-  } else {
-    const name = optionalText(input.customer_name, 120, "Customer name");
-    const phone = optionalText(input.customer_phone, 40, "Customer phone");
-    if (name) payload.customer_name = name;
-    if (phone) payload.customer_phone = phone;
+    sale.customer_id = uuid(input.customer_id, "The customer is not valid.");
+  }
+  if (name) sale.customer_name = name;
+  if (phone) sale.customer_phone = phone;
+
+  // Never save unpaid money against a walk-in customer
+  if (cents(paid) < total && !sale.customer_id && !(name && phone)) {
+    throw new InputError(
+      "Customer name and phone are required when part of the amount remains unpaid."
+    );
   }
 
-  return payload;
+  return { sale, sourcedCount, sourcedCost };
 }
 
-export async function createSale(input: unknown): Promise<CreateSaleResult> {
+export async function createQuickSale(input: unknown): Promise<CreateSaleResult> {
   try {
-    const { allowed } = await canSell();
-    if (!allowed) {
+    const permissions = await getMyPermissions();
+    if (!permissions.includes("sales.create")) {
       return { ok: false, error: "You do not have permission to create sales.", result: null };
     }
+    if (!isRecord(input)) throw new InputError("The sale is not valid.");
 
-    const payload = buildPayload(input);
+    const { sale, sourcedCount, sourcedCost } = buildSale(input.sale);
+    const payload: Row = { sale };
+
+    if (sourcedCount > 0) {
+      if (!permissions.includes("purchases.manage")) {
+        throw new InputError("You do not have permission to buy items from a supplier.");
+      }
+      payload.supplier_id = uuid(
+        input.supplier_id,
+        "Choose a supplier for the items that are not in stock."
+      );
+      const supplierPaid = amount(input.supplier_paid_amount ?? 0, "Paid to supplier now");
+      if (cents(supplierPaid) > sourcedCost) {
+        throw new InputError("Paid to supplier cannot be more than the cost of the sourced items.");
+      }
+      payload.supplier_paid_amount = supplierPaid;
+      if (supplierPaid > 0) {
+        payload.supplier_payment_method = paymentMethod(
+          input.supplier_payment_method,
+          "Choose Cash or Bank for the supplier payment."
+        );
+      }
+    }
+
     const supabase = await createClient();
-    const { data, error } = await supabase.rpc("create_sale", { p_payload: payload });
+    const { data, error } = await supabase.rpc("create_quick_sale", { p_payload: payload });
 
     if (error) {
       // The database raises clear English messages; show them as they are
@@ -469,10 +559,11 @@ export async function createSale(input: unknown): Promise<CreateSaleResult> {
     }
 
     revalidatePath("/sales");
+    if (sourcedCount > 0) revalidatePath("/purchases");
     return { ok: true, error: null, result: data as SaleResult };
   } catch (e) {
     if (e instanceof InputError) return { ok: false, error: e.message, result: null };
-    console.error("createSale error:", e);
+    console.error("createQuickSale error:", e);
     return { ok: false, error: "The sale could not be saved. Please try again.", result: null };
   }
 }

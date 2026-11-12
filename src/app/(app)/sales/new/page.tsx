@@ -3,7 +3,7 @@ import { ShoppingCart } from "lucide-react";
 import AccessDenied from "@/components/AccessDenied";
 import { BackLink, PageHeader } from "@/components/ui";
 import { getMyBusiness } from "@/lib/business";
-import { getMyPermissions } from "@/lib/permissions";
+import { getMyPermissions, hasAny } from "@/lib/permissions";
 import SaleEntry from "@/app/(app)/sales/new/SaleEntry";
 
 export const metadata: Metadata = {
@@ -30,6 +30,10 @@ export default async function NewSalePage() {
       <SaleEntry
         currency={business?.currency_code || "PKR"}
         seesCost={permissions.includes("inventory.view_cost")}
+        // Selling an item that is not in stock also records a purchase
+        canSource={permissions.includes("purchases.manage")}
+        canAddModels={permissions.includes("catalog.manage")}
+        canCreateProducts={hasAny(permissions, ["catalog.create", "catalog.manage"])}
       />
     </div>
   );
