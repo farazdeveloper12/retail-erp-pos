@@ -190,23 +190,43 @@ export default async function DashboardPage({
           <section aria-label="Stock" className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
             <KpiCard label="Phones in stock" value={String(data.phonesInStock)} icon={Smartphone} tone="lavender" />
             <KpiCard label="Accessory units" value={String(data.accessoryUnits)} icon={Headphones} tone="mint" />
-            <div className="col-span-2 flex flex-col gap-3 rounded-card border border-line bg-surface p-4 shadow-soft sm:p-5 lg:col-span-1">
-              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-peach text-coral">
-                <TriangleAlert className="h-4 w-4" />
-              </span>
-              <div>
-                {data.lowStockCount > 0 ? (
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-peach px-3 py-1 text-sm font-bold text-ink">
-                    <span className="h-2 w-2 rounded-full bg-coral" aria-hidden="true" />
-                    {data.lowStockCount}
+            {(() => {
+              const lowStockCard = (
+                <>
+                  <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-peach text-coral">
+                    <TriangleAlert className="h-4 w-4" />
                   </span>
-                ) : (
-                  <p className="text-xl font-bold text-ink sm:text-2xl">0</p>
-                )}
-                <p className="mt-1.5 text-sm font-medium text-ink">Low stock items</p>
-                <p className="mt-0.5 text-xs text-ink-muted">Accessories with 5 or fewer left</p>
-              </div>
-            </div>
+                  <div>
+                    {data.lowStockCount > 0 ? (
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-peach px-3 py-1 text-sm font-bold text-ink">
+                        <span className="h-2 w-2 rounded-full bg-coral" aria-hidden="true" />
+                        {data.lowStockCount}
+                      </span>
+                    ) : (
+                      <p className="text-xl font-bold text-ink sm:text-2xl">0</p>
+                    )}
+                    <p className="mt-1.5 text-sm font-medium text-ink">Low stock items</p>
+                    <p className="mt-0.5 text-xs text-ink-muted">Accessories with 5 or fewer left</p>
+                  </div>
+                </>
+              );
+              const boxClass =
+                "col-span-2 flex flex-col gap-3 rounded-card border border-line bg-surface p-4 shadow-soft sm:p-5 lg:col-span-1";
+              // Opens the low stock list on the Inventory page when the user may see it
+              return canViewPage(permissions, "inventory") ? (
+                <Link
+                  href="/inventory?tab=accessories&filter=low"
+                  className={
+                    boxClass +
+                    " transition hover:border-line-strong focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-accent/20"
+                  }
+                >
+                  {lowStockCard}
+                </Link>
+              ) : (
+                <div className={boxClass}>{lowStockCard}</div>
+              );
+            })()}
           </section>
 
           {/* Chart and quick actions */}
