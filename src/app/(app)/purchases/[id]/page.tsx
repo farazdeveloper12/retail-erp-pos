@@ -4,9 +4,11 @@ import AccessDenied from "@/components/AccessDenied";
 import { BackLink, EmptyState, PageHeader, Pill, cardClass } from "@/components/ui";
 import { createClient } from "@/lib/supabase/server";
 import { getMyBusiness } from "@/lib/business";
-import { canViewPage, getMyPermissions } from "@/lib/permissions";
+import { canViewPage, getMyPermissions, hasAny } from "@/lib/permissions";
 import { UUID_PATTERN } from "@/lib/catalog";
-import { formatMoney, toCents } from "@/lib/money";
+import { centsToPlain, formatMoney, toCents } from "@/lib/money";
+import { formatDateTime, paymentMethodLabel } from "@/lib/format";
+import PaySupplier from "@/app/(app)/purchases/[id]/PaySupplier";
 
 export const metadata: Metadata = {
   title: "Purchase details",
@@ -124,7 +126,13 @@ export default async function PurchaseDetailPage({
   const purchase = purchaseData as PurchaseRow | null;
   if (!purchase) return <NotFound />;
 
-  const [{ data: itemData }, { data: unitData }, supplierResult, business] = await Promise.all([
+  const [
+    { data: itemData },
+    { data: unitData },
+    supplierResult,
+    business,
+    { data: paymentData },
+  ] = await Promise.all([
     supabase
       .from("purchase_items")
       .select("item_type, description, condition, quantity, unit_cost, sale_price, line_total")
@@ -138,7 +146,18 @@ export default async function PurchaseDetailPage({
       ? supabase.from("suppliers").select("name, phone").eq("id", purchase.supplier_id).maybeSingle()
       : Promise.resolve({ data: null }),
     getMyBusiness(),
+    // History of later payments; they are already included in paid_amount
+    supabase
+      .from("purchase_payments")
+      .select("amount, method, created_at")
+      .eq("purchase_id", id)
+      .order("created_at"),
   ]);
+  const payments = (paymentData ?? []) as {
+    amount: number | string | null;
+    method: string | null;
+    created_at: string;
+  }[];
   const items = (itemData ?? []) as PurchaseItemRow[];
   const units = (unitData ?? []) as PhoneUnitRow[];
   const supplier = supplierResult.data as { name: string; phone: string | null } | null;
@@ -168,9 +187,20 @@ export default async function PurchaseDetailPage({
     });
   }
 
+  // paid_amount already includes later payments (record_supplier_payment
+  // raises it); purchase_payments is the history of those later payments.
   const total = toCents(purchase.total);
-  const paid = toCents(purchase.paid_amount);
-  const balance = total !== null && paid !== null ? total - paid : null;
+  const totalPaid = toCents(purchase.paid_amount) ?? BigInt(0);
+  const paidLater = payments.reduce<bigint>(
+    (sum, p) => sum + (toCents(p.amount) ?? BigInt(0)),
+    BigInt(0)
+  );
+  const paidAtPurchase = totalPaid - paidLater;
+  const balance = total !== null ? total - totalPaid : null;
+  const canPay =
+    balance !== null &&
+    balance > BigInt(0) &&
+    hasAny(permissions, ["purchases.manage", "suppliers.manage"]);
   const purchaseNo = purchase.purchase_no === null ? "—" : String(purchase.purchase_no);
 
   const details: [string, string][] = [
@@ -273,14 +303,59 @@ export default async function PurchaseDetailPage({
             <dd>{formatMoney(total, currency)}</dd>
           </div>
           <div className="flex justify-between gap-4">
-            <dt className="text-ink-muted">Paid</dt>
-            <dd className="text-ink">{formatMoney(paid, currency)}</dd>
+            <dt className="text-ink-muted">Paid at purchase</dt>
+            <dd className="text-ink">{formatMoney(paidAtPurchase, currency)}</dd>
+          </div>
+          <div className="flex justify-between gap-4">
+            <dt className="text-ink-muted">Paid later</dt>
+            <dd className="text-ink">{formatMoney(paidLater, currency)}</dd>
+          </div>
+          <div className="flex justify-between gap-4">
+            <dt className="text-ink-muted">Total paid</dt>
+            <dd className="font-semibold text-ink">{formatMoney(totalPaid, currency)}</dd>
           </div>
           <div className="flex justify-between gap-4 font-semibold text-ink">
             <dt>Balance</dt>
             <dd>{formatMoney(balance, currency)}</dd>
           </div>
         </dl>
+      </section>
+
+      {canPay && balance !== null && (
+        <section className={cardClass}>
+          <PaySupplier
+            key={centsToPlain(balance)}
+            purchaseId={purchase.id}
+            remaining={centsToPlain(balance)}
+            currency={currency}
+          />
+        </section>
+      )}
+
+      <section className={cardClass}>
+        <h2 className="mb-1 text-base font-bold text-ink">Payments</h2>
+        <p className="mb-3 text-xs text-ink-muted">
+          Paid later. The amount paid at purchase time is shown in the totals above.
+        </p>
+        {payments.length === 0 ? (
+          <p className="rounded-2xl border border-dashed border-line-strong bg-surface-muted px-4 py-5 text-center text-sm text-ink-muted">
+            No later payments yet.
+          </p>
+        ) : (
+          <ul className="divide-y divide-line overflow-hidden rounded-2xl border border-line">
+            {payments.map((payment, index) => (
+              <li key={index} className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-sm">
+                <span className="text-ink-muted">{formatDateTime(payment.created_at)}</span>
+                <span className="flex items-center gap-2">
+                  <span className="rounded-full bg-surface-muted px-2.5 py-0.5 text-xs font-medium text-ink">
+                    {paymentMethodLabel(payment.method)} · Paid later
+                  </span>
+                  <span className="font-semibold text-ink">{formatMoney(payment.amount, currency)}</span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
     </div>
   );

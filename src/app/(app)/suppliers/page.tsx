@@ -16,6 +16,9 @@ import {
 import { createClient } from "@/lib/supabase/server";
 import { canViewPage, getMyPermissions, hasAny } from "@/lib/permissions";
 import { UUID_PATTERN } from "@/lib/catalog";
+import { getMyBusiness } from "@/lib/business";
+import { formatMoney, toCents } from "@/lib/money";
+import BalancePill from "@/components/BalancePill";
 import {
   EditSupplierForm,
   QuickAddSupplierForm,
@@ -61,14 +64,6 @@ function pageHref(filters: Partial<Filters> & { edit?: string }) {
   return text ? `/suppliers?${text}` : "/suppliers";
 }
 
-// Balances come later from purchases and payments; no numbers until then.
-function Balance() {
-  return (
-    <span className="text-ink-muted" title="Balances appear once purchases and payments are recorded">
-      —
-    </span>
-  );
-}
 
 export default async function SuppliersPage({
   searchParams,
@@ -105,9 +100,24 @@ export default async function SuppliersPage({
   if (status === "active") query = query.eq("is_active", true);
   if (status === "inactive") query = query.eq("is_active", false);
 
-  const { data, error } = await query;
+  const [{ data, error }, { data: balanceData }, business] = await Promise.all([
+    query,
+    // What we owe each supplier
+    supabase.from("supplier_balances").select("supplier_id, balance"),
+    getMyBusiness(),
+  ]);
   const suppliers = (data ?? []) as SupplierRow[];
   const filtering = Boolean(cleaned || status !== "active");
+  const currency = business?.currency_code || "PKR";
+
+  const balances = new Map<string, bigint>();
+  let totalPayable = BigInt(0);
+  for (const row of (balanceData ?? []) as { supplier_id: string; balance: number | string | null }[]) {
+    const cents = toCents(row.balance) ?? BigInt(0);
+    balances.set(row.supplier_id, cents);
+    if (cents > BigInt(0)) totalPayable += cents;
+  }
+  const balanceOf = (id: string) => balances.get(id) ?? BigInt(0);
 
   let editing: SupplierRow | null = null;
   if (editId) {
@@ -126,6 +136,14 @@ export default async function SuppliersPage({
         title="Suppliers"
         description="The people and companies you buy stock from."
       />
+
+      <section className="flex flex-wrap items-center justify-between gap-3 rounded-card bg-peach px-5 py-4">
+        <div>
+          <p className="text-sm font-medium text-ink">Total payable</p>
+          <p className="text-xs text-ink-muted">What we owe all suppliers together</p>
+        </div>
+        <p className="text-2xl font-bold text-ink">{formatMoney(totalPayable, currency)}</p>
+      </section>
 
       {canCreate && <QuickAddSupplierForm />}
 
@@ -240,10 +258,16 @@ export default async function SuppliersPage({
           {/* Phone: cards */}
           <ul className="space-y-3 md:hidden">
             {suppliers.map((supplier) => (
-              <li key={supplier.id} className={cardClass}>
+              <li key={supplier.id} className={cardClass + " relative"}>
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="font-semibold text-ink">{supplier.name}</p>
+                    {/* The link covers the card; the buttons below sit above it */}
+                    <Link
+                      href={`/suppliers/${supplier.id}`}
+                      className="font-semibold text-ink after:absolute after:inset-0 after:rounded-card after:content-[''] focus-visible:outline-none focus-visible:after:ring-4 focus-visible:after:ring-accent/20"
+                    >
+                      {supplier.name}
+                    </Link>
                     {supplier.phone && (
                       <p className="mt-0.5 text-sm text-ink-muted">
                         {supplier.phone}
@@ -255,13 +279,17 @@ export default async function SuppliersPage({
                       </p>
                     )}
                     <p className="mt-1 text-xs text-ink-muted">
-                      Added {formatDate(supplier.created_at)} · Balance <Balance />
+                      Added {formatDate(supplier.created_at)}
+                    </p>
+                    <p className="mt-2 flex items-center gap-2 text-xs text-ink-muted">
+                      Balance (we owe)
+                      <BalancePill value={balanceOf(supplier.id)} currency={currency} />
                     </p>
                   </div>
                   <StatusPill active={supplier.is_active} />
                 </div>
                 {canManage && (
-                  <div className="mt-4 flex flex-wrap justify-end gap-2">
+                  <div className="relative z-10 mt-4 flex flex-wrap justify-end gap-2">
                     <Link
                       href={pageHref({ ...filters, edit: supplier.id })}
                       className={secondaryButtonClass + " px-4 text-xs"}
@@ -288,7 +316,7 @@ export default async function SuppliersPage({
                   <th className="px-5 py-3">Phone</th>
                   <th className="px-5 py-3">Address</th>
                   <th className="px-5 py-3">Added</th>
-                  <th className="px-5 py-3 text-right">Balance</th>
+                  <th className="px-5 py-3 text-right">Balance (we owe)</th>
                   <th className="px-5 py-3">Status</th>
                   {canManage && (
                     <th className="px-5 py-3">
@@ -299,9 +327,18 @@ export default async function SuppliersPage({
               </thead>
               <tbody>
                 {suppliers.map((supplier) => (
-                  <tr key={supplier.id} className="border-b border-line last:border-0">
+                  <tr
+                    key={supplier.id}
+                    className="relative border-b border-line last:border-0 hover:bg-surface-muted focus-within:bg-surface-muted"
+                  >
                     <td className="px-5 py-3 font-semibold text-ink">
-                      {supplier.name}
+                      {/* The link covers the row; the action buttons sit above it */}
+                      <Link
+                        href={`/suppliers/${supplier.id}`}
+                        className="after:absolute after:inset-0 after:content-[''] focus-visible:outline-none"
+                      >
+                        {supplier.name}
+                      </Link>
                     </td>
                     <td className="px-5 py-3 text-ink-muted">
                       {supplier.phone ?? "—"}
@@ -313,14 +350,14 @@ export default async function SuppliersPage({
                       {formatDate(supplier.created_at)}
                     </td>
                     <td className="px-5 py-3 text-right">
-                      <Balance />
+                      <BalancePill value={balanceOf(supplier.id)} currency={currency} />
                     </td>
                     <td className="px-5 py-3">
                       <StatusPill active={supplier.is_active} />
                     </td>
                     {canManage && (
                       <td className="px-5 py-3">
-                        <div className="flex items-start justify-end gap-2">
+                        <div className="relative z-10 flex items-start justify-end gap-2">
                           <Link
                             href={pageHref({ ...filters, edit: supplier.id })}
                             className={secondaryButtonClass + " px-4 text-xs"}

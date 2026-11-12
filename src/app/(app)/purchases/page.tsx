@@ -82,6 +82,7 @@ export default async function PurchasesPage() {
 
   const items: ListItem[] = rows.map((row) => {
     const total = toCents(row.total);
+    // paid_amount already includes later supplier payments
     const paid = toCents(row.paid_amount);
     return {
       id: row.id,
