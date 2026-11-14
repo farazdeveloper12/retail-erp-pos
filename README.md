@@ -68,8 +68,8 @@ This app covers that daily flow:
 Prerequisites: [Node.js](https://nodejs.org) 20 or later and a [Supabase](https://supabase.com) project.
 
 ```bash
-git clone https://github.com/farazdeveloper12/retail-erp-pos.git
-cd retail-erp-pos
+git clone https://github.com/farazdeveloper12/Retail-ERP-POS.git
+cd Retail-ERP-POS
 npm install
 cp .env.example .env.local   # then fill in the values from your Supabase project
 npm run dev
