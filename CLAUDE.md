@@ -48,5 +48,6 @@ Retail ERP and point-of-sale web app for a mobile phone and accessories shop, bu
 - For now, work directly on `main`.
 - After each finished task run `npx tsc --noEmit`, `npm run lint` and `npm run build`; all three must pass.
 - Commit with a clear Conventional Commits message (`feat:`, `fix:`, `docs:`, `chore:`, ...).
+- A local `post-commit` hook pushes every commit to `origin` automatically. If the push fails it only prints a warning; push later with `git push`.
 - Never force-push. Never commit secrets or `.env` files.
 - When production deployment starts, switch to a `dev` branch with pull requests into `main`.
