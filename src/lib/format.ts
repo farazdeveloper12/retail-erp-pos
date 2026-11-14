@@ -48,12 +48,3 @@ export function paymentMethodLabel(method: string | null | undefined): string {
   if (method === "bank") return "Bank";
   return method ? method : "—";
 }
-
-// Reads the first of several possible column names from a database row.
-export function pick(row: Record<string, unknown> | null | undefined, names: string[]): unknown {
-  if (!row) return null;
-  for (const name of names) {
-    if (row[name] !== undefined && row[name] !== null) return row[name];
-  }
-  return null;
-}
