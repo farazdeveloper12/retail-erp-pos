@@ -12,11 +12,13 @@ const STORAGE_KEY = "invoice-paper";
 const CHANGE_EVENT = "invoice-paper-change";
 
 // The last paper choice lives in localStorage; read it safely.
-function readPaper(): Paper {
+// Returns null when nothing was chosen yet on this device.
+function readStoredPaper(): Paper | null {
   try {
-    return window.localStorage.getItem(STORAGE_KEY) === "thermal" ? "thermal" : "a4";
+    const value = window.localStorage.getItem(STORAGE_KEY);
+    return value === "thermal" || value === "a4" ? value : null;
   } catch {
-    return "a4";
+    return null;
   }
 }
 
@@ -48,18 +50,25 @@ export default function InvoiceActions({
   saleId,
   whatsappUrl,
   autoPrint,
+  defaultPaper = "a4",
   extraActions,
   children,
 }: {
   saleId: string;
   whatsappUrl: string;
   autoPrint: boolean;
+  // Paper size from Settings, used until someone picks a size on this device
+  defaultPaper?: Paper;
   // More buttons for the actions bar, for example "Cancel invoice"
   extraActions?: ReactNode;
   children: ReactNode;
 }) {
   const router = useRouter();
-  const paper = useSyncExternalStore(subscribe, readPaper, () => "a4" as Paper);
+  const paper = useSyncExternalStore(
+    subscribe,
+    () => readStoredPaper() ?? defaultPaper,
+    () => defaultPaper
+  );
   const printed = useRef(false);
 
   // /sales/[id]?print=1 opens the print dialog once, then cleans the URL

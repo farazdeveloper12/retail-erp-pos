@@ -15,7 +15,7 @@ import {
   secondaryButtonClass,
 } from "@/components/ui";
 import { createClient } from "@/lib/supabase/server";
-import { getMyBusiness } from "@/lib/business";
+import { DEFAULT_LOW_STOCK_THRESHOLD, getMyBusiness } from "@/lib/business";
 import { canViewPage, getMyPermissions } from "@/lib/permissions";
 import { formatMoney, toCents } from "@/lib/money";
 import { formatInvoiceNo } from "@/lib/format";
@@ -25,8 +25,7 @@ export const metadata: Metadata = {
   title: "Inventory",
 };
 
-// Same threshold the dashboard uses for "Low stock items" (qty <= 5)
-const LOW_STOCK_THRESHOLD = 5;
+// The low stock threshold comes from Settings (the dashboard uses the same value)
 const PAGE_SIZE = 50;
 // Keeps ".in(...)" filters short enough for the request URL
 const IN_CHUNK = 200;
@@ -522,11 +521,14 @@ async function AccessoriesTab({
   params,
   seesCost,
   currency,
+  lowStockThreshold,
 }: {
   params: Params;
   seesCost: boolean;
   currency: string;
+  lowStockThreshold: number;
 }) {
+  const LOW_STOCK_THRESHOLD = lowStockThreshold;
   const supabase = await createClient();
   const filter = params.filter === "low" || params.filter === "out" ? params.filter : "all";
   const q = cleanSearch(params.q ?? "").toLowerCase();
@@ -788,7 +790,12 @@ export default async function InventoryPage({
           currency={currency}
         />
       ) : (
-        <AccessoriesTab params={params} seesCost={seesCost} currency={currency} />
+        <AccessoriesTab
+          params={params}
+          seesCost={seesCost}
+          currency={currency}
+          lowStockThreshold={business?.low_stock_threshold ?? DEFAULT_LOW_STOCK_THRESHOLD}
+        />
       )}
     </div>
   );

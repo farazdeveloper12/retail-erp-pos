@@ -1,0 +1,28 @@
+// Tables offered in Settings > Data backup. Reads use the signed-in user's
+// session, so Row Level Security still decides which rows come back.
+export const EXPORT_TABLES = [
+  "businesses",
+  "customers",
+  "suppliers",
+  "brands",
+  "product_models",
+  "model_variants",
+  "model_colors",
+  "product_categories",
+  "products",
+  "product_stock",
+  "product_costs",
+  "phone_units",
+  "phone_unit_costs",
+  "purchases",
+  "purchase_items",
+  "purchase_payments",
+  "sales",
+  "sale_items",
+  "sale_item_costs",
+  "sale_payments",
+  "expenses",
+  "expense_categories",
+  "cash_ledger",
+  "stock_movements",
+] as const;

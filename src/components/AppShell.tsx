@@ -141,10 +141,14 @@ export default function AppShell({
                 onNavigate={() => setDrawerOpen(false)}
               />
             </div>
-            <div className="m-3 rounded-2xl bg-surface-muted px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+            <Link
+              href="/settings/account"
+              onClick={() => setDrawerOpen(false)}
+              className="m-3 block rounded-2xl bg-surface-muted px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
+            >
               <p className="text-sm font-semibold text-ink">{userName}</p>
-              <p className="text-xs text-ink-muted">{userRole}</p>
-            </div>
+              <p className="text-xs text-ink-muted">{userRole} · My account</p>
+            </Link>
           </div>
         </div>
       )}
@@ -172,7 +176,11 @@ export default function AppShell({
             </p>
 
             <div className="flex shrink-0 items-center gap-2">
-              <div className="hidden items-center gap-2 sm:flex">
+              <Link
+                href="/settings/account"
+                title="My account"
+                className="hidden items-center gap-2 rounded-full pr-2 hover:bg-surface-muted sm:flex"
+              >
                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-lavender text-sm font-bold text-purple">
                   {initials(userName)}
                 </div>
@@ -180,7 +188,7 @@ export default function AppShell({
                   <p className="text-sm font-semibold text-ink">{userName}</p>
                   <p className="text-xs text-ink-muted">{userRole}</p>
                 </div>
-              </div>
+              </Link>
               <ThemeToggle />
               <form action={signOut}>
                 <button

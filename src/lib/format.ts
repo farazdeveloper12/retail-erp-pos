@@ -20,6 +20,49 @@ export function formatDateTime(value: unknown): string {
   }).format(date);
 }
 
+export type DateFormat = "medium" | "dmy" | "mdy" | "iso";
+
+export const DATE_FORMAT_OPTIONS: { value: DateFormat; label: string }[] = [
+  { value: "medium", label: "14 Nov 2026" },
+  { value: "dmy", label: "14/11/2026" },
+  { value: "mdy", label: "11/14/2026" },
+  { value: "iso", label: "2026-11-14" },
+];
+
+// Date (optionally with time) in Pakistan time, in the format chosen in Settings
+export function formatDateWith(value: unknown, format: DateFormat, withTime = false): string {
+  if (typeof value !== "string" || value === "") return "—";
+  // A plain YYYY-MM-DD value is a calendar day, not a moment in time
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(value)
+    ? new Date(`${value}T00:00:00+05:00`)
+    : new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Asia/Karachi",
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    })
+      .formatToParts(date)
+      .map((p) => [p.type, p.value])
+  );
+  const time = withTime ? `, ${parts.hour}:${parts.minute}` : "";
+
+  if (format === "dmy") return `${parts.day}/${parts.month}/${parts.year}${time}`;
+  if (format === "mdy") return `${parts.month}/${parts.day}/${parts.year}${time}`;
+  if (format === "iso") return `${parts.year}-${parts.month}-${parts.day}${time}`;
+  const medium = new Intl.DateTimeFormat("en-GB", {
+    dateStyle: "medium",
+    timeZone: "Asia/Karachi",
+  }).format(date);
+  return `${medium}${time}`;
+}
+
 // Pakistani phone number to the international format WhatsApp expects:
 // "0300 1234567" -> "923001234567"; "+92 300..." and "92300..." are kept.
 // Returns null when there is no usable number.

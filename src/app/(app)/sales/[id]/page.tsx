@@ -9,6 +9,7 @@ import { UUID_PATTERN } from "@/lib/catalog";
 import { centsToPlain, formatMoney, toCents } from "@/lib/money";
 import {
   formatDateTime,
+  formatDateWith,
   formatInvoiceNo,
   formatWarranty,
   paymentMethodLabel,
@@ -133,8 +134,15 @@ export default async function InvoicePage({
   const currency = business?.currency_code || "PKR";
   const shopName = business?.name || "Retail workspace";
   const invoiceNo = formatInvoiceNo(sale.invoice_no);
-  const date = formatDateTime(sale.created_at);
+  const date = formatDateWith(sale.created_at, business?.date_format ?? "medium", true);
   const customerName = sale.customer_name?.trim() || "Walk-in customer";
+
+  // Invoice options from Settings
+  const showLogo = Boolean(business?.invoice_show_logo && business.logo_url);
+  const showPhone = business?.invoice_show_customer_phone ?? true;
+  const showWarranty = business?.invoice_show_warranty ?? true;
+  const showMethod = business?.invoice_show_payment_method ?? true;
+  const footerText = business?.invoice_footer?.trim() || "Thank you for your purchase.";
 
   const cancelled = sale.status === "void";
   const total = toCents(sale.total) ?? ZERO;
@@ -173,7 +181,7 @@ export default async function InvoicePage({
     `Remaining: ${formatMoney(remaining, currency)}`,
   ];
   if (sale.warranty_terms?.trim()) lines.push("", `Warranty: ${sale.warranty_terms.trim()}`);
-  lines.push("", "Thank you for your purchase.");
+  lines.push("", footerText);
   const number = toWhatsAppNumber(sale.customer_phone);
   const whatsappUrl = `https://wa.me/${number ?? ""}?text=${encodeURIComponent(lines.join("\n"))}`;
 
@@ -194,6 +202,7 @@ export default async function InvoicePage({
         saleId={sale.id}
         whatsappUrl={whatsappUrl}
         autoPrint={print === "1"}
+        defaultPaper={business?.invoice_paper ?? "a4"}
         extraActions={
           canCancel ? (
             <CancelDocument
@@ -240,7 +249,16 @@ export default async function InvoicePage({
               "group-data-[paper=thermal]:block group-data-[paper=thermal]:text-center"
             }
           >
-            <div className="min-w-0">
+            <div className="flex min-w-0 items-start gap-3 group-data-[paper=thermal]:block">
+              {showLogo && (
+                // eslint-disable-next-line @next/next/no-img-element -- the logo lives in Supabase Storage
+                <img
+                  src={business!.logo_url!}
+                  alt=""
+                  className="h-16 w-16 shrink-0 object-contain group-data-[paper=thermal]:mx-auto group-data-[paper=thermal]:mb-1 group-data-[paper=thermal]:h-10 group-data-[paper=thermal]:w-10"
+                />
+              )}
+              <div className="min-w-0">
               <p className="text-xl font-bold group-data-[paper=thermal]:text-sm">{shopName}</p>
               {business?.legal_name && business.legal_name !== shopName && (
                 <p className={`text-sm ${MUTED} group-data-[paper=thermal]:text-[10px]`}>
@@ -252,6 +270,7 @@ export default async function InvoicePage({
                   {value}
                 </p>
               ))}
+              </div>
             </div>
             <div className="text-right group-data-[paper=thermal]:mt-2 group-data-[paper=thermal]:text-center">
               <p className="text-2xl font-bold tracking-widest group-data-[paper=thermal]:text-sm">
@@ -266,7 +285,7 @@ export default async function InvoicePage({
           <section className="py-4 group-data-[paper=thermal]:py-2">
             <p className={`text-xs font-semibold uppercase tracking-wide ${MUTED}`}>Bill to</p>
             <p className="font-semibold">{customerName}</p>
-            {sale.customer_phone && <p className={`text-sm ${MUTED}`}>{sale.customer_phone}</p>}
+            {showPhone && sale.customer_phone && <p className={`text-sm ${MUTED}`}>{sale.customer_phone}</p>}
           </section>
 
           {/* Items: A4 table */}
@@ -279,7 +298,7 @@ export default async function InvoicePage({
                   <th className="px-2 py-2 text-right">Unit price</th>
                   <th className="px-2 py-2 text-right">Discount</th>
                   <th className="px-2 py-2 text-right">Amount</th>
-                  <th className="py-2 pl-3">Warranty</th>
+                  {showWarranty && <th className="py-2 pl-3">Warranty</th>}
                 </tr>
               </thead>
               <tbody>
@@ -308,7 +327,9 @@ export default async function InvoicePage({
                     <td className="whitespace-nowrap px-2 py-2.5 text-right font-semibold">
                       {formatMoney(item.line_total, currency)}
                     </td>
-                    <td className="whitespace-nowrap py-2.5 pl-3">{formatWarranty(item.warranty_days)}</td>
+                    {showWarranty && (
+                      <td className="whitespace-nowrap py-2.5 pl-3">{formatWarranty(item.warranty_days)}</td>
+                    )}
                   </tr>
                 ))}
               </tbody>
@@ -330,7 +351,7 @@ export default async function InvoicePage({
                   </span>
                   <span className="font-semibold">{formatMoney(item.line_total, currency)}</span>
                 </div>
-                <p className="text-[10px]">Warranty: {formatWarranty(item.warranty_days)}</p>
+                {showWarranty && <p className="text-[10px]">Warranty: {formatWarranty(item.warranty_days)}</p>}
               </li>
             ))}
           </ul>
@@ -359,10 +380,12 @@ export default async function InvoicePage({
                 <dt>Remaining</dt>
                 <dd>{formatMoney(remaining, currency)}</dd>
               </div>
-              <div className="flex justify-between gap-4">
-                <dt className={MUTED}>Payment method</dt>
-                <dd>{methodLabel}</dd>
-              </div>
+              {showMethod && (
+                <div className="flex justify-between gap-4">
+                  <dt className={MUTED}>Payment method</dt>
+                  <dd>{methodLabel}</dd>
+                </div>
+              )}
             </dl>
           </section>
 
@@ -379,8 +402,8 @@ export default async function InvoicePage({
                 {sale.warranty_terms}
               </p>
             )}
-            <p className="mt-2 text-sm font-semibold group-data-[paper=thermal]:text-[11px]">
-              Thank you for your purchase.
+            <p className="mt-2 whitespace-pre-line text-sm font-semibold group-data-[paper=thermal]:text-[11px]">
+              {footerText}
             </p>
           </footer>
         </article>

@@ -28,7 +28,7 @@ import DailyChart from "@/components/charts/DailyChart";
 import EmptyLineChart from "@/components/charts/EmptyLineChart";
 import { Notice, Pill, cardClass } from "@/components/ui";
 import { createClient } from "@/lib/supabase/server";
-import { getMyBusiness } from "@/lib/business";
+import { DEFAULT_LOW_STOCK_THRESHOLD, getMyBusiness } from "@/lib/business";
 import { canViewPage, getMyPermissions } from "@/lib/permissions";
 import { formatMoney, toCents } from "@/lib/money";
 import { formatInvoiceNo } from "@/lib/format";
@@ -207,7 +207,9 @@ export default async function DashboardPage({
                       <p className="text-xl font-bold text-ink sm:text-2xl">0</p>
                     )}
                     <p className="mt-1.5 text-sm font-medium text-ink">Low stock items</p>
-                    <p className="mt-0.5 text-xs text-ink-muted">Accessories with 5 or fewer left</p>
+                    <p className="mt-0.5 text-xs text-ink-muted">
+                      Accessories with {business?.low_stock_threshold ?? DEFAULT_LOW_STOCK_THRESHOLD} or fewer left
+                    </p>
                   </div>
                 </>
               );

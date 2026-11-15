@@ -140,12 +140,20 @@ export default async function ExpensesPage({
   const expenses = (data ?? []) as ExpenseRow[];
   const cancelledExpenses = (cancelledData ?? []) as ExpenseRow[];
 
+  // Suggestions: categories managed in Settings (or the common list when
+  // none were added yet) plus categories used before
+  const { data: managedData } = await supabase
+    .from("expense_categories")
+    .select("name")
+    .eq("is_active", true)
+    .order("name");
+  const managed = ((managedData ?? []) as { name: string }[]).map((row) => row.name);
   const categories = [
     ...new Set([
       ...((categoryData ?? []) as { category: string }[])
         .map((row) => row.category?.trim())
         .filter((name): name is string => Boolean(name)),
-      ...COMMON_CATEGORIES,
+      ...(managed.length > 0 ? managed : COMMON_CATEGORIES),
     ]),
   ].sort((a, b) => a.localeCompare(b));
 

@@ -1,6 +1,9 @@
 import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 
+export type DateFormatKey = "medium" | "dmy" | "mdy" | "iso";
+export type InvoicePaper = "a4" | "thermal";
+
 export type Business = {
   id: string;
   name: string;
@@ -14,13 +17,47 @@ export type Business = {
   email: string | null;
   logo_url: string | null;
   is_active: boolean;
+  warranty_terms: string | null;
+  // Settings
+  invoice_footer: string | null;
+  date_format: DateFormatKey;
+  invoice_paper: InvoicePaper;
+  invoice_show_logo: boolean;
+  invoice_show_customer_phone: boolean;
+  invoice_show_warranty: boolean;
+  invoice_show_payment_method: boolean;
+  low_stock_threshold: number;
 };
 
-const BUSINESS_COLUMNS =
-  "id, name, legal_name, business_type, currency_code, tax_label, tax_rate, address, phone, email, logo_url, is_active";
+const BUSINESS_COLUMNS = [
+  "id",
+  "name",
+  "legal_name",
+  "business_type",
+  "currency_code",
+  "tax_label",
+  "tax_rate",
+  "address",
+  "phone",
+  "email",
+  "logo_url",
+  "is_active",
+  "warranty_terms",
+  "invoice_footer",
+  "date_format",
+  "invoice_paper",
+  "invoice_show_logo",
+  "invoice_show_customer_phone",
+  "invoice_show_warranty",
+  "invoice_show_payment_method",
+  "low_stock_threshold",
+].join(", ");
 
 // Fallback name used when no business can be read (login page, errors).
 export const DEFAULT_WORKSPACE_NAME = "Retail workspace";
+
+// Used when a setting cannot be read
+export const DEFAULT_LOW_STOCK_THRESHOLD = 5;
 
 // The current user's business. Uses the normal (publishable key) server
 // client, so RLS also limits the result to the user's own business.
@@ -56,5 +93,5 @@ export const getMyBusiness = cache(async (): Promise<Business | null> => {
     return null;
   }
 
-  return (data as Business | null) ?? null;
+  return (data as unknown as Business | null) ?? null;
 });

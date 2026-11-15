@@ -1,7 +1,6 @@
 "use client";
 
 import { useActionState } from "react";
-import { ImageIcon } from "lucide-react";
 import {
   updateBusinessSettings,
   type SettingsState,
@@ -158,16 +157,6 @@ export default function SettingsForm({
             defaultValue={value("address")}
             className={inputClass}
           />
-        </div>
-      </div>
-
-      <div className="flex items-center gap-3 rounded-2xl border border-dashed border-line-strong bg-surface-muted px-4 py-3">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-lavender text-purple">
-          <ImageIcon className="h-5 w-5" />
-        </span>
-        <div>
-          <p className="text-sm font-semibold text-ink">Logo</p>
-          <p className="text-xs text-ink-muted">Logo upload comes later.</p>
         </div>
       </div>
 
