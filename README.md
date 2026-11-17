@@ -33,6 +33,39 @@ This app covers that daily flow:
 - **Roles and permissions** – Owner, Manager and Sales roles with per-user permission overrides.
 - **UI** – light and dark theme, responsive layout with a mobile bottom navigation.
 
+### Settings
+
+- Shop profile with a logo (PNG, JPEG or WebP up to 512 KB, stored in a Supabase Storage bucket per business).
+- Invoice options that the invoice page uses: default paper size (A4 or 80 mm thermal), date format, which fields are shown, warranty terms and footer text.
+- Low stock threshold used by the inventory and the dashboard, expense and product category management.
+- "My account" page to change your own name and password.
+- Data export: every table as CSV, or everything as one JSON file. This is a copy for your records; Supabase backups are separate.
+
+### Cash & Bank
+
+- Accounts for cash, banks and mobile wallets (for example JazzCash or Easypaisa), each with an opening balance.
+- One default cash and one default bank account: the existing sales, purchases, payments and expenses post to them automatically.
+- Manual entries: deposit, withdrawal, transfer between accounts, owner capital in, owner drawing and adjustment; money going out cannot make an account negative.
+- Ledger with running balance, filters (account, dates, type), search, a day or month summary and CSV export.
+- Cash count: compare the counted cash with the balance in the app and post the difference as an adjustment.
+- Manual entries are cancelled with reversing entries; nothing is deleted.
+
+### Returns & Warranty
+
+- Sales returns from an invoice: choose items and quantities, put them back in stock or write them off, and pick the account for the refund. The returned value first reduces what the customer still owes; only the rest is refunded.
+- Returns to the supplier for phones (by IMEI) and accessories; the supplier balance goes down or money comes back.
+- An invoice or purchase that has returns can no longer be cancelled as a whole, so money is never paid back twice.
+- Warranty lookup by IMEI, invoice number or customer phone, with days left.
+- Warranty claims with a status flow (received, sent for repair, repaired / replaced / rejected, returned to the customer), history and a printable claim slip.
+- Dashboard and reports subtract returns from sales, profit and purchases.
+
+### AI Assistant
+
+- Ask questions about the shop in English or Roman Urdu; answers stream in.
+- Uses Claude through the Anthropic API from a server-only route. The assistant can only call a fixed list of read-only reports (sales, profit and expenses, stock, top products and customers, balances, cash and bank, warranty lookup) that read through the signed-in user's session, so Row Level Security and permissions apply. It cannot write anything.
+- Per-user limits (20 questions per hour, 100 per day), input length limits, and customer phone numbers are masked before they are sent.
+- Without an `ANTHROPIC_API_KEY` the page shows "AI Assistant is not configured yet".
+
 ## Screenshots
 
 > Screenshots use generated demo data.
@@ -44,6 +77,8 @@ This app covers that daily flow:
 | ![Inventory](docs/screenshots/inventory.png)<br>Inventory | ![Reports](docs/screenshots/reports.png)<br>Reports |
 | ![Expenses](docs/screenshots/expenses.png)<br>Expenses | ![Customers](docs/screenshots/customers.png)<br>Customers |
 | ![Mobile dashboard](docs/screenshots/mobile-dashboard.png)<br>Dashboard on a phone | ![Mobile sale](docs/screenshots/mobile-sale.png)<br>New sale on a phone |
+| ![Cash & Bank](docs/screenshots/cash-bank.png)<br>Cash & Bank | ![Returns](docs/screenshots/returns.png)<br>Returns & Warranty |
+| ![Warranty claim](docs/screenshots/warranty-claim.png)<br>Warranty claim slip | ![Settings](docs/screenshots/settings.png)<br>Invoice settings |
 
 ## Tech stack
 
@@ -51,7 +86,8 @@ This app covers that daily flow:
 - [React](https://react.dev)
 - [TypeScript](https://www.typescriptlang.org)
 - [Tailwind CSS](https://tailwindcss.com)
-- [Supabase](https://supabase.com) – Postgres, Auth and Row Level Security
+- [Supabase](https://supabase.com) – Postgres, Auth, Row Level Security and Storage
+- [Anthropic TypeScript SDK](https://github.com/anthropics/anthropic-sdk-typescript) – AI Assistant (Claude)
 - [lucide-react](https://lucide.dev) icons
 
 ## Architecture and security
@@ -77,7 +113,18 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
-> The database schema scripts are not included in this repository yet; they will be added under a `supabase/` folder.
+### Environment variables
+
+| Variable | Where it is used |
+|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Supabase project (browser and server) |
+| `SUPABASE_SECRET_KEY` | Server only (user management) |
+| `ANTHROPIC_API_KEY` | Server only (AI Assistant); optional |
+| `ANTHROPIC_MODEL` | Optional Claude model for the AI Assistant (default `claude-opus-5-5`) |
+
+### Database migrations
+
+Schema changes live in `supabase/migrations/`. Each file is idempotent and runs as one transaction in the Supabase SQL Editor; it only adds objects and never deletes or changes existing amounts or dates. `supabase/go-live-checks.sql` is a read-only query to run before and after a migration to prove that existing totals did not change.
 
 ## Scripts
 
@@ -94,6 +141,9 @@ Open [http://localhost:3000](http://localhost:3000).
 .
 ├── docs/
 │   └── screenshots/      # README images
+├── supabase/
+│   ├── migrations/       # Idempotent SQL migrations
+│   └── go-live-checks.sql
 └── src/
     ├── app/
     │   ├── (app)/        # Signed-in pages: dashboard, sales, purchases, inventory, ...
@@ -104,10 +154,7 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ## Roadmap
 
-- Returns and warranty claims
-- Cash and bank ledger page
-- AI assistant
-- Database migrations folder (`supabase/`)
+- Baseline schema script for a new installation
 - Production deployment
 
 ## License

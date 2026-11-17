@@ -2,11 +2,28 @@
 -- Settings, Cash & Bank, Returns & Warranty and AI Assistant
 --
 -- One idempotent migration: it can be run more than once and only adds or
--- replaces objects. It never deletes rows and never changes existing data,
--- except where a section says so explicitly.
--- Run it in the Supabase SQL Editor of the TEST project first, then (after
--- approval) once on the real project.
+-- replaces objects. It never deletes rows and never changes existing amounts
+-- or dates. The only change to existing rows: the new, empty account_id
+-- column of cash_ledger is filled with the default cash or bank account
+-- (section 2.5).
+--
+-- It runs as one transaction: if any statement fails, nothing is changed.
+-- Run it in the Supabase SQL Editor. It contains no test data.
 -- =============================================================================
+
+begin;
+
+-- 0. Safety check: stop unless this is a database of this app ----------------
+do $$
+begin
+  if to_regclass('public.businesses') is null or to_regclass('public.cash_ledger') is null
+     or to_regclass('public.sales') is null or to_regclass('public.purchases') is null
+     or to_regprocedure('public.my_business_id()') is null
+     or to_regprocedure('public.has_permission(text)') is null then
+    raise exception 'Stopped: this database does not have the tables of this app. Check that the right project is open.';
+  end if;
+end;
+$$;
 
 
 -- =============================================================================
@@ -2539,3 +2556,36 @@ $$;
 
 revoke all on function public.ai_top_customers(date, date, integer) from public, anon;
 grant execute on function public.ai_top_customers(date, date, integer) to authenticated, service_role;
+
+
+-- =============================================================================
+-- 5. FINAL CHECK
+-- If anything below is not as expected, the whole migration is undone.
+-- =============================================================================
+do $$
+declare
+  v_missing integer;
+begin
+  select count(*) into v_missing from public.cash_ledger where account_id is null;
+  if v_missing > 0 then
+    raise exception 'Stopped: % ledger rows have no account. Nothing was changed.', v_missing;
+  end if;
+
+  select count(*) into v_missing
+  from public.businesses b
+  where (select count(*) from public.finance_accounts a where a.business_id = b.id and a.is_default) <> 2;
+  if v_missing > 0 then
+    raise exception 'Stopped: % businesses do not have one default cash and one default bank account.', v_missing;
+  end if;
+
+  -- The ledger account text must match the linked account
+  select count(*) into v_missing
+  from public.cash_ledger l join public.finance_accounts a on a.id = l.account_id
+  where l.account <> a.kind;
+  if v_missing > 0 then
+    raise exception 'Stopped: % ledger rows are linked to an account of another kind.', v_missing;
+  end if;
+end;
+$$;
+
+commit;
