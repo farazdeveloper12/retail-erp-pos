@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
-import { FileX, ReceiptText } from "lucide-react";
+import Link from "next/link";
+import { FileX, ReceiptText, RotateCcw, ShieldCheck } from "lucide-react";
 import AccessDenied from "@/components/AccessDenied";
-import { BackLink, EmptyState, cardClass } from "@/components/ui";
+import { BackLink, EmptyState, cardClass, secondaryButtonClass } from "@/components/ui";
+import { formatSalesReturnNo } from "@/lib/returns";
 import { createClient } from "@/lib/supabase/server";
 import { getMyBusiness } from "@/lib/business";
 import { canViewPage, getMyPermissions, hasAny } from "@/lib/permissions";
@@ -107,14 +109,23 @@ export default async function InvoicePage({
   const { data: saleData } = await supabase
     .from("sales")
     .select(
-      "id, invoice_no, created_at, customer_id, customer_name, customer_phone, subtotal, discount, total, paid_amount, payment_method, warranty_terms, notes, status, voided_at, void_reason"
+      "id, invoice_no, created_at, customer_id, customer_name, customer_phone, subtotal, discount, total, paid_amount, payment_method, warranty_terms, notes, status, voided_at, void_reason, returned_total, refunded_total, return_credit"
     )
     .eq("id", id)
     .maybeSingle();
-  const sale = saleData as (SaleRow & { voided_at: string | null; void_reason: string | null }) | null;
+  const sale = saleData as
+    | (SaleRow & {
+        voided_at: string | null;
+        void_reason: string | null;
+        returned_total: number | string | null;
+        refunded_total: number | string | null;
+        return_credit: number | string | null;
+      })
+    | null;
   if (!sale) return <NotFound />;
 
-  const [{ data: itemData }, { data: paymentData }, business] = await Promise.all([
+  const canReturn = permissions.includes("returns.manage");
+  const [{ data: itemData }, { data: paymentData }, business, { data: returnData }] = await Promise.all([
     supabase
       .from("sale_items")
       .select(
@@ -127,9 +138,23 @@ export default async function InvoicePage({
       .eq("sale_id", id)
       .order("created_at"),
     getMyBusiness(),
+    canReturn || permissions.includes("sales.view_all")
+      ? supabase
+          .from("sales_returns")
+          .select("id, return_no, return_date, total, refund_amount")
+          .eq("sale_id", id)
+          .order("return_no")
+      : Promise.resolve({ data: [] }),
   ]);
   const items = (itemData ?? []) as SaleItemRow[];
   const payments = (paymentData ?? []) as PaymentRow[];
+  const returns = (returnData ?? []) as {
+    id: string;
+    return_no: number;
+    return_date: string;
+    total: number | string;
+    refund_amount: number | string;
+  }[];
 
   const currency = business?.currency_code || "PKR";
   const shopName = business?.name || "Retail workspace";
@@ -146,10 +171,16 @@ export default async function InvoicePage({
 
   const cancelled = sale.status === "void";
   const total = toCents(sale.total) ?? ZERO;
-  const paid = toCents(sale.paid_amount) ?? ZERO;
+  // paid_amount also holds return credits; show money actually paid
+  const returnCredit = toCents(sale.return_credit) ?? ZERO;
+  const returned = toCents(sale.returned_total) ?? ZERO;
+  const refunded = toCents(sale.refunded_total) ?? ZERO;
+  const paid = (toCents(sale.paid_amount) ?? ZERO) - returnCredit;
   // A cancelled invoice owes nothing; everything paid was refunded
-  const remaining = cancelled ? ZERO : total - paid;
-  const canCancel = !cancelled && permissions.includes("returns.manage");
+  const remaining = cancelled ? ZERO : total - paid - returnCredit;
+  // An invoice with returns cannot be cancelled as a whole
+  const canCancel = !cancelled && returned === ZERO && permissions.includes("returns.manage");
+  const fullyReturned = returned >= total && total > ZERO;
 
   // Cash, Bank, or both when the payments used both
   const methods = new Set(payments.map((p) => p.method).filter(Boolean));
@@ -177,6 +208,9 @@ export default async function InvoicePage({
     ),
     "",
     `Total: ${formatMoney(total, currency)}`,
+    ...(returned > ZERO
+      ? [`Returned: ${formatMoney(returned, currency)}`, `Refunded: ${formatMoney(refunded, currency)}`]
+      : []),
     `Paid: ${formatMoney(paid, currency)}`,
     `Remaining: ${formatMoney(remaining, currency)}`,
   ];
@@ -204,15 +238,32 @@ export default async function InvoicePage({
         autoPrint={print === "1"}
         defaultPaper={business?.invoice_paper ?? "a4"}
         extraActions={
-          canCancel ? (
-            <CancelDocument
-              id={sale.id}
-              buttonLabel="Cancel invoice"
-              explanation={`This puts the items back in stock and records a refund of ${formatMoney(paid, currency)} paid by the customer.`}
-              keepLabel="Keep invoice"
-              action={cancelSale}
-            />
-          ) : null
+          <>
+            {canReturn && !cancelled && !fullyReturned && (
+              <Link href={`/returns/sales/new?sale=${sale.id}`} className={secondaryButtonClass}>
+                <RotateCcw className="h-4 w-4" />
+                Return items
+              </Link>
+            )}
+            {canReturn && !cancelled && sale.invoice_no !== null && (
+              <Link
+                href={`/returns?tab=warranty&q=${encodeURIComponent(formatInvoiceNo(sale.invoice_no))}`}
+                className={secondaryButtonClass}
+              >
+                <ShieldCheck className="h-4 w-4" />
+                Warranty
+              </Link>
+            )}
+            {canCancel ? (
+              <CancelDocument
+                id={sale.id}
+                buttonLabel="Cancel invoice"
+                explanation={`This puts the items back in stock and records a refund of ${formatMoney(paid, currency)} paid by the customer.`}
+                keepLabel="Keep invoice"
+                action={cancelSale}
+              />
+            ) : null}
+          </>
         }
       >
         <article
@@ -372,6 +423,18 @@ export default async function InvoicePage({
                 <dt>Grand total</dt>
                 <dd>{formatMoney(total, currency)}</dd>
               </div>
+              {returned > ZERO && (
+                <>
+                  <div className="flex justify-between gap-4">
+                    <dt className={MUTED}>Returned</dt>
+                    <dd>-{formatMoney(returned, currency)}</dd>
+                  </div>
+                  <div className="flex justify-between gap-4">
+                    <dt className={MUTED}>Refunded</dt>
+                    <dd>{formatMoney(refunded, currency)}</dd>
+                  </div>
+                </>
+              )}
               <div className="flex justify-between gap-4">
                 <dt className={MUTED}>Paid</dt>
                 <dd>{formatMoney(paid, currency)}</dd>
@@ -418,6 +481,36 @@ export default async function InvoicePage({
             remaining={centsToPlain(remaining)}
             currency={currency}
           />
+        </section>
+      )}
+
+      {returns.length > 0 && (
+        <section className={cardClass + " print:hidden"}>
+          <div className="mb-3 flex items-center gap-2">
+            <RotateCcw className="h-5 w-5 text-accent" />
+            <h2 className="text-base font-bold text-ink">Returns</h2>
+          </div>
+          <ul className="divide-y divide-line overflow-hidden rounded-2xl border border-line">
+            {returns.map((r) => (
+              <li key={r.id}>
+                <Link
+                  href={`/returns/sales/${r.id}`}
+                  className="flex min-h-11 flex-wrap items-center justify-between gap-2 px-4 py-3 text-sm hover:bg-surface-muted"
+                >
+                  <span className="font-semibold text-ink">
+                    {formatSalesReturnNo(r.return_no)}{" "}
+                    <span className="font-normal text-ink-muted">
+                      · {formatDateWith(r.return_date, business?.date_format ?? "medium")}
+                    </span>
+                  </span>
+                  <span className="text-ink">
+                    {formatMoney(r.total, currency)}
+                    <span className="text-xs text-ink-muted"> · refund {formatMoney(r.refund_amount, currency)}</span>
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
         </section>
       )}
 

@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
-import { FileX, Headphones, Smartphone } from "lucide-react";
+import Link from "next/link";
+import { FileX, Headphones, PackageMinus, Smartphone } from "lucide-react";
 import AccessDenied from "@/components/AccessDenied";
-import { BackLink, EmptyState, PageHeader, Pill, cardClass } from "@/components/ui";
+import { BackLink, EmptyState, PageHeader, Pill, cardClass, secondaryButtonClass } from "@/components/ui";
 import { createClient } from "@/lib/supabase/server";
 import { getMyBusiness } from "@/lib/business";
 import { canViewPage, getMyPermissions, hasAny } from "@/lib/permissions";
@@ -28,6 +29,9 @@ type PurchaseRow = {
   paid_amount: number | string | null;
   payment_method: string | null;
   notes: string | null;
+  returned_total?: number | string | null;
+  refunded_total?: number | string | null;
+  return_credit?: number | string | null;
 };
 
 type PurchaseItemRow = {
@@ -121,7 +125,7 @@ export default async function PurchaseDetailPage({
   const { data: purchaseData } = await supabase
     .from("purchases")
     .select(
-      "id, purchase_no, supplier_id, purchase_date, supplier_invoice_no, subtotal, extra_cost, total, paid_amount, payment_method, notes, status, voided_at, void_reason"
+      "id, purchase_no, supplier_id, purchase_date, supplier_invoice_no, subtotal, extra_cost, total, paid_amount, payment_method, notes, status, voided_at, void_reason, returned_total, refunded_total, return_credit"
     )
     .eq("id", id)
     .maybeSingle();
@@ -194,7 +198,12 @@ export default async function PurchaseDetailPage({
   // paid_amount already includes later payments (record_supplier_payment
   // raises it); purchase_payments is the history of those later payments.
   const total = toCents(purchase.total);
-  const totalPaid = toCents(purchase.paid_amount) ?? BigInt(0);
+  // paid_amount also holds return credits (section 3 of the migration); show
+  // the money actually paid and the returns separately
+  const returnCredit = toCents(purchase.return_credit) ?? BigInt(0);
+  const returnedTotal = toCents(purchase.returned_total) ?? BigInt(0);
+  const refundedTotal = toCents(purchase.refunded_total) ?? BigInt(0);
+  const totalPaid = (toCents(purchase.paid_amount) ?? BigInt(0)) - returnCredit;
   const paidLater = payments.reduce<bigint>(
     (sum, p) => sum + (toCents(p.amount) ?? BigInt(0)),
     BigInt(0)
@@ -202,8 +211,10 @@ export default async function PurchaseDetailPage({
   const paidAtPurchase = totalPaid - paidLater;
   const cancelled = purchase.status === "void";
   // A cancelled purchase owes nothing; the money paid was recorded as returned
-  const balance = cancelled ? BigInt(0) : total !== null ? total - totalPaid : null;
-  const canCancel = !cancelled && permissions.includes("purchases.manage");
+  const balance = cancelled ? BigInt(0) : total !== null ? total - totalPaid - returnCredit : null;
+  // A purchase with returns cannot be cancelled as a whole
+  const canCancel = !cancelled && returnedTotal === BigInt(0) && permissions.includes("purchases.manage");
+  const canReturn = !cancelled && permissions.includes("purchases.manage");
   const canPay =
     !cancelled &&
     balance !== null &&
@@ -235,15 +246,23 @@ export default async function PurchaseDetailPage({
         </div>
       )}
 
-      {canCancel && (
-        <div className="flex flex-wrap print:hidden">
-          <CancelDocument
-            id={purchase.id}
-            buttonLabel="Cancel purchase"
-            explanation="This removes the phones and accessories of this purchase from stock and records the money paid to the supplier as returned."
-            keepLabel="Keep purchase"
-            action={cancelPurchase}
-          />
+      {(canCancel || canReturn) && (
+        <div className="flex flex-wrap gap-2 print:hidden">
+          {canReturn && (
+            <Link href={`/returns/purchases/new?purchase=${purchase.id}`} className={secondaryButtonClass}>
+              <PackageMinus className="h-4 w-4" />
+              Return to supplier
+            </Link>
+          )}
+          {canCancel && (
+            <CancelDocument
+              id={purchase.id}
+              buttonLabel="Cancel purchase"
+              explanation="This removes the phones and accessories of this purchase from stock and records the money paid to the supplier as returned."
+              keepLabel="Keep purchase"
+              action={cancelPurchase}
+            />
+          )}
         </div>
       )}
 
@@ -340,6 +359,18 @@ export default async function PurchaseDetailPage({
             <dt className="text-ink-muted">Paid later</dt>
             <dd className="text-ink">{formatMoney(paidLater, currency)}</dd>
           </div>
+          {returnedTotal > BigInt(0) && (
+            <>
+              <div className="flex justify-between gap-4">
+                <dt className="text-ink-muted">Returned to supplier</dt>
+                <dd className="text-ink">-{formatMoney(returnedTotal, currency)}</dd>
+              </div>
+              <div className="flex justify-between gap-4">
+                <dt className="text-ink-muted">Money received back</dt>
+                <dd className="text-ink">{formatMoney(refundedTotal, currency)}</dd>
+              </div>
+            </>
+          )}
           <div className="flex justify-between gap-4">
             <dt className="text-ink-muted">Total paid</dt>
             <dd className="font-semibold text-ink">{formatMoney(totalPaid, currency)}</dd>

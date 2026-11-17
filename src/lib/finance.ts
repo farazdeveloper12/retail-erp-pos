@@ -111,6 +111,8 @@ export function entrySourceHref(row: { ref_type: string | null; ref_id: string |
   if (row.ref_type === "sale" || row.ref_type === "sale_void") return `/sales/${row.ref_id}`;
   if (row.ref_type === "purchase" || row.ref_type === "purchase_void") return `/purchases/${row.ref_id}`;
   if (row.ref_type === "expense" || row.ref_type === "expense_void") return "/expenses";
+  if (row.ref_type === "sales_return") return `/returns/sales/${row.ref_id}`;
+  if (row.ref_type === "purchase_return") return `/returns/purchases/${row.ref_id}`;
   return null;
 }
 

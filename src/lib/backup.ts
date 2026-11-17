@@ -26,5 +26,11 @@ export const EXPORT_TABLES = [
   "finance_accounts",
   "cash_ledger",
   "finance_counts",
+  "sales_returns",
+  "sales_return_items",
+  "purchase_returns",
+  "purchase_return_items",
+  "warranty_claims",
+  "warranty_claim_events",
   "stock_movements",
 ] as const;

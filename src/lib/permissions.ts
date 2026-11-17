@@ -19,7 +19,9 @@ export const pagePermissions: Record<string, string[]> = {
   ],
   expenses: ["expenses.view", "expenses.manage"],
   finance: ["finance.view", "finance.manage"],
-  returns: ["returns.manage"],
+  // Sales returns and claims need returns.manage, supplier returns need a
+  // purchases permission, and sales staff may check warranties
+  returns: ["returns.manage", "purchases.manage", "purchases.view", "sales.create"],
   reports: ["reports.basic", "reports.financial", "dashboard.view"],
   "ai-assistant": ["ai.use"],
   users: ["users.manage"],

@@ -150,10 +150,14 @@ create policy business_logos_delete on storage.objects for delete to authenticat
          and public.has_permission('settings.manage'));
 
 
--- 1.5 Dashboard: use the low stock threshold from Settings ------------------
--- Same function as before, with two changes: the low stock limit now comes
--- from Settings (businesses.low_stock_threshold) instead of a fixed 5, and the
--- bank balance also includes wallet accounts (section 2).
+-- 1.5 Dashboard ------------------------------------------------------------
+-- Same function as before, with these changes:
+--   * the low stock limit comes from Settings (businesses.low_stock_threshold)
+--     instead of a fixed 5;
+--   * the bank balance also includes wallet accounts (section 2);
+--   * sales, profit and purchases are reduced by returns, and "cash received
+--     on sales" leaves out return credits (section 3). The return tables are
+--     created further down; a function body is only checked when it runs.
 create or replace function public.get_dashboard(p_from date, p_to date)
 returns jsonb
 language plpgsql
@@ -179,7 +183,7 @@ begin
   end if;
 
   with sale_rows as (
-    select s.id, s.total, s.discount, s.paid_amount,
+    select s.id, s.total, s.discount, s.paid_amount - s.return_credit as paid_amount,
            (s.created_at at time zone 'Asia/Karachi')::date as day
     from public.sales s
     where s.business_id = v_biz and s.status = 'completed'
@@ -193,11 +197,30 @@ begin
     left join public.sale_item_costs c on c.item_id = si.id
     group by sr.id, sr.day, sr.discount
   ),
-  daily as (
+  daily_sales as (
     select sr.day, count(*) as sales_count, sum(sr.total) as sales_total,
            coalesce(sum(sp.profit), 0) as profit
     from sale_rows sr join sale_profit sp on sp.id = sr.id
     group by sr.day
+  ),
+  -- Returns count on the day of the return. Profit loses the returned value,
+  -- and gets the cost back when the item went back into stock.
+  daily_returns as (
+    select r.return_date as day, sum(ri.line_total) as amount,
+           sum(ri.line_total - case when ri.restock then coalesce(rc.unit_cost, 0) * ri.quantity else 0 end) as profit
+    from public.sales_returns r
+    join public.sales_return_items ri on ri.return_id = r.id
+    left join public.sales_return_item_costs rc on rc.item_id = ri.id
+    where r.business_id = v_biz and r.return_date between p_from and p_to
+    group by r.return_date
+  ),
+  daily as (
+    select coalesce(s.day, r.day) as day,
+           coalesce(s.sales_count, 0) as sales_count,
+           coalesce(s.sales_total, 0) - coalesce(r.amount, 0) as sales_total,
+           coalesce(s.profit, 0) - coalesce(r.profit, 0) as profit
+    from daily_sales s
+    full join daily_returns r on r.day = s.day
   ),
   top_items as (
     select si.description, sum(si.quantity) as qty, sum(si.line_total) as amount
@@ -214,7 +237,8 @@ begin
   )
   select jsonb_build_object(
     'from', p_from, 'to', p_to, 'financial', v_fin,
-    'sales_total', coalesce((select sum(total) from sale_rows), 0),
+    'sales_total', coalesce((select sum(sales_total) from daily), 0),
+    'returns_total', coalesce((select sum(amount) from daily_returns), 0),
     'sales_count', (select count(*) from sale_rows),
     'sales_paid', coalesce((select sum(paid_amount) from sale_rows), 0),
     'receivable', coalesce((select sum(s.total - s.paid_amount) from public.sales s
@@ -236,7 +260,9 @@ begin
   if v_fin then
     r := r || jsonb_build_object(
       'purchases_total', coalesce((select sum(p.total) from public.purchases p
-                  where p.business_id = v_biz and p.purchase_date between p_from and p_to and p.status = 'completed'), 0),
+                  where p.business_id = v_biz and p.purchase_date between p_from and p_to and p.status = 'completed'), 0)
+                  - coalesce((select sum(pr.total) from public.purchase_returns pr
+                  where pr.business_id = v_biz and pr.return_date between p_from and p_to), 0),
       'expenses_total', coalesce((select sum(e.amount) from public.expenses e
                   where e.business_id = v_biz and e.voided_at is null and e.expense_date between p_from and p_to), 0),
       'payable', coalesce((select sum(p.total - p.paid_amount) from public.purchases p
@@ -1175,3 +1201,1341 @@ $$;
 
 revoke all on function public.get_finance_summary(date, date, uuid, text) from public, anon;
 grant execute on function public.get_finance_summary(date, date, uuid, text) to authenticated, service_role;
+
+
+-- =============================================================================
+-- 3. RETURNS & WARRANTY
+--
+-- Sales returns (customer brings items back), purchase returns (items go back
+-- to the supplier), warranty lookup and warranty claims.
+--
+-- Money rule for a return: the returned value first reduces what is still
+-- owed on that invoice or purchase (the "credit"); only the rest is paid back
+-- (the "refund"). The credit is added to paid_amount, so every existing
+-- balance (customer and supplier balances, the remaining amount on invoices
+-- and purchases, and the limits of the existing payment functions) stays
+-- correct without changing the existing functions.
+-- An invoice or purchase that has returns can no longer be cancelled as a
+-- whole (a trigger blocks it), so money is never paid back twice.
+-- =============================================================================
+
+-- 3.1 Return totals on invoices and purchases ---------------------------------
+-- returned_total: value of the goods returned; refunded_total: money paid back
+-- (or received back from the supplier); return_credit: the part of the
+-- returned value that reduced the amount owed (also included in paid_amount).
+alter table public.sales
+  add column if not exists returned_total numeric(14,2) not null default 0,
+  add column if not exists refunded_total numeric(14,2) not null default 0,
+  add column if not exists return_credit numeric(14,2) not null default 0;
+
+alter table public.purchases
+  add column if not exists returned_total numeric(14,2) not null default 0,
+  add column if not exists refunded_total numeric(14,2) not null default 0,
+  add column if not exists return_credit numeric(14,2) not null default 0;
+
+
+-- 3.2 Sales returns -------------------------------------------------------------
+create table if not exists public.sales_returns (
+  id uuid primary key default gen_random_uuid(),
+  business_id uuid not null references public.businesses (id),
+  return_no integer not null,
+  sale_id uuid not null references public.sales (id),
+  customer_id uuid references public.customers (id),
+  return_date date not null,
+  reason text not null,
+  notes text,
+  total numeric(14,2) not null,
+  credit_amount numeric(14,2) not null,
+  refund_amount numeric(14,2) not null,
+  refund_account_id uuid references public.finance_accounts (id),
+  created_by uuid not null,
+  created_at timestamptz not null default now(),
+  constraint sales_returns_amounts_check
+    check (total >= 0 and credit_amount >= 0 and refund_amount >= 0 and credit_amount + refund_amount = total),
+  constraint sales_returns_refund_account_check check (refund_amount = 0 or refund_account_id is not null),
+  constraint sales_returns_reason_check check (char_length(reason) between 1 and 300),
+  constraint sales_returns_notes_check check (notes is null or char_length(notes) <= 500)
+);
+
+create unique index if not exists sales_returns_no_key on public.sales_returns (business_id, return_no);
+create index if not exists sales_returns_sale_idx on public.sales_returns (sale_id);
+create index if not exists sales_returns_date_idx on public.sales_returns (business_id, return_date desc);
+
+create table if not exists public.sales_return_items (
+  id uuid primary key default gen_random_uuid(),
+  business_id uuid not null references public.businesses (id),
+  return_id uuid not null references public.sales_returns (id),
+  sale_item_id uuid not null references public.sale_items (id),
+  item_type text not null,
+  description text not null,
+  quantity integer not null,
+  line_total numeric(14,2) not null,
+  restock boolean not null,
+  phone_unit_id uuid references public.phone_units (id),
+  imei text,
+  product_id uuid references public.products (id),
+  constraint sales_return_items_quantity_check check (quantity > 0),
+  constraint sales_return_items_total_check check (line_total >= 0)
+);
+
+create index if not exists sales_return_items_return_idx on public.sales_return_items (return_id);
+create index if not exists sales_return_items_sale_item_idx on public.sales_return_items (sale_item_id);
+
+-- Cost of the returned items (for profit), visible only with cost permissions
+create table if not exists public.sales_return_item_costs (
+  item_id uuid primary key references public.sales_return_items (id),
+  business_id uuid not null references public.businesses (id),
+  unit_cost numeric(14,2) not null default 0
+);
+
+alter table public.sales_returns enable row level security;
+alter table public.sales_return_items enable row level security;
+alter table public.sales_return_item_costs enable row level security;
+
+drop policy if exists sales_returns_select on public.sales_returns;
+create policy sales_returns_select on public.sales_returns for select
+  using (business_id = public.my_business_id()
+         and (public.has_permission('returns.manage') or public.has_permission('sales.view_all')));
+
+drop policy if exists sales_return_items_select on public.sales_return_items;
+create policy sales_return_items_select on public.sales_return_items for select
+  using (business_id = public.my_business_id()
+         and (public.has_permission('returns.manage') or public.has_permission('sales.view_all')));
+
+drop policy if exists sales_return_item_costs_select on public.sales_return_item_costs;
+create policy sales_return_item_costs_select on public.sales_return_item_costs for select
+  using (business_id = public.my_business_id()
+         and (public.has_permission('inventory.view_cost') or public.has_permission('reports.financial')
+              or public.has_permission('dashboard.financial')));
+
+
+-- 3.3 Purchase returns ----------------------------------------------------------
+create table if not exists public.purchase_returns (
+  id uuid primary key default gen_random_uuid(),
+  business_id uuid not null references public.businesses (id),
+  return_no integer not null,
+  purchase_id uuid not null references public.purchases (id),
+  supplier_id uuid not null references public.suppliers (id),
+  return_date date not null,
+  reason text not null,
+  notes text,
+  total numeric(14,2) not null,
+  credit_amount numeric(14,2) not null,
+  refund_amount numeric(14,2) not null,
+  refund_account_id uuid references public.finance_accounts (id),
+  created_by uuid not null,
+  created_at timestamptz not null default now(),
+  constraint purchase_returns_amounts_check
+    check (total >= 0 and credit_amount >= 0 and refund_amount >= 0 and credit_amount + refund_amount = total),
+  constraint purchase_returns_refund_account_check check (refund_amount = 0 or refund_account_id is not null),
+  constraint purchase_returns_reason_check check (char_length(reason) between 1 and 300),
+  constraint purchase_returns_notes_check check (notes is null or char_length(notes) <= 500)
+);
+
+create unique index if not exists purchase_returns_no_key on public.purchase_returns (business_id, return_no);
+create index if not exists purchase_returns_purchase_idx on public.purchase_returns (purchase_id);
+create index if not exists purchase_returns_date_idx on public.purchase_returns (business_id, return_date desc);
+
+create table if not exists public.purchase_return_items (
+  id uuid primary key default gen_random_uuid(),
+  business_id uuid not null references public.businesses (id),
+  return_id uuid not null references public.purchase_returns (id),
+  purchase_item_id uuid references public.purchase_items (id),
+  phone_unit_id uuid references public.phone_units (id),
+  product_id uuid references public.products (id),
+  item_type text not null,
+  description text not null,
+  imei text,
+  quantity integer not null,
+  unit_cost numeric(14,2) not null,
+  line_total numeric(14,2) not null,
+  constraint purchase_return_items_quantity_check check (quantity > 0),
+  constraint purchase_return_items_total_check check (line_total >= 0)
+);
+
+create index if not exists purchase_return_items_return_idx on public.purchase_return_items (return_id);
+create index if not exists purchase_return_items_item_idx on public.purchase_return_items (purchase_item_id);
+
+alter table public.purchase_returns enable row level security;
+alter table public.purchase_return_items enable row level security;
+
+drop policy if exists purchase_returns_select on public.purchase_returns;
+create policy purchase_returns_select on public.purchase_returns for select
+  using (business_id = public.my_business_id()
+         and (public.has_permission('purchases.view') or public.has_permission('purchases.manage')));
+
+drop policy if exists purchase_return_items_select on public.purchase_return_items;
+create policy purchase_return_items_select on public.purchase_return_items for select
+  using (business_id = public.my_business_id()
+         and (public.has_permission('purchases.view') or public.has_permission('purchases.manage')));
+
+
+-- 3.4 Block cancelling an invoice or purchase that has returns ------------------
+create or replace function public.block_cancel_with_returns()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if new.status = 'void' and old.status is distinct from 'void' then
+    if tg_table_name = 'sales'
+       and exists (select 1 from public.sales_returns r where r.sale_id = new.id) then
+      raise exception 'This invoice has returns, so it cannot be cancelled. Return the remaining items instead.';
+    end if;
+    if tg_table_name = 'purchases'
+       and exists (select 1 from public.purchase_returns r where r.purchase_id = new.id) then
+      raise exception 'This purchase has returns, so it cannot be cancelled. Return the remaining items instead.';
+    end if;
+  end if;
+  return new;
+end;
+$$;
+
+revoke all on function public.block_cancel_with_returns() from public, anon, authenticated;
+
+drop trigger if exists sales_block_cancel_with_returns on public.sales;
+create trigger sales_block_cancel_with_returns before update of status on public.sales
+  for each row execute function public.block_cancel_with_returns();
+
+drop trigger if exists purchases_block_cancel_with_returns on public.purchases;
+create trigger purchases_block_cancel_with_returns before update of status on public.purchases
+  for each row execute function public.block_cancel_with_returns();
+
+
+-- 3.5 Shared helpers -------------------------------------------------------------
+-- "INV-000042", "inv42" or "42" -> 42; anything else -> null
+create or replace function public.parse_doc_no(p_text text)
+returns integer
+language sql
+immutable
+set search_path = ''
+as $$
+  select case when trim(coalesce(p_text, '')) ~* '^([a-z]{2,4}-?)?0*\d{1,9}$'
+              then nullif(regexp_replace(trim(p_text), '\D', '', 'g'), '')::integer end;
+$$;
+
+revoke all on function public.parse_doc_no(text) from public, anon;
+grant execute on function public.parse_doc_no(text) to authenticated, service_role;
+
+-- Active accounts a refund can be paid from (names only, no balances)
+create or replace function public.return_accounts(p_business_id uuid)
+returns jsonb
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select coalesce(jsonb_agg(jsonb_build_object('id', a.id, 'name', a.name, 'kind', a.kind,
+                                               'is_default', a.is_default)
+                            order by case a.kind when 'cash' then 0 when 'bank' then 1 else 2 end,
+                                     a.is_default desc, a.name), '[]'::jsonb)
+  from public.finance_accounts a
+  where a.business_id = p_business_id and a.is_active;
+$$;
+
+revoke all on function public.return_accounts(uuid) from public, anon, authenticated;
+
+-- Checks the refund account and that it holds enough money for a payout
+create or replace function public.return_refund_account(
+  p_business_id uuid, p_account text, p_amount numeric, p_money_out boolean)
+returns public.finance_accounts
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  a public.finance_accounts%rowtype;
+  v_id uuid;
+  v_balance numeric;
+begin
+  begin
+    v_id := nullif(p_account, '')::uuid;
+  exception when others then
+    raise exception 'The account is not valid.';
+  end;
+  if v_id is null then
+    raise exception 'Choose the account for the refund.';
+  end if;
+  select * into a from public.finance_accounts f
+  where f.id = v_id and f.business_id = p_business_id
+  for update;
+  if not found then
+    raise exception 'The account was not found.';
+  end if;
+  if not a.is_active then
+    raise exception 'The account % is not active.', a.name;
+  end if;
+  if p_money_out then
+    v_balance := public.finance_balance(a.id);
+    if v_balance < p_amount then
+      raise exception 'Not enough money in % for this refund. The balance is %.',
+        a.name, public.finance_format(v_balance);
+    end if;
+  end if;
+  return a;
+end;
+$$;
+
+revoke all on function public.return_refund_account(uuid, text, numeric, boolean) from public, anon, authenticated;
+
+
+-- 3.6 Sales return: lines, preview and save --------------------------------------
+-- Works out the value of each returned line. An invoice discount is shared over
+-- the lines; the last unit of a line gets exactly what is left of that line, so
+-- the total returned can never be more than the invoice total.
+-- p_items: [{ "sale_item_id": uuid, "quantity": int, "restock": bool }]
+create or replace function public.sales_return_lines(p_business_id uuid, p_sale_id uuid, p_items jsonb)
+returns table (
+  sale_item_id uuid, item_type text, description text, quantity integer, line_total numeric,
+  unit_cost numeric, restock boolean, phone_unit_id uuid, imei text, product_id uuid)
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+#variable_conflict use_variable
+declare
+  s public.sales%rowtype;
+  it jsonb;
+  si public.sale_items%rowtype;
+  v_id uuid;
+  v_qty integer;
+  v_done integer;
+  v_done_value numeric;
+  v_share numeric;
+  v_value numeric;
+  v_left numeric;
+  v_seen uuid[] := '{}';
+begin
+  select * into s from public.sales x where x.id = p_sale_id and x.business_id = p_business_id;
+  if not found then
+    raise exception 'Invoice not found.';
+  end if;
+  if s.status <> 'completed' then
+    raise exception 'This invoice is cancelled.';
+  end if;
+  if p_items is null or jsonb_typeof(p_items) <> 'array' or jsonb_array_length(p_items) = 0 then
+    raise exception 'Choose at least one item to return.';
+  end if;
+  if jsonb_array_length(p_items) > 200 then
+    raise exception 'Too many items in one return.';
+  end if;
+
+  v_left := s.total - s.returned_total;
+
+  for it in select value from jsonb_array_elements(p_items) loop
+    begin
+      v_id := (it ->> 'sale_item_id')::uuid;
+      v_qty := (it ->> 'quantity')::integer;
+    exception when others then
+      raise exception 'An item in the return is not valid.';
+    end;
+    if v_id is null then
+      raise exception 'An item in the return is not valid.';
+    end if;
+    if v_id = any (v_seen) then
+      raise exception 'An item is listed twice.';
+    end if;
+    v_seen := v_seen || v_id;
+
+    select * into si from public.sale_items x where x.id = v_id and x.sale_id = s.id;
+    if not found then
+      raise exception 'An item does not belong to this invoice.';
+    end if;
+    if v_qty is null or v_qty < 1 then
+      raise exception 'Enter a quantity of at least 1 for %.', si.description;
+    end if;
+
+    select coalesce(sum(ri.quantity), 0), coalesce(sum(ri.line_total), 0)
+      into v_done, v_done_value
+    from public.sales_return_items ri where ri.sale_item_id = si.id;
+    if v_qty > si.quantity - v_done then
+      raise exception 'Only % of % can still be returned.', si.quantity - v_done, si.description;
+    end if;
+
+    if si.item_type = 'phone' then
+      if si.phone_unit_id is null or not exists (
+           select 1 from public.phone_units u
+           where u.id = si.phone_unit_id and u.sale_id = s.id and u.status = 'sold') then
+        raise exception 'The phone with IMEI % is not marked as sold on this invoice.', si.imei;
+      end if;
+    end if;
+
+    v_share := case when s.subtotal > 0 then round(si.line_total * s.total / s.subtotal, 2) else 0 end;
+    if v_done + v_qty = si.quantity then
+      v_value := v_share - v_done_value;
+    else
+      v_value := round(v_share * v_qty / si.quantity, 2);
+    end if;
+    v_value := greatest(least(v_value, v_left), 0);
+    v_left := v_left - v_value;
+
+    sale_item_id := si.id;
+    item_type := si.item_type;
+    description := si.description;
+    quantity := v_qty;
+    line_total := v_value;
+    unit_cost := coalesce((select c.unit_cost from public.sale_item_costs c where c.item_id = si.id), 0);
+    restock := coalesce((it ->> 'restock')::boolean, true);
+    phone_unit_id := si.phone_unit_id;
+    imei := si.imei;
+    product_id := si.product_id;
+    return next;
+  end loop;
+end;
+$$;
+
+revoke all on function public.sales_return_lines(uuid, uuid, jsonb) from public, anon, authenticated;
+
+-- Invoice with its items for the return screen.
+-- payload: sale_id or invoice_no (for example "INV-000042" or "42")
+create or replace function public.get_sale_for_return(p_payload jsonb)
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+declare
+  v_biz uuid := public.my_business_id();
+  v_id uuid;
+  v_no integer := public.parse_doc_no(p_payload ->> 'invoice_no');
+  s public.sales%rowtype;
+begin
+  if auth.uid() is null or v_biz is null then
+    raise exception 'You are not signed in or no business is assigned to your account.';
+  end if;
+  if not public.has_permission('returns.manage') then
+    raise exception 'You do not have permission to record returns.';
+  end if;
+  begin
+    v_id := nullif(p_payload ->> 'sale_id', '')::uuid;
+  exception when others then
+    v_id := null;
+  end;
+
+  select * into s from public.sales x
+  where x.business_id = v_biz and ((v_id is not null and x.id = v_id) or (v_id is null and x.invoice_no = v_no));
+  if not found then
+    return null;
+  end if;
+
+  return jsonb_build_object(
+    'sale', jsonb_build_object(
+      'id', s.id, 'invoice_no', s.invoice_no, 'created_at', s.created_at, 'status', s.status,
+      'customer_id', s.customer_id,
+      'customer_name', coalesce(s.customer_name, (select c.name from public.customers c where c.id = s.customer_id)),
+      'subtotal', s.subtotal, 'discount', s.discount, 'total', s.total,
+      'paid_amount', s.paid_amount - s.return_credit, 'returned_total', s.returned_total,
+      'refunded_total', s.refunded_total, 'due', s.total - s.paid_amount),
+    'items', coalesce((
+      select jsonb_agg(jsonb_build_object(
+               'id', si.id, 'item_type', si.item_type, 'description', si.description, 'imei', si.imei,
+               'quantity', si.quantity, 'line_total', si.line_total, 'warranty_days', si.warranty_days,
+               'returned_qty', coalesce((select sum(ri.quantity) from public.sales_return_items ri
+                                         where ri.sale_item_id = si.id), 0))
+             order by si.item_type desc, si.description)
+      from public.sale_items si where si.sale_id = s.id), '[]'::jsonb),
+    'accounts', public.return_accounts(v_biz));
+end;
+$$;
+
+revoke all on function public.get_sale_for_return(jsonb) from public, anon;
+grant execute on function public.get_sale_for_return(jsonb) to authenticated, service_role;
+
+-- Value, credit and refund of a return before it is saved. Changes nothing.
+-- payload: sale_id, items
+create or replace function public.preview_sales_return(p_payload jsonb)
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+declare
+  v_biz uuid := public.my_business_id();
+  v_sale_id uuid;
+  s public.sales%rowtype;
+  v_total numeric(14,2);
+  v_credit numeric(14,2);
+begin
+  if auth.uid() is null or v_biz is null then
+    raise exception 'You are not signed in or no business is assigned to your account.';
+  end if;
+  if not public.has_permission('returns.manage') then
+    raise exception 'You do not have permission to record returns.';
+  end if;
+  begin
+    v_sale_id := (p_payload ->> 'sale_id')::uuid;
+  exception when others then
+    raise exception 'Invoice not found.';
+  end;
+  select * into s from public.sales x where x.id = v_sale_id and x.business_id = v_biz;
+  if not found then
+    raise exception 'Invoice not found.';
+  end if;
+
+  select coalesce(sum(l.line_total), 0) into v_total
+  from public.sales_return_lines(v_biz, s.id, p_payload -> 'items') l;
+  v_credit := least(v_total, greatest(s.total - s.paid_amount, 0));
+
+  return jsonb_build_object('total', v_total, 'credit', v_credit, 'refund', v_total - v_credit,
+    'lines', (select jsonb_agg(jsonb_build_object('sale_item_id', l.sale_item_id, 'quantity', l.quantity,
+                                                  'line_total', l.line_total))
+              from public.sales_return_lines(v_biz, s.id, p_payload -> 'items') l));
+end;
+$$;
+
+revoke all on function public.preview_sales_return(jsonb) from public, anon;
+grant execute on function public.preview_sales_return(jsonb) to authenticated, service_role;
+
+-- Saves a sales return.
+-- payload: sale_id, items [{sale_item_id, quantity, restock}], reason, notes,
+--          return_date, refund_account_id (needed when money is paid back)
+-- Restocked items go back into stock; items that are not restocked (for
+-- example damaged) are written off.
+create or replace function public.create_sales_return(p_payload jsonb)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_biz uuid := public.my_business_id();
+  v_uid uuid := auth.uid();
+  v_sale_id uuid;
+  s public.sales%rowtype;
+  v_date date;
+  v_reason text := nullif(trim(coalesce(p_payload ->> 'reason', '')), '');
+  v_notes text := nullif(trim(coalesce(p_payload ->> 'notes', '')), '');
+  v_total numeric(14,2);
+  v_credit numeric(14,2);
+  v_refund numeric(14,2);
+  v_account public.finance_accounts%rowtype;
+  v_return_id uuid;
+  v_no integer;
+  v_item_id uuid;
+  l record;
+begin
+  if v_uid is null or v_biz is null then
+    raise exception 'You are not signed in or no business is assigned to your account.';
+  end if;
+  if not public.has_permission('returns.manage') then
+    raise exception 'You do not have permission to record returns.';
+  end if;
+  if v_reason is null or char_length(v_reason) > 300 then
+    raise exception 'Write the reason for the return (up to 300 characters).';
+  end if;
+  if v_notes is not null and char_length(v_notes) > 500 then
+    raise exception 'The note cannot be longer than 500 characters.';
+  end if;
+  begin
+    v_sale_id := (p_payload ->> 'sale_id')::uuid;
+  exception when others then
+    raise exception 'Invoice not found.';
+  end;
+
+  select * into s from public.sales x where x.id = v_sale_id and x.business_id = v_biz for update;
+  if not found then
+    raise exception 'Invoice not found.';
+  end if;
+  if s.status <> 'completed' then
+    raise exception 'This invoice is cancelled.';
+  end if;
+
+  v_date := public.finance_entry_date(p_payload ->> 'return_date');
+  if v_date < (s.created_at at time zone 'Asia/Karachi')::date then
+    raise exception 'The return date cannot be before the invoice date.';
+  end if;
+
+  select coalesce(sum(x.line_total), 0) into v_total
+  from public.sales_return_lines(v_biz, s.id, p_payload -> 'items') x;
+  v_credit := least(v_total, greatest(s.total - s.paid_amount, 0));
+  v_refund := v_total - v_credit;
+
+  if v_refund > 0 then
+    v_account := public.return_refund_account(v_biz, p_payload ->> 'refund_account_id', v_refund, true);
+  end if;
+
+  v_no := public.next_doc_no(v_biz, 'sales_return');
+  insert into public.sales_returns
+    (business_id, return_no, sale_id, customer_id, return_date, reason, notes, total,
+     credit_amount, refund_amount, refund_account_id, created_by)
+  values
+    (v_biz, v_no, s.id, s.customer_id, v_date, v_reason, v_notes, v_total,
+     v_credit, v_refund, case when v_refund > 0 then v_account.id end, v_uid)
+  returning id into v_return_id;
+
+  for l in select * from public.sales_return_lines(v_biz, s.id, p_payload -> 'items') loop
+    insert into public.sales_return_items
+      (business_id, return_id, sale_item_id, item_type, description, quantity, line_total,
+       restock, phone_unit_id, imei, product_id)
+    values
+      (v_biz, v_return_id, l.sale_item_id, l.item_type, l.description, l.quantity, l.line_total,
+       l.restock, l.phone_unit_id, l.imei, l.product_id)
+    returning id into v_item_id;
+    insert into public.sales_return_item_costs (item_id, business_id, unit_cost)
+    values (v_item_id, v_biz, l.unit_cost);
+
+    if l.item_type = 'phone' then
+      if l.restock then
+        if exists (select 1 from public.phone_units u
+                   where u.business_id = v_biz and u.imei = l.imei and u.status = 'in_stock') then
+          raise exception 'The phone with IMEI % is already in stock again.', l.imei;
+        end if;
+        update public.phone_units
+          set status = 'in_stock', sale_id = null, sold_at = null, updated_at = now()
+          where id = l.phone_unit_id;
+      else
+        update public.phone_units set status = 'written_off', updated_at = now()
+          where id = l.phone_unit_id;
+      end if;
+    elsif l.restock and l.product_id is not null then
+      insert into public.product_stock (product_id, business_id, qty)
+      values (l.product_id, v_biz, l.quantity)
+      on conflict (product_id) do update
+        set qty = public.product_stock.qty + excluded.qty, updated_at = now();
+      insert into public.stock_movements
+        (business_id, product_id, qty_change, unit_cost, reason, ref_type, ref_id, created_by)
+      values (v_biz, l.product_id, l.quantity, l.unit_cost, 'return', 'sales_return', v_return_id, v_uid);
+    end if;
+  end loop;
+
+  update public.sales
+    set paid_amount = paid_amount + v_credit,
+        return_credit = return_credit + v_credit,
+        returned_total = returned_total + v_total,
+        refunded_total = refunded_total + v_refund
+    where id = s.id;
+
+  if v_refund > 0 then
+    insert into public.cash_ledger
+      (business_id, entry_date, account, account_id, direction, amount, category,
+       party_type, party_id, ref_type, ref_id, notes, created_by)
+    values
+      (v_biz, v_date, v_account.kind, v_account.id, 'out', v_refund, 'sale_refund',
+       case when s.customer_id is null then null else 'customer' end, s.customer_id,
+       'sales_return', v_return_id, 'Refund for return SR-' || lpad(v_no::text, 6, '0'), v_uid);
+  end if;
+
+  return jsonb_build_object('return_id', v_return_id, 'return_no', v_no, 'total', v_total,
+                            'credit', v_credit, 'refund', v_refund);
+end;
+$$;
+
+revoke all on function public.create_sales_return(jsonb) from public, anon;
+grant execute on function public.create_sales_return(jsonb) to authenticated, service_role;
+
+
+-- 3.7 Purchase return -------------------------------------------------------------
+-- Purchase with what can still be returned.
+-- payload: purchase_id or purchase_no
+create or replace function public.get_purchase_for_return(p_payload jsonb)
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+declare
+  v_biz uuid := public.my_business_id();
+  v_id uuid;
+  v_no integer := public.parse_doc_no(p_payload ->> 'purchase_no');
+  p public.purchases%rowtype;
+begin
+  if auth.uid() is null or v_biz is null then
+    raise exception 'You are not signed in or no business is assigned to your account.';
+  end if;
+  if not public.has_permission('purchases.manage') then
+    raise exception 'You do not have permission to return items to suppliers.';
+  end if;
+  begin
+    v_id := nullif(p_payload ->> 'purchase_id', '')::uuid;
+  exception when others then
+    v_id := null;
+  end;
+
+  select * into p from public.purchases x
+  where x.business_id = v_biz and ((v_id is not null and x.id = v_id) or (v_id is null and x.purchase_no = v_no));
+  if not found then
+    return null;
+  end if;
+
+  return jsonb_build_object(
+    'purchase', jsonb_build_object(
+      'id', p.id, 'purchase_no', p.purchase_no, 'purchase_date', p.purchase_date, 'status', p.status,
+      'supplier_id', p.supplier_id,
+      'supplier_name', (select su.name from public.suppliers su where su.id = p.supplier_id),
+      'total', p.total, 'paid_amount', p.paid_amount - p.return_credit,
+      'returned_total', p.returned_total, 'refunded_total', p.refunded_total,
+      'due', p.total - p.paid_amount),
+    'accessories', coalesce((
+      select jsonb_agg(jsonb_build_object(
+               'id', pi.id, 'description', pi.description, 'product_id', pi.product_id,
+               'quantity', pi.quantity, 'unit_cost', pi.unit_cost,
+               'returned_qty', coalesce((select sum(ri.quantity) from public.purchase_return_items ri
+                                         where ri.purchase_item_id = pi.id), 0),
+               'in_stock', coalesce((select ps.qty from public.product_stock ps
+                                     where ps.product_id = pi.product_id), 0))
+             order by pi.description)
+      from public.purchase_items pi
+      where pi.purchase_id = p.id and pi.item_type = 'accessory'), '[]'::jsonb),
+    'phones', coalesce((
+      select jsonb_agg(jsonb_build_object(
+               'id', u.id, 'imei', u.imei, 'status', u.status,
+               'description', trim(u.brand_name || ' ' || u.model_name || ' ' ||
+                              case when u.storage_gb >= 1024 and u.storage_gb % 1024 = 0
+                                   then (u.storage_gb / 1024)::text || ' TB'
+                                   else u.storage_gb::text || ' GB' end
+                              || coalesce(' ' || u.color_name, '')),
+               'unit_cost', coalesce(c.purchase_cost, 0))
+             order by u.model_name, u.imei)
+      from public.phone_units u
+      left join public.phone_unit_costs c on c.unit_id = u.id
+      where u.purchase_id = p.id), '[]'::jsonb),
+    'accounts', public.return_accounts(v_biz));
+end;
+$$;
+
+revoke all on function public.get_purchase_for_return(jsonb) from public, anon;
+grant execute on function public.get_purchase_for_return(jsonb) to authenticated, service_role;
+
+-- Saves a purchase return: the items leave stock and the supplier owes less
+-- (or pays money back).
+-- payload: purchase_id, phone_unit_ids [uuid], items [{purchase_item_id, quantity}],
+--          reason, notes, return_date, refund_account_id (when money comes back)
+create or replace function public.create_purchase_return(p_payload jsonb)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_biz uuid := public.my_business_id();
+  v_uid uuid := auth.uid();
+  v_purchase_id uuid;
+  p public.purchases%rowtype;
+  v_date date;
+  v_reason text := nullif(trim(coalesce(p_payload ->> 'reason', '')), '');
+  v_notes text := nullif(trim(coalesce(p_payload ->> 'notes', '')), '');
+  v_left numeric(14,2);
+  v_total numeric(14,2) := 0;
+  v_credit numeric(14,2);
+  v_refund numeric(14,2);
+  v_account public.finance_accounts%rowtype;
+  v_return_id uuid;
+  v_no integer;
+  v_id uuid;
+  v_qty integer;
+  v_done integer;
+  v_stock numeric;
+  v_value numeric(14,2);
+  v_seen uuid[] := '{}';
+  v_count integer := 0;
+  it jsonb;
+  u public.phone_units%rowtype;
+  pi public.purchase_items%rowtype;
+  v_cost numeric(14,2);
+begin
+  if v_uid is null or v_biz is null then
+    raise exception 'You are not signed in or no business is assigned to your account.';
+  end if;
+  if not public.has_permission('purchases.manage') then
+    raise exception 'You do not have permission to return items to suppliers.';
+  end if;
+  if v_reason is null or char_length(v_reason) > 300 then
+    raise exception 'Write the reason for the return (up to 300 characters).';
+  end if;
+  if v_notes is not null and char_length(v_notes) > 500 then
+    raise exception 'The note cannot be longer than 500 characters.';
+  end if;
+  begin
+    v_purchase_id := (p_payload ->> 'purchase_id')::uuid;
+  exception when others then
+    raise exception 'Purchase not found.';
+  end;
+
+  select * into p from public.purchases x where x.id = v_purchase_id and x.business_id = v_biz for update;
+  if not found then
+    raise exception 'Purchase not found.';
+  end if;
+  if p.status <> 'completed' then
+    raise exception 'This purchase is cancelled.';
+  end if;
+  v_date := public.finance_entry_date(p_payload ->> 'return_date');
+  if v_date < p.purchase_date then
+    raise exception 'The return date cannot be before the purchase date.';
+  end if;
+  if coalesce(jsonb_array_length(case when jsonb_typeof(p_payload -> 'phone_unit_ids') = 'array'
+                                      then p_payload -> 'phone_unit_ids' end), 0)
+     + coalesce(jsonb_array_length(case when jsonb_typeof(p_payload -> 'items') = 'array'
+                                        then p_payload -> 'items' end), 0) = 0 then
+    raise exception 'Choose at least one item to return.';
+  end if;
+
+  v_left := p.total - p.returned_total;
+  v_no := public.next_doc_no(v_biz, 'purchase_return');
+  insert into public.purchase_returns
+    (business_id, return_no, purchase_id, supplier_id, return_date, reason, notes, total,
+     credit_amount, refund_amount, created_by)
+  values (v_biz, v_no, p.id, p.supplier_id, v_date, v_reason, v_notes, 0, 0, 0, v_uid)
+  returning id into v_return_id;
+
+  -- Phones
+  if jsonb_typeof(p_payload -> 'phone_unit_ids') = 'array' then
+    for it in select value from jsonb_array_elements(p_payload -> 'phone_unit_ids') loop
+      begin
+        v_id := (it #>> '{}')::uuid;
+      exception when others then
+        raise exception 'A phone in the return is not valid.';
+      end;
+      if v_id = any (v_seen) then
+        raise exception 'A phone is listed twice.';
+      end if;
+      v_seen := v_seen || v_id;
+      select * into u from public.phone_units x
+      where x.id = v_id and x.purchase_id = p.id and x.business_id = v_biz
+      for update;
+      if not found then
+        raise exception 'A phone does not belong to this purchase.';
+      end if;
+      if u.status <> 'in_stock' then
+        raise exception 'The phone with IMEI % is not in stock.', u.imei;
+      end if;
+      v_cost := coalesce((select c.purchase_cost from public.phone_unit_costs c where c.unit_id = u.id), 0);
+      v_value := greatest(least(v_cost, v_left), 0);
+      v_left := v_left - v_value;
+      v_total := v_total + v_value;
+      v_count := v_count + 1;
+      update public.phone_units set status = 'returned_to_supplier', updated_at = now() where id = u.id;
+      insert into public.purchase_return_items
+        (business_id, return_id, phone_unit_id, item_type, description, imei, quantity, unit_cost, line_total)
+      values
+        (v_biz, v_return_id, u.id, 'phone',
+         trim(u.brand_name || ' ' || u.model_name || coalesce(' ' || u.color_name, '')), u.imei, 1, v_cost, v_value);
+    end loop;
+  end if;
+
+  -- Accessories
+  if jsonb_typeof(p_payload -> 'items') = 'array' then
+    for it in select value from jsonb_array_elements(p_payload -> 'items') loop
+      begin
+        v_id := (it ->> 'purchase_item_id')::uuid;
+        v_qty := (it ->> 'quantity')::integer;
+      exception when others then
+        raise exception 'An item in the return is not valid.';
+      end;
+      if v_id = any (v_seen) then
+        raise exception 'An item is listed twice.';
+      end if;
+      v_seen := v_seen || v_id;
+      select * into pi from public.purchase_items x
+      where x.id = v_id and x.purchase_id = p.id and x.item_type = 'accessory';
+      if not found then
+        raise exception 'An item does not belong to this purchase.';
+      end if;
+      if v_qty is null or v_qty < 1 then
+        raise exception 'Enter a quantity of at least 1 for %.', pi.description;
+      end if;
+      select coalesce(sum(ri.quantity), 0) into v_done
+      from public.purchase_return_items ri where ri.purchase_item_id = pi.id;
+      if v_qty > pi.quantity - v_done then
+        raise exception 'Only % of % can still be returned.', pi.quantity - v_done, pi.description;
+      end if;
+      select ps.qty into v_stock from public.product_stock ps where ps.product_id = pi.product_id for update;
+      if coalesce(v_stock, 0) < v_qty then
+        raise exception 'Only % of % are in stock.', coalesce(v_stock, 0)::integer, pi.description;
+      end if;
+
+      v_value := greatest(least(round(pi.unit_cost * v_qty, 2), v_left), 0);
+      v_left := v_left - v_value;
+      v_total := v_total + v_value;
+      v_count := v_count + 1;
+      update public.product_stock set qty = qty - v_qty, updated_at = now() where product_id = pi.product_id;
+      insert into public.stock_movements
+        (business_id, product_id, qty_change, unit_cost, reason, ref_type, ref_id, created_by)
+      values (v_biz, pi.product_id, -v_qty, pi.unit_cost, 'return', 'purchase_return', v_return_id, v_uid);
+      insert into public.purchase_return_items
+        (business_id, return_id, purchase_item_id, product_id, item_type, description, quantity, unit_cost, line_total)
+      values (v_biz, v_return_id, pi.id, pi.product_id, 'accessory', pi.description, v_qty, pi.unit_cost, v_value);
+    end loop;
+  end if;
+
+  if v_count = 0 then
+    raise exception 'Choose at least one item to return.';
+  end if;
+
+  v_credit := least(v_total, greatest(p.total - p.paid_amount, 0));
+  v_refund := v_total - v_credit;
+  if v_refund > 0 then
+    v_account := public.return_refund_account(v_biz, p_payload ->> 'refund_account_id', v_refund, false);
+  end if;
+
+  update public.purchase_returns
+    set total = v_total, credit_amount = v_credit, refund_amount = v_refund,
+        refund_account_id = case when v_refund > 0 then v_account.id end
+    where id = v_return_id;
+
+  update public.purchases
+    set paid_amount = paid_amount + v_credit,
+        return_credit = return_credit + v_credit,
+        returned_total = returned_total + v_total,
+        refunded_total = refunded_total + v_refund
+    where id = p.id;
+
+  if v_refund > 0 then
+    insert into public.cash_ledger
+      (business_id, entry_date, account, account_id, direction, amount, category,
+       party_type, party_id, ref_type, ref_id, notes, created_by)
+    values
+      (v_biz, v_date, v_account.kind, v_account.id, 'in', v_refund, 'purchase_refund',
+       'supplier', p.supplier_id, 'purchase_return', v_return_id,
+       'Money back for return PR-' || lpad(v_no::text, 6, '0'), v_uid);
+  end if;
+
+  return jsonb_build_object('return_id', v_return_id, 'return_no', v_no, 'total', v_total,
+                            'credit', v_credit, 'refund', v_refund);
+end;
+$$;
+
+revoke all on function public.create_purchase_return(jsonb) from public, anon;
+grant execute on function public.create_purchase_return(jsonb) to authenticated, service_role;
+
+
+-- 3.8 Warranty lookup ---------------------------------------------------------------
+-- Finds sold items by IMEI, invoice number or customer phone.
+create or replace function public.warranty_lookup(p_query text)
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+declare
+  v_biz uuid := public.my_business_id();
+  v_q text := trim(coalesce(p_query, ''));
+  v_no integer := public.parse_doc_no(p_query);
+  v_digits text := regexp_replace(coalesce(p_query, ''), '\D', '', 'g');
+  v_today date := (now() at time zone 'Asia/Karachi')::date;
+begin
+  if auth.uid() is null or v_biz is null then
+    raise exception 'You are not signed in or no business is assigned to your account.';
+  end if;
+  if not (public.has_permission('returns.manage') or public.has_permission('sales.create')) then
+    raise exception 'You do not have permission to look up warranties.';
+  end if;
+  if char_length(v_q) < 2 or char_length(v_q) > 40 then
+    raise exception 'Enter an IMEI, an invoice number or a phone number.';
+  end if;
+
+  return coalesce((
+    select jsonb_agg(row_to_json(x)::jsonb order by x.sold_on desc, x.description)
+    from (
+      select si.id as sale_item_id, s.id as sale_id, s.invoice_no,
+             (s.created_at at time zone 'Asia/Karachi')::date as sold_on,
+             coalesce(s.customer_name, c.name) as customer_name,
+             coalesce(s.customer_phone, c.phone) as customer_phone,
+             si.description, si.imei, si.quantity, si.warranty_days,
+             (s.created_at at time zone 'Asia/Karachi')::date + si.warranty_days as expires_on,
+             greatest((s.created_at at time zone 'Asia/Karachi')::date + si.warranty_days - v_today, 0) as days_left,
+             case when si.warranty_days <= 0 then 'none'
+                  when (s.created_at at time zone 'Asia/Karachi')::date + si.warranty_days >= v_today then 'active'
+                  else 'expired' end as warranty_status,
+             coalesce((select sum(ri.quantity) from public.sales_return_items ri
+                       where ri.sale_item_id = si.id), 0) as returned_qty,
+             (select w.id from public.warranty_claims w
+              where w.sale_item_id = si.id and w.status <> 'returned'
+              order by w.created_at desc limit 1) as open_claim_id
+      from public.sales s
+      join public.sale_items si on si.sale_id = s.id
+      left join public.customers c on c.id = s.customer_id
+      where s.business_id = v_biz and s.status = 'completed'
+        and (si.imei = v_q
+             or si.id::text = lower(v_q)
+             or (v_no is not null and s.invoice_no = v_no)
+             or (char_length(v_digits) >= 7 and (
+                   right(regexp_replace(coalesce(s.customer_phone, ''), '\D', '', 'g'), 10) = right(v_digits, 10)
+                   or right(regexp_replace(coalesce(c.phone, ''), '\D', '', 'g'), 10) = right(v_digits, 10))))
+      order by s.created_at desc
+      limit 50
+    ) x), '[]'::jsonb);
+end;
+$$;
+
+revoke all on function public.warranty_lookup(text) from public, anon;
+grant execute on function public.warranty_lookup(text) to authenticated, service_role;
+
+
+-- 3.9 Warranty claims ------------------------------------------------------------
+-- Status flow:
+--   received -> sent_out (to the supplier or a repair shop), repaired, replaced or rejected
+--   sent_out -> repaired, replaced or rejected
+--   repaired, replaced or rejected -> returned (handed back to the customer)
+create table if not exists public.warranty_claims (
+  id uuid primary key default gen_random_uuid(),
+  business_id uuid not null references public.businesses (id),
+  claim_no integer not null,
+  sale_id uuid references public.sales (id),
+  sale_item_id uuid references public.sale_items (id),
+  customer_id uuid references public.customers (id),
+  customer_name text,
+  customer_phone text,
+  item_description text not null,
+  imei text,
+  warranty_expires_on date,
+  under_warranty boolean not null default false,
+  issue text not null,
+  status text not null default 'received',
+  sent_to text,
+  supplier_id uuid references public.suppliers (id),
+  resolution text,
+  received_on date not null,
+  sent_on date,
+  resolved_on date,
+  returned_on date,
+  created_by uuid not null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  constraint warranty_claims_status_check
+    check (status in ('received', 'sent_out', 'repaired', 'replaced', 'rejected', 'returned')),
+  constraint warranty_claims_issue_check check (char_length(issue) between 1 and 1000),
+  constraint warranty_claims_item_check check (char_length(item_description) between 1 and 200),
+  constraint warranty_claims_customer_check
+    check ((customer_name is null or char_length(customer_name) <= 120)
+           and (customer_phone is null or char_length(customer_phone) <= 30)),
+  constraint warranty_claims_sent_to_check check (sent_to is null or char_length(sent_to) <= 120),
+  constraint warranty_claims_resolution_check check (resolution is null or char_length(resolution) <= 1000)
+);
+
+create unique index if not exists warranty_claims_no_key on public.warranty_claims (business_id, claim_no);
+create index if not exists warranty_claims_status_idx on public.warranty_claims (business_id, status, created_at desc);
+create index if not exists warranty_claims_item_idx on public.warranty_claims (sale_item_id);
+
+create table if not exists public.warranty_claim_events (
+  id uuid primary key default gen_random_uuid(),
+  business_id uuid not null references public.businesses (id),
+  claim_id uuid not null references public.warranty_claims (id),
+  status text not null,
+  note text,
+  created_by uuid not null,
+  created_at timestamptz not null default now(),
+  constraint warranty_claim_events_note_check check (note is null or char_length(note) <= 500)
+);
+
+create index if not exists warranty_claim_events_claim_idx on public.warranty_claim_events (claim_id, created_at);
+
+alter table public.warranty_claims enable row level security;
+alter table public.warranty_claim_events enable row level security;
+
+drop policy if exists warranty_claims_select on public.warranty_claims;
+create policy warranty_claims_select on public.warranty_claims for select
+  using (business_id = public.my_business_id() and public.has_permission('returns.manage'));
+
+drop policy if exists warranty_claim_events_select on public.warranty_claim_events;
+create policy warranty_claim_events_select on public.warranty_claim_events for select
+  using (business_id = public.my_business_id() and public.has_permission('returns.manage'));
+
+drop trigger if exists warranty_claims_set_updated_at on public.warranty_claims;
+create trigger warranty_claims_set_updated_at before update on public.warranty_claims
+  for each row execute function public.set_updated_at();
+
+-- payload: sale_item_id (optional), item_description, imei, customer_name,
+--          customer_phone (used when there is no sale item), issue, received_on
+create or replace function public.create_warranty_claim(p_payload jsonb)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_biz uuid := public.my_business_id();
+  v_uid uuid := auth.uid();
+  v_item_id uuid;
+  si public.sale_items%rowtype;
+  s public.sales%rowtype;
+  v_issue text := nullif(trim(coalesce(p_payload ->> 'issue', '')), '');
+  v_desc text := nullif(trim(coalesce(p_payload ->> 'item_description', '')), '');
+  v_imei text := nullif(regexp_replace(coalesce(p_payload ->> 'imei', ''), '\s', '', 'g'), '');
+  v_name text := nullif(trim(coalesce(p_payload ->> 'customer_name', '')), '');
+  v_phone text := nullif(trim(coalesce(p_payload ->> 'customer_phone', '')), '');
+  v_customer uuid;
+  v_sale uuid;
+  v_expires date;
+  v_under boolean := false;
+  v_date date := public.finance_entry_date(p_payload ->> 'received_on');
+  v_no integer;
+  v_id uuid;
+begin
+  if v_uid is null or v_biz is null then
+    raise exception 'You are not signed in or no business is assigned to your account.';
+  end if;
+  if not public.has_permission('returns.manage') then
+    raise exception 'You do not have permission to record warranty claims.';
+  end if;
+  if v_issue is null or char_length(v_issue) > 1000 then
+    raise exception 'Describe the problem (up to 1000 characters).';
+  end if;
+  begin
+    v_item_id := nullif(p_payload ->> 'sale_item_id', '')::uuid;
+  exception when others then
+    raise exception 'The sold item is not valid.';
+  end;
+
+  if v_item_id is not null then
+    select * into si from public.sale_items x where x.id = v_item_id and x.business_id = v_biz;
+    if not found then
+      raise exception 'The sold item was not found.';
+    end if;
+    select * into s from public.sales x where x.id = si.sale_id;
+    if s.status <> 'completed' then
+      raise exception 'This invoice is cancelled.';
+    end if;
+    if exists (select 1 from public.warranty_claims w where w.sale_item_id = si.id and w.status <> 'returned') then
+      raise exception 'This item already has an open warranty claim.';
+    end if;
+    if si.quantity <= coalesce((select sum(ri.quantity) from public.sales_return_items ri
+                                where ri.sale_item_id = si.id), 0) then
+      raise exception 'This item was returned, so it cannot have a warranty claim.';
+    end if;
+    v_sale := s.id;
+    v_customer := s.customer_id;
+    v_desc := si.description;
+    v_imei := si.imei;
+    v_name := coalesce(s.customer_name, (select c.name from public.customers c where c.id = s.customer_id));
+    v_phone := coalesce(s.customer_phone, (select c.phone from public.customers c where c.id = s.customer_id));
+    if si.warranty_days > 0 then
+      v_expires := (s.created_at at time zone 'Asia/Karachi')::date + si.warranty_days;
+      v_under := v_date <= v_expires;
+    end if;
+  else
+    if v_desc is null or char_length(v_desc) > 200 then
+      raise exception 'Describe the item (up to 200 characters).';
+    end if;
+  end if;
+
+  if v_imei is not null and v_imei !~ '^\d{15}$' then
+    raise exception 'The IMEI must be 15 digits.';
+  end if;
+  if v_name is not null and char_length(v_name) > 120 then
+    raise exception 'The customer name cannot be longer than 120 characters.';
+  end if;
+  if v_phone is not null and char_length(v_phone) > 30 then
+    raise exception 'The phone number cannot be longer than 30 characters.';
+  end if;
+
+  v_no := public.next_doc_no(v_biz, 'warranty_claim');
+  insert into public.warranty_claims
+    (business_id, claim_no, sale_id, sale_item_id, customer_id, customer_name, customer_phone,
+     item_description, imei, warranty_expires_on, under_warranty, issue, received_on, created_by)
+  values
+    (v_biz, v_no, v_sale, v_item_id, v_customer, v_name, v_phone,
+     v_desc, v_imei, v_expires, v_under, v_issue, v_date, v_uid)
+  returning id into v_id;
+
+  insert into public.warranty_claim_events (business_id, claim_id, status, note, created_by)
+  values (v_biz, v_id, 'received', null, v_uid);
+
+  return jsonb_build_object('claim_id', v_id, 'claim_no', v_no);
+end;
+$$;
+
+revoke all on function public.create_warranty_claim(jsonb) from public, anon;
+grant execute on function public.create_warranty_claim(jsonb) to authenticated, service_role;
+
+-- payload: claim_id, status, note, sent_to (or supplier_id) for sent_out,
+--          resolution (optional), event_date
+create or replace function public.update_warranty_claim(p_payload jsonb)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_biz uuid := public.my_business_id();
+  v_uid uuid := auth.uid();
+  v_id uuid;
+  w public.warranty_claims%rowtype;
+  v_status text := p_payload ->> 'status';
+  v_note text := nullif(trim(coalesce(p_payload ->> 'note', '')), '');
+  v_sent_to text := nullif(trim(coalesce(p_payload ->> 'sent_to', '')), '');
+  v_resolution text := nullif(trim(coalesce(p_payload ->> 'resolution', '')), '');
+  v_supplier uuid;
+  v_date date := public.finance_entry_date(p_payload ->> 'event_date');
+begin
+  if v_uid is null or v_biz is null then
+    raise exception 'You are not signed in or no business is assigned to your account.';
+  end if;
+  if not public.has_permission('returns.manage') then
+    raise exception 'You do not have permission to update warranty claims.';
+  end if;
+  begin
+    v_id := (p_payload ->> 'claim_id')::uuid;
+    v_supplier := nullif(p_payload ->> 'supplier_id', '')::uuid;
+  exception when others then
+    raise exception 'The claim is not valid.';
+  end;
+  if v_note is not null and char_length(v_note) > 500 then
+    raise exception 'The note cannot be longer than 500 characters.';
+  end if;
+  if v_resolution is not null and char_length(v_resolution) > 1000 then
+    raise exception 'The result cannot be longer than 1000 characters.';
+  end if;
+
+  select * into w from public.warranty_claims x where x.id = v_id and x.business_id = v_biz for update;
+  if not found then
+    raise exception 'The claim was not found.';
+  end if;
+  if v_date < w.received_on then
+    raise exception 'The date cannot be before the claim was received.';
+  end if;
+
+  if not (
+       (w.status = 'received' and v_status in ('sent_out', 'repaired', 'replaced', 'rejected'))
+    or (w.status = 'sent_out' and v_status in ('repaired', 'replaced', 'rejected'))
+    or (w.status in ('repaired', 'replaced', 'rejected') and v_status = 'returned')) then
+    raise exception 'A claim that is % cannot be changed to %.',
+      replace(w.status, '_', ' '), replace(coalesce(v_status, 'nothing'), '_', ' ');
+  end if;
+
+  if v_status = 'sent_out' then
+    if v_supplier is not null then
+      if not exists (select 1 from public.suppliers su where su.id = v_supplier and su.business_id = v_biz) then
+        raise exception 'The supplier was not found.';
+      end if;
+      v_sent_to := coalesce(v_sent_to, (select su.name from public.suppliers su where su.id = v_supplier));
+    end if;
+    if v_sent_to is null or char_length(v_sent_to) > 120 then
+      raise exception 'Write where the item was sent (up to 120 characters).';
+    end if;
+    update public.warranty_claims
+      set status = v_status, sent_to = v_sent_to, supplier_id = v_supplier, sent_on = v_date
+      where id = w.id;
+  elsif v_status in ('repaired', 'replaced', 'rejected') then
+    update public.warranty_claims
+      set status = v_status, resolved_on = v_date, resolution = coalesce(v_resolution, v_note, resolution)
+      where id = w.id;
+  else
+    update public.warranty_claims set status = v_status, returned_on = v_date where id = w.id;
+  end if;
+
+  insert into public.warranty_claim_events (business_id, claim_id, status, note, created_by)
+  values (v_biz, w.id, v_status, v_note, v_uid);
+
+  return jsonb_build_object('claim_id', w.id, 'status', v_status);
+end;
+$$;
+
+revoke all on function public.update_warranty_claim(jsonb) from public, anon;
+grant execute on function public.update_warranty_claim(jsonb) to authenticated, service_role;
+
+
+-- =============================================================================
+-- 4. AI ASSISTANT
+--
+-- The assistant only reads data through the signed-in user's session, so Row
+-- Level Security and permissions apply to every answer. This section adds a
+-- usage log for per-user rate limits and one read-only report function.
+-- Questions and answers are not stored.
+-- =============================================================================
+
+-- 4.1 Usage log (for rate limits) ---------------------------------------------
+create table if not exists public.ai_usage (
+  id uuid primary key default gen_random_uuid(),
+  business_id uuid not null references public.businesses (id),
+  user_id uuid not null,
+  created_at timestamptz not null default now(),
+  input_tokens integer not null default 0,
+  output_tokens integer not null default 0,
+  constraint ai_usage_tokens_check check (input_tokens >= 0 and output_tokens >= 0)
+);
+
+create index if not exists ai_usage_user_idx on public.ai_usage (user_id, created_at desc);
+
+alter table public.ai_usage enable row level security;
+
+drop policy if exists ai_usage_select on public.ai_usage;
+create policy ai_usage_select on public.ai_usage for select
+  using (business_id = public.my_business_id() and user_id = auth.uid());
+
+-- Starts one question: checks the permission and the limits, then logs it.
+-- Limits: 20 questions per hour and 100 per day for each user.
+create or replace function public.ai_start_request()
+returns uuid
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_biz uuid := public.my_business_id();
+  v_uid uuid := auth.uid();
+  v_id uuid;
+begin
+  if v_uid is null or v_biz is null then
+    raise exception 'You are not signed in or no business is assigned to your account.';
+  end if;
+  if not public.has_permission('ai.use') then
+    raise exception 'You do not have permission to use the AI Assistant.';
+  end if;
+  -- One user's requests are counted one at a time
+  perform pg_advisory_xact_lock(hashtextextended('ai_usage:' || v_uid::text, 0));
+  if (select count(*) from public.ai_usage u
+      where u.user_id = v_uid and u.created_at > now() - interval '1 hour') >= 20 then
+    raise exception 'You have asked 20 questions in the last hour. Please try again later.';
+  end if;
+  if (select count(*) from public.ai_usage u
+      where u.user_id = v_uid and u.created_at > now() - interval '1 day') >= 100 then
+    raise exception 'You have reached the limit of 100 questions per day. Please try again tomorrow.';
+  end if;
+  insert into public.ai_usage (business_id, user_id) values (v_biz, v_uid) returning id into v_id;
+  return v_id;
+end;
+$$;
+
+revoke all on function public.ai_start_request() from public, anon;
+grant execute on function public.ai_start_request() to authenticated, service_role;
+
+-- Adds the token counts to a logged question of the same user
+create or replace function public.ai_finish_request(p_id uuid, p_input integer, p_output integer)
+returns void
+language sql
+security definer
+set search_path = ''
+as $$
+  update public.ai_usage
+     set input_tokens = least(greatest(coalesce(p_input, 0), 0), 100000000),
+         output_tokens = least(greatest(coalesce(p_output, 0), 0), 100000000)
+   where id = p_id and user_id = auth.uid();
+$$;
+
+revoke all on function public.ai_finish_request(uuid, integer, integer) from public, anon;
+grant execute on function public.ai_finish_request(uuid, integer, integer) to authenticated, service_role;
+
+
+-- 4.2 Read-only report: best customers by sales --------------------------------
+-- Names and totals only (no phone numbers). Runs with the reader's rights, so
+-- it only counts the sales the reader may see.
+create or replace function public.ai_top_customers(p_from date, p_to date, p_limit integer default 10)
+returns jsonb
+language sql
+stable
+security invoker
+set search_path = ''
+as $$
+  select coalesce(jsonb_agg(x order by x.sales_total desc), '[]'::jsonb)
+  from (
+    select coalesce(c.name, s.customer_name, 'Walk-in customers') as customer,
+           count(*) as invoices,
+           sum(s.total - s.returned_total)::numeric(14,2) as sales_total
+    from public.sales s
+    left join public.customers c on c.id = s.customer_id
+    where s.business_id = public.my_business_id() and s.status = 'completed'
+      and (s.created_at at time zone 'Asia/Karachi')::date between p_from and p_to
+    group by s.customer_id, coalesce(c.name, s.customer_name, 'Walk-in customers')
+    order by sum(s.total - s.returned_total) desc
+    limit least(greatest(coalesce(p_limit, 10), 1), 25)
+  ) x;
+$$;
+
+revoke all on function public.ai_top_customers(date, date, integer) from public, anon;
+grant execute on function public.ai_top_customers(date, date, integer) to authenticated, service_role;
