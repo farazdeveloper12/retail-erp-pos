@@ -34,6 +34,7 @@ function Toggle({ name, label, defaultChecked }: { name: string; label: string; 
   return (
     <label className="flex min-h-11 cursor-pointer items-center gap-3 rounded-2xl border border-line px-4 text-sm text-ink">
       <input
+        key={String(defaultChecked)}
         type="checkbox"
         name={name}
         defaultChecked={defaultChecked}
@@ -119,7 +120,15 @@ export function InvoiceSettingsForm({
           <label htmlFor="invoice-paper" className={labelClass}>
             Default paper size
           </label>
-          <select id="invoice-paper" name="invoice_paper" defaultValue={defaults.invoice_paper} className={inputClass}>
+          {/* key: React applies a select's defaultValue only on mount, and the form
+              is reset after saving, so remount it when the saved value changes */}
+          <select
+            key={defaults.invoice_paper}
+            id="invoice-paper"
+            name="invoice_paper"
+            defaultValue={defaults.invoice_paper}
+            className={inputClass}
+          >
             <option value="a4">A4</option>
             <option value="thermal">Thermal 80 mm</option>
           </select>
@@ -129,7 +138,13 @@ export function InvoiceSettingsForm({
           <label htmlFor="date-format" className={labelClass}>
             Date format on invoices
           </label>
-          <select id="date-format" name="date_format" defaultValue={defaults.date_format} className={inputClass}>
+          <select
+            key={defaults.date_format}
+            id="date-format"
+            name="date_format"
+            defaultValue={defaults.date_format}
+            className={inputClass}
+          >
             {DATE_FORMAT_OPTIONS.map((o) => (
               <option key={o.value} value={o.value}>
                 {o.label}
@@ -291,7 +306,9 @@ export function ExpenseCategoriesManager({ categories }: { categories: Category[
           {pending ? "Adding..." : "Add category"}
         </button>
       </form>
-      <Messages state={state} />
+      <div aria-live="polite">
+        <Messages state={state} />
+      </div>
       {categories.length === 0 ? (
         <p className="rounded-2xl border border-dashed border-line-strong bg-surface-muted px-4 py-5 text-center text-sm text-ink-muted">
           No categories yet. The expense form suggests common ones until you add your own.

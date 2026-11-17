@@ -178,7 +178,7 @@ export default async function DashboardPage({
             <section aria-label="Cash and stock value" className="space-y-2">
               <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
                 <KpiCard label="Cash in hand" value={money(data.cashBalance)} icon={Wallet} tone="mint" />
-                <KpiCard label="Bank balance" value={money(data.bankBalance)} icon={Landmark} tone="aqua" />
+                <KpiCard label="Bank & wallets" value={money(data.bankBalance)} icon={Landmark} tone="aqua" />
                 <KpiCard label="Stock value" value={money(data.stockValue)} hint="At cost" icon={Boxes} tone="peach" />
               </div>
               <p className="text-xs text-ink-muted">

@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getMyPermissions } from "@/lib/permissions";
 import { todayInKarachi } from "@/lib/dashboard";
 import { EXPORT_TABLES } from "@/lib/backup";
+import { toCsv } from "@/lib/csv";
 
 const PAGE = 1000;
 const MAX_ROWS = 200000;
@@ -19,19 +20,6 @@ async function readAll(table: string): Promise<{ rows: Row[]; error: string | nu
     if (!data || data.length < PAGE) break;
   }
   return { rows, error: null };
-}
-
-function csvCell(value: unknown) {
-  if (value === null || value === undefined) return "";
-  const text = typeof value === "object" ? JSON.stringify(value) : String(value);
-  return /[",\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
-}
-
-function toCsv(rows: Row[]) {
-  const columns = [...new Set(rows.flatMap((r) => Object.keys(r)))];
-  const lines = [columns.join(","), ...rows.map((r) => columns.map((c) => csvCell(r[c])).join(","))];
-  // BOM so Excel opens UTF-8 correctly
-  return "﻿" + lines.join("\r\n");
 }
 
 // GET /settings/export?table=<name>  -> one table as CSV

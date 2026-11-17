@@ -18,7 +18,7 @@ export const pagePermissions: Record<string, string[]> = {
     "purchases.manage",
   ],
   expenses: ["expenses.view", "expenses.manage"],
-  finance: ["finance.view"],
+  finance: ["finance.view", "finance.manage"],
   returns: ["returns.manage"],
   reports: ["reports.basic", "reports.financial", "dashboard.view"],
   "ai-assistant": ["ai.use"],
