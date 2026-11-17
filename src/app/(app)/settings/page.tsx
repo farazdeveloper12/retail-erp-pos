@@ -205,7 +205,6 @@ export default async function SettingsPage() {
             description="Download your shop data. Files can be opened in Excel or kept as a backup."
           >
             {/* A plain link: this is a file download from a route handler, not a page */}
-            {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
             <a href="/settings/export?table=all" className={secondaryButtonClass}>
               <Download className="h-4 w-4" />
               Download everything (JSON)
