@@ -20,6 +20,11 @@
 -- The functions below are the versions read from gwadar-test on
 -- 19 Nov 2026 with only the 'unstocked' parts added.
 --
+-- create_quick_sale (the function the POS calls) is NOT changed: it only
+-- rewrites lines marked "sourced" and passes every other line, including
+-- 'unstocked' lines, unchanged to create_sale. An 'unstocked' line sent with
+-- "sourced": true is rejected there with "Unknown line type."
+--
 -- It runs as one transaction: if any statement fails, nothing is changed.
 -- Run it in the Supabase SQL Editor. It contains no test data.
 -- =============================================================================
@@ -32,6 +37,7 @@ begin
   if to_regclass('public.sale_items') is null or to_regclass('public.sale_item_costs') is null
      or to_regclass('public.sales_returns') is null
      or to_regprocedure('public.create_sale(jsonb)') is null
+     or to_regprocedure('public.create_quick_sale(jsonb)') is null
      or to_regprocedure('public.cancel_sale(jsonb)') is null
      or to_regprocedure('public.sales_return_lines(uuid, uuid, jsonb)') is null
      or to_regprocedure('public.create_warranty_claim(jsonb)') is null then
