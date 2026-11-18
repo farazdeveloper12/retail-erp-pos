@@ -127,6 +127,8 @@ declare
   v_minute integer;
   v_planned integer;
   v_slot integer;
+  v_cap integer;
+  v_phones_today integer;
   v_day_total numeric;
   v_total numeric;
   v_paid numeric;
@@ -266,7 +268,7 @@ begin
     'account_id', v_cash, 'name', 'Cash', 'opening_balance', '20000', 'opening_date', v_day::text));
   perform public.update_finance_account(jsonb_build_object(
     'account_id', v_bank, 'name', 'Emirates NBD', 'details', 'Current account (demo)',
-    'opening_balance', '120000', 'opening_date', v_day::text));
+    'opening_balance', '150000', 'opening_date', v_day::text));
 
   -- Expense categories
   insert into public.expense_categories (business_id, name)
@@ -276,26 +278,27 @@ begin
 
   -- Phone models (shared catalog: reused when they already exist).
   -- qty_a / qty_c / qty_d: units bought on day 30 / 18 / 9.
+  -- Prices include 5% VAT; the margin before VAT is about 8-12%.
   create temp table demo_models (
     idx integer, brand text, model text, storage integer, ram integer,
     cost numeric, price numeric, qty_a integer, qty_c integer, qty_d integer,
     model_id uuid, variant_id uuid) on commit drop;
   insert into demo_models (idx, brand, model, storage, ram, cost, price, qty_a, qty_c, qty_d) values
-    (1,  'Apple',   'iPhone 16 Pro',     256, 8,  4100, 4499, 2, 1, 1),
-    (2,  'Apple',   'iPhone 15 Pro Max', 256, 8,  4350, 4699, 2, 1, 0),
-    (3,  'Apple',   'iPhone 15',         128, 6,  2850, 3099, 3, 2, 1),
-    (4,  'Apple',   'iPhone 14',         128, 6,  2350, 2599, 3, 1, 1),
-    (5,  'Apple',   'iPhone 13',         128, 4,  1850, 2099, 3, 2, 1),
-    (6,  'Samsung', 'Galaxy S24 Ultra',  256, 12, 3900, 4299, 2, 1, 0),
-    (7,  'Samsung', 'Galaxy S24',        256, 8,  2650, 2949, 3, 1, 1),
-    (8,  'Samsung', 'Galaxy A55',        128, 8,  1150, 1349, 3, 2, 1),
-    (9,  'Samsung', 'Galaxy A35',        128, 6,  900,  1099, 3, 1, 1),
-    (10, 'Samsung', 'Galaxy A15',        128, 4,  480,  599,  3, 2, 0),
-    (11, 'Xiaomi',  'Redmi Note 13 Pro', 256, 8,  900,  1099, 3, 1, 1),
-    (12, 'Xiaomi',  'Redmi 13C',         128, 4,  370,  469,  3, 2, 0),
-    (13, 'Xiaomi',  'Xiaomi 14',         256, 12, 2300, 2599, 2, 0, 0),
-    (14, 'Oppo',    'Reno 11',           256, 8,  1150, 1399, 3, 1, 0),
-    (15, 'Oppo',    'A78',               128, 8,  620,  769,  3, 1, 0);
+    (1,  'Apple',   'iPhone 16 Pro',     256, 8,  4100, 4869, 2, 1, 1),
+    (2,  'Apple',   'iPhone 15 Pro Max', 256, 8,  4350, 5149, 2, 1, 0),
+    (3,  'Apple',   'iPhone 15',         128, 6,  2850, 3379, 3, 2, 1),
+    (4,  'Apple',   'iPhone 14',         128, 6,  2350, 2789, 3, 1, 1),
+    (5,  'Apple',   'iPhone 13',         128, 4,  1850, 2199, 3, 2, 1),
+    (6,  'Samsung', 'Galaxy S24 Ultra',  256, 12, 3900, 4629, 2, 1, 0),
+    (7,  'Samsung', 'Galaxy S24',        256, 8,  2650, 3149, 3, 1, 1),
+    (8,  'Samsung', 'Galaxy A55',        128, 8,  1150, 1369, 3, 2, 1),
+    (9,  'Samsung', 'Galaxy A35',        128, 6,  900,  1069, 3, 1, 1),
+    (10, 'Samsung', 'Galaxy A15',        128, 4,  480,  569,  3, 2, 0),
+    (11, 'Xiaomi',  'Redmi Note 13 Pro', 256, 8,  900,  1069, 3, 1, 1),
+    (12, 'Xiaomi',  'Redmi 13C',         128, 4,  370,  439,  3, 2, 0),
+    (13, 'Xiaomi',  'Xiaomi 14',         256, 12, 2300, 2729, 2, 0, 0),
+    (14, 'Oppo',    'Reno 11',           256, 8,  1150, 1369, 3, 1, 0),
+    (15, 'Oppo',    'A78',               128, 8,  620,  739,  3, 1, 0);
 
   for r_m in select * from demo_models order by idx loop
     v_brand := null;
@@ -322,30 +325,32 @@ begin
   end loop;
 
   -- Accessories. qty_b: bought on day 30, qty_d: restocked on day 9.
+  -- Prices include 5% VAT; the margin before VAT is about 35-50%.
+  -- weight: how often it sells; addon: sold together with a phone.
   create temp table demo_products (
     idx integer, name text, cost numeric, price numeric, qty_b integer, qty_d integer,
-    warranty integer, product_id uuid) on commit drop;
-  insert into demo_products (idx, name, cost, price, qty_b, qty_d, warranty) values
-    (1,  'Apple 20W USB-C Power Adapter',           45,  79,  25, 10, 365),
-    (2,  'Samsung 25W Super Fast Charger',          40,  69,  25, 10, 180),
-    (3,  'USB-C to USB-C Cable 1m',                 8,   25,  40, 20, 30),
-    (4,  'USB-C to Lightning Cable 1m',             10,  29,  40, 20, 30),
-    (5,  'iPhone 15 Silicone Case',                 15,  49,  30, 0,  0),
-    (6,  'Galaxy S24 Clear Case',                   12,  45,  25, 0,  0),
-    (7,  'Tempered Glass Screen Protector iPhone',  5,   25,  60, 30, 0),
-    (8,  'Tempered Glass Screen Protector Samsung', 5,   25,  50, 20, 0),
-    (9,  'Apple AirPods Pro (2nd generation)',      780, 899, 6,  2,  365),
-    (10, 'Samsung Galaxy Buds FE',                  260, 329, 6,  0,  365),
-    (11, 'Anker Power Bank 10000mAh',               75,  129, 15, 5,  365),
-    (12, 'Anker Power Bank 20000mAh',               110, 179, 10, 0,  365),
-    (13, 'Dual USB Car Charger 36W',                25,  49,  15, 0,  90),
-    (14, 'Magnetic Car Phone Holder',               18,  39,  15, 0,  0),
-    (15, 'SanDisk 128GB microSD Card',              35,  65,  20, 0,  365),
-    (16, 'Apple Watch Sport Band 45mm',             20,  49,  12, 0,  0),
-    (17, 'Wired Earphones USB-C',                   10,  25,  30, 0,  30),
-    (18, 'JBL Go 3 Bluetooth Speaker',              110, 159, 6,  0,  365),
-    (19, 'Redmi Watch 4',                           190, 249, 5,  0,  365),
-    (20, 'MagSafe Charger 15W',                     110, 169, 8,  0,  180);
+    warranty integer, weight numeric, addon boolean, product_id uuid) on commit drop;
+  insert into demo_products (idx, name, cost, price, qty_b, qty_d, warranty, weight, addon) values
+    (1,  'Apple 20W USB-C Power Adapter',           40,  79,  35, 10, 365, 8,  true),
+    (2,  'Samsung 25W Super Fast Charger',          35,  69,  30, 10, 180, 7,  true),
+    (3,  'USB-C to USB-C Cable 1m',                 14,  29,  40, 20, 30,  8,  true),
+    (4,  'USB-C to Lightning Cable 1m',             18,  35,  40, 20, 30,  7,  true),
+    (5,  'iPhone 15 Silicone Case',                 25,  49,  50, 15, 0,   8,  true),
+    (6,  'Galaxy S24 Clear Case',                   23,  45,  45, 10, 0,   6,  true),
+    (7,  'Tempered Glass Screen Protector iPhone',  15,  29,  60, 30, 0,   10, true),
+    (8,  'Tempered Glass Screen Protector Samsung', 15,  29,  50, 20, 0,   8,  true),
+    (9,  'Apple AirPods Pro (2nd generation)',      560, 949, 25, 10, 365, 8,  true),
+    (10, 'Samsung Galaxy Buds FE',                  185, 349, 12, 0,  365, 3,  false),
+    (11, 'Anker Power Bank 10000mAh',               66,  129, 25, 10, 365, 7,  true),
+    (12, 'Anker Power Bank 20000mAh',               92,  179, 25, 10, 365, 6,  true),
+    (13, 'Dual USB Car Charger 36W',                25,  49,  20, 0,  90,  2,  false),
+    (14, 'Magnetic Car Phone Holder',               20,  39,  20, 0,  0,   2,  false),
+    (15, 'SanDisk 128GB microSD Card',              34,  65,  20, 0,  365, 2,  true),
+    (16, 'Apple Watch Sport Band 45mm',             25,  49,  15, 0,  0,   1,  false),
+    (17, 'Wired Earphones USB-C',                   13,  25,  30, 0,  30,  3,  false),
+    (18, 'JBL Go 3 Bluetooth Speaker',              88,  169, 15, 0,  365, 3,  false),
+    (19, 'Redmi Watch 4',                           145, 269, 12, 0,  365, 2,  false),
+    (20, 'MagSafe Charger 15W',                     88,  169, 15, 0,  180, 3,  false);
 
   for r_p in select * from demo_products order by idx loop
     insert into public.products (business_id, name, sale_price, created_by)
@@ -446,7 +451,7 @@ begin
       perform pg_temp.demo_backdate(v_biz, pg_temp.demo_ts(v_day, -60));
     end if;
 
-    -- Accessories purchase on day 30, paid in cash -----------------------------
+    -- Accessories purchase on day 30, paid by bank -----------------------------
     if v_n = 30 then
       v_items := '[]'::jsonb;
       for r_p in select * from demo_products order by idx loop
@@ -459,7 +464,7 @@ begin
       from jsonb_array_elements(v_items) x;
       perform public.create_purchase(jsonb_build_object(
         'supplier_id', v_sup_b, 'purchase_date', v_day::text, 'supplier_invoice_no', 'NAW-0932',
-        'extra_cost', 0, 'paid_amount', v_total, 'payment_method', 'cash',
+        'extra_cost', 0, 'paid_amount', v_total, 'payment_method', 'bank',
         'notes', 'Accessories stock', 'items', v_items));
       perform pg_temp.demo_backdate(v_biz, pg_temp.demo_ts(v_day, -50));
     end if;
@@ -504,10 +509,13 @@ begin
     end loop;
 
     -- Sales ----------------------------------------------------------------------
-    -- Usually 2 a day (sometimes 1 or 3); more are added (up to 4) while the
-    -- day is below AED 2,000. A phone is only added while the day stays
-    -- below about AED 6,500.
-    v_planned := case when random() < 0.15 then 1 when random() < 0.82 then 2 else 3 end;
+    -- 2 or 3 invoices a day; more are added (up to 4) while the day is below
+    -- AED 2,000. One phone a day, sometimes two, each with 2-3 accessories;
+    -- the other invoices sell 3-6 accessories. Phones and accessories are
+    -- only added while the day stays below about AED 6,500.
+    v_planned := case when random() < 0.6 then 3 else 2 end;
+    v_cap := case when random() < 0.35 then 2 else 1 end;
+    v_phones_today := 0;
     v_day_total := 0;
     v_slot := 0;
     loop
@@ -536,51 +544,59 @@ begin
           'unit_price', r_u.price, 'discount', 0, 'unit_cost', r_u.cost, 'warranty_days', 365));
         v_total := r_u.price;
         select dc.id into v_customer from demo_customers dc where dc.idx = r_u.customer_idx;
-      elsif v_slot = 1 or random() < 0.55 then
-        -- A phone (if one fits the day), sometimes with an accessory
+      elsif v_phones_today < v_cap
+            and random() < case when v_slot <= 2 then 0.8 else 0.35 end then
+        -- A phone (if one fits the day) with 2 or 3 accessories
         select pu.id, du.price, du.cost into v_unit, v_price, v_cost
         from public.phone_units pu join demo_units du on du.imei = pu.imei
         where pu.business_id = v_biz and pu.status = 'in_stock'
           and du.price <= greatest(6500 - v_day_total, 0)
         order by random() limit 1;
         if v_unit is not null then
-          v_disc := case when random() < 0.3
-                         then least((1 + floor(random() * 8)) * 10, floor((v_price - v_cost) / 20) * 10)
+          -- A small discount on some phones (at most 2% of the price)
+          v_disc := case when random() < 0.25
+                         then least((1 + floor(random() * 5)) * 10, floor(v_price * 0.02 / 10) * 10)
                          else 0 end;
           v_items := jsonb_build_array(jsonb_build_object(
             'item_type', 'phone', 'phone_unit_id', v_unit, 'unit_price', v_price,
             'discount', v_disc, 'warranty_days', 365));
           v_total := v_price - v_disc;
-          if random() < 0.45 then
+          v_phones_today := v_phones_today + 1;
+          for v_i in 1..(2 + floor(random() * 2)::integer) loop
+            v_product := null;
+            -- Weighted random choice: popular items come up more often
             select dp.product_id, dp.price, dp.warranty into v_product, v_price, v_warranty
             from demo_products dp join public.product_stock ps on ps.product_id = dp.product_id
-            where ps.qty >= 1 and dp.idx in (1, 2, 3, 4, 5, 6, 7, 8, 11, 15)
-            order by random() limit 1;
+            where dp.addon and ps.qty >= 1 and not (dp.product_id = any (v_picked))
+            order by -ln(1 - random()) / dp.weight limit 1;
             if v_product is not null then
+              v_picked := v_picked || v_product;
               v_items := v_items || jsonb_build_array(jsonb_build_object(
                 'item_type', 'accessory', 'product_id', v_product, 'quantity', 1,
                 'unit_price', v_price, 'discount', 0, 'warranty_days', v_warranty));
               v_total := v_total + v_price;
             end if;
-          end if;
+          end loop;
         end if;
       end if;
 
       if jsonb_array_length(v_items) = 0 then
-        -- Accessories only: 1 to 3 different items
-        for v_i in 1..(1 + floor(random() * 3)::integer) loop
+        -- Accessories only: 3 to 6 different items (cheap ones sometimes twice)
+        for v_i in 1..(3 + floor(random() * 4)::integer) loop
           v_product := null;
-          v_qty := case when random() < 0.25 then 2 else 1 end;
           select dp.product_id, dp.price, dp.warranty into v_product, v_price, v_warranty
           from demo_products dp join public.product_stock ps on ps.product_id = dp.product_id
-          where ps.qty >= v_qty and not (dp.product_id = any (v_picked))
-          order by random() limit 1;
+          where ps.qty >= 2 and not (dp.product_id = any (v_picked))
+          order by -ln(1 - random()) / dp.weight limit 1;
           if v_product is not null then
+            v_qty := case when v_price < 60 and random() < 0.3 then 2 else 1 end;
             v_picked := v_picked || v_product;
-            v_items := v_items || jsonb_build_array(jsonb_build_object(
-              'item_type', 'accessory', 'product_id', v_product, 'quantity', v_qty,
-              'unit_price', v_price, 'discount', 0, 'warranty_days', v_warranty));
-            v_total := v_total + v_price * v_qty;
+            if v_day_total + v_total + v_price * v_qty <= 6500 then
+              v_items := v_items || jsonb_build_array(jsonb_build_object(
+                'item_type', 'accessory', 'product_id', v_product, 'quantity', v_qty,
+                'unit_price', v_price, 'discount', 0, 'warranty_days', v_warranty));
+              v_total := v_total + v_price * v_qty;
+            end if;
           end if;
         end loop;
       end if;
@@ -677,6 +693,26 @@ select 'profit before VAT (before returns)', 'AED ' || coalesce(sum(s.total - s.
        - (select coalesce(sum(c.unit_cost * si.quantity), 0) from public.sale_items si
           join public.sale_item_costs c on c.item_id = si.id where si.sale_id = s.id)), 0)::text
 from public.sales s where s.status = 'completed'
+union all
+-- Same formula as the dashboard: sales profit before VAT, minus the profit
+-- reversed by returns (before VAT), minus expenses
+select 'profit after returns / after expenses',
+       'AED ' || round(x.sale_profit - x.return_profit)::text || ' / AED '
+       || round(x.sale_profit - x.return_profit - x.expenses)::text
+from (
+  select
+    coalesce((select sum(s.total - s.vat_amount
+                     - (select coalesce(sum(c.unit_cost * si.quantity), 0) from public.sale_items si
+                        join public.sale_item_costs c on c.item_id = si.id where si.sale_id = s.id))
+              from public.sales s where s.status = 'completed'), 0) as sale_profit,
+    coalesce((select sum(r.total - r.vat_amount
+                     - (select coalesce(sum(case when ri.restock then rc.unit_cost * ri.quantity else 0 end), 0)
+                        from public.sales_return_items ri
+                        left join public.sales_return_item_costs rc on rc.item_id = ri.id
+                        where ri.return_id = r.id))
+              from public.sales_returns r), 0) as return_profit,
+    coalesce((select sum(e.amount) from public.expenses e where e.voided_at is null), 0) as expenses
+) x
 union all
 select 'not in stock lines', count(*)::text from public.sale_items where item_type = 'unstocked'
 union all

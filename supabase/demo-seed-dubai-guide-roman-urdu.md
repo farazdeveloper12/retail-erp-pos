@@ -31,10 +31,12 @@ Har dafa bilkul wohi data banta hai. Koi galti aaye to kuch bhi nahi badalta (sa
 - 15 phone models (iPhone, Galaxy, Redmi, Oppo) IMEI ke saath, 20 accessories
 - 4 suppliers, 3 purchases phones ki (ek udhaar par, do aadhe paid) aur 1 accessories ki, 2 supplier payments
 - 15 customers (050/052/054/055/056), ek company TRN ke saath
-- Takreeban 60 sales, kuch udhaar par (do ka baqi baad mein aaya, baqi abhi tak open)
+- Takreeban 80 invoices (rozana 2-3, kabhi 4): rozana ek phone (kabhi do), har phone ke saath 2-3 accessories, baqi invoices mein 3-6 accessories (charger, case, cable, AirPods, power bank). Kuch udhaar par (do ka baqi baad mein aaya, baqi abhi tak open)
+- Margin (VAT se pehle): phones takreeban 8-12%, accessories takreeban 35-50%
+- Andaza: 30 din ka profit takreeban AED 22,000-28,000, expenses (AED 14,514) ke baad takreeban AED 8,000-12,000. Aakhri summary table mein "profit after returns / after expenses" row asal number dikhati hai
 - 3 "Item not in stock" sales, 2 returns (ek phone wapas stock mein, ek Apple Pencil)
 - Expenses: kiraya, DEWA, du internet, 2 salaries, chhote kharche
-- Cash AED 20,000 aur Emirates NBD AED 120,000 opening balance
+- Cash AED 20,000 aur Emirates NBD AED 150,000 opening balance
 
 Note: app tareekh aur waqt abhi Pakistan time mein dikhata hai, is liye invoice par waqt Dubai se 1 ghanta aage nazar aayega.
 
