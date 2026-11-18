@@ -441,6 +441,11 @@ export default async function InvoicePage({
                   <tr key={index} className={`border-b align-top ${LINE}`}>
                     <td className="py-2.5 pr-3">
                       <p className="font-semibold">{item.description ?? "Item"}</p>
+                      {item.item_type === "unstocked" && item.imei && (
+                        <p className={`text-xs ${MUTED}`}>
+                          IMEI/Serial <span className="font-mono">{item.imei}</span>
+                        </p>
+                      )}
                       {item.item_type === "phone" && (
                         <p className={`text-xs ${MUTED}`}>
                           {item.condition ? `${CONDITION_LABELS[item.condition] ?? item.condition} · ` : ""}
@@ -478,6 +483,9 @@ export default async function InvoicePage({
                 <p className="font-semibold">{item.description ?? "Item"}</p>
                 {item.item_type === "phone" && item.imei && (
                   <p className="font-mono text-[10px]">IMEI {item.imei}</p>
+                )}
+                {item.item_type === "unstocked" && item.imei && (
+                  <p className="font-mono text-[10px]">IMEI/Serial {item.imei}</p>
                 )}
                 <div className="flex justify-between">
                   <span>

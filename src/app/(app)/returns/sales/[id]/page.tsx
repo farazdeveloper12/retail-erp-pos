@@ -36,6 +36,7 @@ type ReturnRow = {
 type ItemRow = {
   id: string;
   description: string;
+  item_type: string;
   imei: string | null;
   quantity: number;
   line_total: number | string;
@@ -73,7 +74,7 @@ export default async function SalesReturnPage({ params }: { params: Promise<{ id
   const [{ data: itemData }, business] = await Promise.all([
     supabase
       .from("sales_return_items")
-      .select("id, description, imei, quantity, line_total, restock")
+      .select("id, item_type, description, imei, quantity, line_total, restock")
       .eq("return_id", id)
       .order("description"),
     getMyBusiness(),
@@ -147,8 +148,8 @@ export default async function SalesReturnPage({ params }: { params: Promise<{ id
                 <td className="py-2 pr-3">
                   <p className="font-semibold">{item.description}</p>
                   <p className={`text-xs ${MUTED}`}>
-                    {item.imei ? `IMEI ${item.imei} · ` : ""}
-                    {item.restock ? "Back in stock" : "Written off"}
+                    {item.imei ? `${item.item_type === "unstocked" ? "IMEI/Serial" : "IMEI"} ${item.imei} · ` : ""}
+                    {item.item_type === "unstocked" ? "Not a stock item" : item.restock ? "Back in stock" : "Written off"}
                   </p>
                 </td>
                 <td className="px-2 py-2 text-right">{item.quantity}</td>

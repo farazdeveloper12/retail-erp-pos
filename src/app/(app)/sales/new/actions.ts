@@ -455,6 +455,20 @@ function buildSale(input: unknown) {
       if (seenPhones.has(id)) throw new InputError(`${line}: this phone is already on the invoice.`);
       seenPhones.add(id);
       item = { item_type: "phone", phone_unit_id: id, ...common };
+    } else if (raw.item_type === "unstocked") {
+      // Not in stock: bought from another shop on the spot. No stock, purchase
+      // or supplier; only the name, the cost and an optional IMEI or serial.
+      quantity = wholeNumber(raw.quantity, `${line}: quantity`, 1, 10000);
+      const description = optionalText(raw.description, 200, `${line}: item name`);
+      if (!description) throw new InputError(`${line}: enter the item name.`);
+      item = {
+        item_type: "unstocked",
+        description,
+        imei: optionalText(raw.imei, 40, `${line}: IMEI or serial number`),
+        quantity,
+        unit_cost: amount(raw.unit_cost, `${line}: cost price`),
+        ...common,
+      };
     } else if (raw.item_type === "accessory") {
       quantity = wholeNumber(raw.quantity, `${line}: quantity`, 1, 100000);
       item = {

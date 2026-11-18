@@ -8,6 +8,7 @@ import {
   FileText,
   Headphones,
   PackagePlus,
+  PackageSearch,
   Plus,
   Printer,
   ShoppingCart,
@@ -48,8 +49,11 @@ type SourceInfo = {
 
 type SaleLine = {
   key: string;
-  kind: "phone" | "accessory";
-  refId: string; // phone_unit_id or product_id (for sourced phones: unused)
+  // "unstocked": not in stock, bought from another shop on the spot. It never
+  // touches inventory; title is the typed name, imei an optional IMEI/serial
+  // and sourceCost the cost price.
+  kind: "phone" | "accessory" | "unstocked";
+  refId: string; // phone_unit_id or product_id (for sourced phones and unstocked lines: unused)
   title: string;
   detail: string;
   imei: string | null;
@@ -69,6 +73,7 @@ type SaleLine = {
 const ZERO = BigInt(0);
 const WHOLE = /^\d+$/;
 const MAX_SOURCED_QTY = 100000;
+const MAX_UNSTOCKED_QTY = 10000;
 
 let keyCounter = 0;
 function newKey() {
@@ -155,6 +160,26 @@ function lineFromDraft(draft: SourcedDraft): SaleLine {
   };
 }
 
+function newUnstockedLine(): SaleLine {
+  return {
+    key: newKey(),
+    kind: "unstocked",
+    refId: "",
+    title: "",
+    detail: "",
+    imei: null,
+    inStock: MAX_UNSTOCKED_QTY,
+    quantity: "1",
+    unitPrice: "",
+    discount: "0",
+    warranty: "0",
+    cost: null,
+    sourced: false,
+    sourceCost: "",
+    source: null,
+  };
+}
+
 function money(value: string): bigint | null {
   const text = value.trim() === "" ? "0" : value;
   return isValidMoneyInput(text) ? toCents(text) : null;
@@ -185,6 +210,13 @@ function calculate(line: SaleLine): LineCalc {
     );
   }
 
+  if (line.kind === "unstocked") {
+    const name = line.title.trim();
+    if (name === "") problems.push("enter the item name");
+    else if (name.length > 200) problems.push("the item name can have at most 200 characters");
+    if ((line.imei ?? "").trim().length > 40) problems.push("the IMEI or serial can have at most 40 characters");
+  }
+
   const unit = line.unitPrice.trim() === "" ? null : money(line.unitPrice);
   if (unit === null) problems.push("enter a valid unit price");
   const discount = money(line.discount);
@@ -195,11 +227,11 @@ function calculate(line: SaleLine): LineCalc {
     problems.push("warranty must be 0 to 3650 days");
   }
 
-  // Sourced lines carry the purchase price the user typed
+  // Sourced and unstocked lines carry the cost the user typed
   let cost = line.cost;
-  if (line.sourced) {
+  if (line.sourced || line.kind === "unstocked") {
     cost = isValidMoneyInput(line.sourceCost) ? toCents(line.sourceCost) : null;
-    if (cost === null) problems.push("enter a valid purchase price");
+    if (cost === null) problems.push(line.sourced ? "enter a valid purchase price" : "enter a valid cost price");
   }
 
   const gross = qty !== null && unit !== null ? unit * BigInt(qty) : null;
@@ -300,6 +332,13 @@ export default function SaleEntry({
     }
     pendingFocus.current = fieldSelector(lines.length, "quantity");
     setLines((current) => [...current, lineFromOption(option)]);
+  }
+
+  // A free line for an item that is not in stock (no stock, purchase or supplier)
+  function addUnstocked() {
+    setNotice(null);
+    pendingFocus.current = fieldSelector(lines.length, "name");
+    setLines((current) => [...current, newUnstockedLine()]);
   }
 
   function updateLine(index: number, patch: Partial<SaleLine>) {
@@ -437,6 +476,16 @@ export default function SaleEntry({
         }
         if (line.kind === "phone") {
           return { item_type: "phone", phone_unit_id: line.refId, ...common };
+        }
+        if (line.kind === "unstocked") {
+          return {
+            item_type: "unstocked",
+            description: line.title.trim(),
+            imei: line.imei?.trim() || null,
+            quantity: Number(line.quantity.trim()),
+            unit_cost: plainNumber(line.sourceCost),
+            ...common,
+          };
         }
         return {
           item_type: "accessory",
@@ -589,9 +638,15 @@ export default function SaleEntry({
       <div className="grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] xl:items-start">
         {/* Items */}
         <section className={cardClass + " space-y-4"}>
-          <div className="flex items-center gap-2">
-            <ShoppingCart className="h-5 w-5 text-accent" />
-            <h2 className="text-base font-bold text-ink">Items</h2>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <ShoppingCart className="h-5 w-5 text-accent" />
+              <h2 className="text-base font-bold text-ink">Items</h2>
+            </div>
+            <button type="button" onClick={addUnstocked} className={secondaryButtonClass}>
+              <PackageSearch className="h-4 w-4" />
+              Item not in stock
+            </button>
           </div>
 
           <SaleItemSearch
@@ -659,15 +714,75 @@ export default function SaleEntry({
                           <span
                             className={
                               "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl " +
-                              (line.kind === "phone" ? "bg-aqua text-accent" : "bg-peach text-coral")
+                              (line.kind === "phone"
+                                ? "bg-aqua text-accent"
+                                : line.kind === "unstocked"
+                                  ? "bg-lavender text-purple"
+                                  : "bg-peach text-coral")
                             }
                           >
                             {line.kind === "phone" ? (
                               <Smartphone className="h-4 w-4" />
+                            ) : line.kind === "unstocked" ? (
+                              <PackageSearch className="h-4 w-4" />
                             ) : (
                               <Headphones className="h-4 w-4" />
                             )}
                           </span>
+                          {line.kind === "unstocked" ? (
+                            <span className="min-w-0 flex-1 space-y-2">
+                              <input
+                                data-sale-field=""
+                                data-line={index}
+                                data-field="name"
+                                type="text"
+                                autoComplete="off"
+                                maxLength={200}
+                                placeholder="Item name"
+                                value={line.title}
+                                onChange={(e) => updateLine(index, { title: e.target.value })}
+                                aria-label={`Item name, line ${n}`}
+                                className={inputClass}
+                              />
+                              <span className="grid gap-2 sm:grid-cols-2">
+                                <input
+                                  data-sale-field=""
+                                  data-line={index}
+                                  data-field="cost"
+                                  type="text"
+                                  inputMode="decimal"
+                                  autoComplete="off"
+                                  placeholder={`Cost price (${currency})`}
+                                  value={line.sourceCost}
+                                  onChange={(e) => updateLine(index, { sourceCost: e.target.value })}
+                                  aria-label={`Cost price, line ${n}`}
+                                  className={inputClass}
+                                />
+                                <input
+                                  data-sale-field=""
+                                  data-line={index}
+                                  data-field="serial"
+                                  type="text"
+                                  autoComplete="off"
+                                  maxLength={40}
+                                  placeholder="IMEI / serial (optional)"
+                                  value={line.imei ?? ""}
+                                  onChange={(e) => updateLine(index, { imei: e.target.value })}
+                                  aria-label={`IMEI or serial number, line ${n}`}
+                                  className={inputClass + " font-mono"}
+                                />
+                              </span>
+                              <span className="inline-flex items-center gap-1 rounded-full bg-lavender px-2 py-0.5 text-xs font-semibold text-ink">
+                                Not in stock · no stock change
+                              </span>
+                              {c.belowCost && (
+                                <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-amber/20 px-2 py-0.5 text-xs font-semibold text-ink">
+                                  <AlertTriangle className="h-3.5 w-3.5 text-amber" />
+                                  Below cost price
+                                </span>
+                              )}
+                            </span>
+                          ) : (
                           <span className="min-w-0 flex-1">
                             <span className="block truncate text-sm font-semibold text-ink">{line.title}</span>
                             {line.detail && (
@@ -709,6 +824,7 @@ export default function SaleEntry({
                               </span>
                             )}
                           </span>
+                          )}
                           <button
                             type="button"
                             onClick={() => removeLine(index)}

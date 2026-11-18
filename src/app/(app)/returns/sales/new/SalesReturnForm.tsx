@@ -78,7 +78,8 @@ export default function SalesReturnForm({
       const left = item.quantity - item.returned_qty;
       const qty = item.item_type === "phone" ? 1 : Number(line.quantity);
       if (!Number.isInteger(qty) || qty < 1 || qty > left) return null;
-      chosen.push({ sale_item_id: item.id, quantity: qty, restock: line.restock });
+      // Items that were never in stock have nothing to put back
+      chosen.push({ sale_item_id: item.id, quantity: qty, restock: item.item_type === "unstocked" || line.restock });
     }
     return chosen;
   }, [lines, returnable]);
@@ -198,7 +199,7 @@ export default function SalesReturnForm({
                     <span className="min-w-0 flex-1">
                       <span className="block font-semibold text-ink">{item.description}</span>
                       <span className="block text-xs text-ink-muted">
-                        {item.imei ? `IMEI ${item.imei} · ` : ""}
+                        {item.imei ? `${item.item_type === "unstocked" ? "IMEI/Serial" : "IMEI"} ${item.imei} · ` : ""}
                         Sold {item.quantity}
                         {item.returned_qty > 0 ? ` · returned ${item.returned_qty}` : ""} · line{" "}
                         {formatMoney(item.line_total, currency)}
@@ -223,16 +224,22 @@ export default function SalesReturnForm({
                           <span className="text-xs text-ink-muted">of {left}</span>
                         </label>
                       )}
-                      <label className="flex min-h-11 cursor-pointer items-center gap-2 text-sm text-ink">
-                        <input
-                          type="checkbox"
-                          checked={line.restock}
-                          onChange={(e) => update(item.id, { restock: e.target.checked })}
-                          className="h-5 w-5 accent-[var(--accent)]"
-                        />
-                        Put back in stock
-                      </label>
-                      {!line.restock && (
+                      {item.item_type === "unstocked" ? (
+                        <span className="text-xs text-ink-muted">
+                          Not a stock item: the money is refunded and the profit reversed, stock does not change.
+                        </span>
+                      ) : (
+                        <label className="flex min-h-11 cursor-pointer items-center gap-2 text-sm text-ink">
+                          <input
+                            type="checkbox"
+                            checked={line.restock}
+                            onChange={(e) => update(item.id, { restock: e.target.checked })}
+                            className="h-5 w-5 accent-[var(--accent)]"
+                          />
+                          Put back in stock
+                        </label>
+                      )}
+                      {item.item_type !== "unstocked" && !line.restock && (
                         <span className="text-xs text-ink-muted">Will be written off (for example damaged).</span>
                       )}
                     </div>
