@@ -129,6 +129,7 @@ declare
   v_slot integer;
   v_cap integer;
   v_phones_today integer;
+  v_phone_chance numeric;
   v_day_total numeric;
   v_total numeric;
   v_paid numeric;
@@ -530,6 +531,10 @@ begin
       v_unit := null;
       v_product := null;
       v_unstocked := v_slot = 1 and v_n in (26, 16, 7);
+      -- Chance of a phone invoice. Worked out here, not inside the ELSIF below:
+      -- PL/pgSQL ends an IF/ELSIF condition at the first THEN, so a CASE ...
+      -- THEN inside the condition breaks it.
+      v_phone_chance := case when v_slot <= 2 then 0.8 else 0.35 end;
 
       if v_unstocked then
         -- "Item not in stock": bought from another shop on the spot
@@ -544,8 +549,7 @@ begin
           'unit_price', r_u.price, 'discount', 0, 'unit_cost', r_u.cost, 'warranty_days', 365));
         v_total := r_u.price;
         select dc.id into v_customer from demo_customers dc where dc.idx = r_u.customer_idx;
-      elsif v_phones_today < v_cap
-            and random() < case when v_slot <= 2 then 0.8 else 0.35 end then
+      elsif v_phones_today < v_cap and random() < v_phone_chance then
         -- A phone (if one fits the day) with 2 or 3 accessories
         select pu.id, du.price, du.cost into v_unit, v_price, v_cost
         from public.phone_units pu join demo_units du on du.imei = pu.imei
