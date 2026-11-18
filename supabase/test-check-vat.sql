@@ -22,7 +22,10 @@ from pg_proc p
 join pg_namespace n on n.oid = p.pronamespace
 where n.nspname = 'public'
   and p.proname not in ('sales_set_vat')
-  and pg_get_functiondef(p.oid) ilike '%tax_rate%'
+  -- pg_get_functiondef() raises an error for aggregates (for example
+  -- extension aggregates in public). The CASE guarantees it is only called
+  -- for plain functions and procedures, whatever order the planner picks.
+  and case when p.prokind in ('f', 'p') then pg_get_functiondef(p.oid) ilike '%tax_rate%' else false end
 
 union all
 select 'sales: no VAT on sales without a VAT rate', count(*)::text || ' problems', count(*) = 0
