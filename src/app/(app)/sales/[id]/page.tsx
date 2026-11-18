@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { FileX, ReceiptText, RotateCcw, ShieldCheck } from "lucide-react";
+import { FileX, ReceiptText, RotateCcw, ShieldCheck, TrendingUp } from "lucide-react";
 import AccessDenied from "@/components/AccessDenied";
 import { BackLink, EmptyState, cardClass, secondaryButtonClass } from "@/components/ui";
 import { formatSalesReturnNo } from "@/lib/returns";
@@ -22,6 +22,7 @@ import InvoiceActions from "@/app/(app)/sales/[id]/InvoiceActions";
 import ReceivePayment from "@/app/(app)/sales/[id]/ReceivePayment";
 import { cancelSale } from "@/app/(app)/sales/[id]/actions";
 import CancelDocument from "@/components/CancelDocument";
+import { COST_PERMISSION, getSaleProfits } from "@/lib/profit";
 
 export const metadata: Metadata = {
   title: "Invoice",
@@ -47,6 +48,7 @@ type SaleRow = {
 };
 
 type SaleItemRow = {
+  id: string;
   item_type: string;
   description: string | null;
   condition: string | null;
@@ -90,6 +92,15 @@ function Label({ en, ar, bilingual }: { en: string; ar: string; bilingual: boole
       </span>
     </>
   );
+}
+
+// The VAT part inside an amount that includes VAT, rounded to the cent
+// (display only; the saved VAT comes from the database)
+function vatInside(amount: bigint, rate: unknown): bigint {
+  const rate100 = BigInt(Math.round(Number(rate ?? 0) * 100));
+  if (rate100 <= ZERO || amount <= ZERO) return ZERO;
+  const divisor = BigInt(10000) + rate100;
+  return (BigInt(2) * amount * rate100 + divisor) / (BigInt(2) * divisor);
 }
 
 // "5.00" -> "5", "7.50" -> "7.5"
@@ -152,7 +163,7 @@ export default async function InvoicePage({
     supabase
       .from("sale_items")
       .select(
-        "item_type, description, condition, imei, quantity, unit_price, discount, line_total, warranty_days"
+        "id, item_type, description, condition, imei, quantity, unit_price, discount, line_total, warranty_days"
       )
       .eq("sale_id", id),
     supabase
@@ -184,6 +195,18 @@ export default async function InvoicePage({
     vat_amount: number | string | null;
   }[];
   const customerTrn = (customerData as { trn: string | null } | null)?.trn?.trim() || null;
+
+  // Cost and profit: only for users who may see cost, never printed
+  const seesProfit = permissions.includes(COST_PERMISSION);
+  const [lineCostResult, saleProfits] = seesProfit
+    ? await Promise.all([supabase.rpc("get_sale_line_costs", { p_sale_id: id }), getSaleProfits([id])])
+    : [null, null];
+  const lineCosts = new Map(
+    ((lineCostResult?.data ?? []) as { sale_item_id: string; unit_cost: number | string; cost_missing: boolean }[]).map(
+      (row) => [row.sale_item_id, { unitCost: toCents(row.unit_cost) ?? ZERO, missing: row.cost_missing === true }]
+    )
+  );
+  const saleProfit = saleProfits?.get(id) ?? null;
 
   const currency = business?.currency_code || "PKR";
   const shopName = business?.name || "Retail workspace";
@@ -591,6 +614,118 @@ export default async function InvoicePage({
           </footer>
         </article>
       </InvoiceActions>
+
+      {/* Not printed: cost and profit, only for users who may see cost */}
+      {seesProfit && saleProfit && (
+        <section className={cardClass + " print:hidden"} aria-label="Cost and profit">
+          <div className="mb-3 flex flex-wrap items-center gap-2">
+            <TrendingUp className="h-5 w-5 text-accent" />
+            <h2 className="text-base font-bold text-ink">Cost and profit</h2>
+            <span className="text-xs text-ink-muted">
+              Before VAT. Only visible to you, never printed.
+            </span>
+          </div>
+          {cancelled ? (
+            <p className="text-sm text-ink-muted">This invoice is cancelled, so it has no profit.</p>
+          ) : (
+            <>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <thead className="border-b border-line text-xs font-semibold uppercase tracking-wide text-ink-muted">
+                    <tr>
+                      <th className="py-2 pr-3">Item</th>
+                      <th className="px-2 py-2 text-right">Qty</th>
+                      <th className="px-2 py-2 text-right">Amount</th>
+                      {isTaxInvoice && <th className="px-2 py-2 text-right">Before VAT</th>}
+                      <th className="px-2 py-2 text-right">Cost</th>
+                      <th className="py-2 pl-2 text-right">Profit</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {items.map((item) => {
+                      const line = toCents(item.line_total) ?? ZERO;
+                      const beforeVat = line - (isTaxInvoice ? vatInside(line, sale.vat_rate) : ZERO);
+                      const cost = lineCosts.get(item.id);
+                      const lineCost = cost ? cost.unitCost * BigInt(item.quantity ?? 1) : null;
+                      const lineProfit = lineCost === null ? null : beforeVat - lineCost;
+                      return (
+                        <tr key={item.id} className="border-b border-line align-top last:border-0">
+                          <td className="py-2 pr-3 text-ink">
+                            {item.description ?? "Item"}
+                            {(!cost || cost.missing) && (
+                              <span className="ml-2 text-xs font-semibold text-coral">cost missing</span>
+                            )}
+                          </td>
+                          <td className="px-2 py-2 text-right text-ink">{item.quantity ?? 1}</td>
+                          <td className="whitespace-nowrap px-2 py-2 text-right text-ink">
+                            {formatMoney(line, currency)}
+                          </td>
+                          {isTaxInvoice && (
+                            <td className="whitespace-nowrap px-2 py-2 text-right text-ink">
+                              {formatMoney(beforeVat, currency)}
+                            </td>
+                          )}
+                          <td className="whitespace-nowrap px-2 py-2 text-right text-ink">
+                            {lineCost === null ? "—" : formatMoney(lineCost, currency)}
+                          </td>
+                          <td
+                            className={
+                              "whitespace-nowrap py-2 pl-2 text-right font-semibold " +
+                              (lineProfit !== null && lineProfit < ZERO ? "text-danger" : "text-ink")
+                            }
+                          >
+                            {lineProfit === null ? "—" : formatMoney(lineProfit, currency)}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              <dl className="ml-auto mt-4 max-w-sm space-y-1 text-sm">
+                <div className="flex justify-between gap-4">
+                  <dt className="text-ink-muted">Sales {isTaxInvoice ? "before VAT" : "total"}</dt>
+                  <dd className="text-ink">{formatMoney(total - vatAmount, currency)}</dd>
+                </div>
+                <div className="flex justify-between gap-4">
+                  <dt className="text-ink-muted">Cost of all lines</dt>
+                  <dd className="text-ink">-{formatMoney(saleProfit.costTotal, currency)}</dd>
+                </div>
+                <div className="flex justify-between gap-4 border-t border-line pt-1 font-bold">
+                  <dt className="text-ink">Profit</dt>
+                  <dd className={saleProfit.profit < ZERO ? "text-danger" : "text-ink"}>
+                    {formatMoney(saleProfit.profit, currency)}
+                  </dd>
+                </div>
+                {saleProfit.returnsProfit !== ZERO && (
+                  <>
+                    <div className="flex justify-between gap-4">
+                      <dt className="text-ink-muted">Reversed by returns</dt>
+                      <dd className="text-ink">-{formatMoney(saleProfit.returnsProfit, currency)}</dd>
+                    </div>
+                    <div className="flex justify-between gap-4 font-bold">
+                      <dt className="text-ink">Profit after returns</dt>
+                      <dd className={saleProfit.netProfit < ZERO ? "text-danger" : "text-ink"}>
+                        {formatMoney(saleProfit.netProfit, currency)}
+                      </dd>
+                    </div>
+                  </>
+                )}
+              </dl>
+              {(toCents(sale.discount) ?? ZERO) > ZERO && (
+                <p className="mt-2 text-xs text-ink-muted">
+                  Line profits are before the invoice discount; the total profit includes it.
+                </p>
+              )}
+              {saleProfit.costMissing && (
+                <p className="mt-2 text-xs font-semibold text-coral">
+                  A line has no known cost, so the profit may be too high.
+                </p>
+              )}
+            </>
+          )}
+        </section>
+      )}
 
       {/* Not printed: receive payment and payment history */}
       {canReceive && (

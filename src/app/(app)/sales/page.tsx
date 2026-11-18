@@ -8,6 +8,7 @@ import { getMyBusiness } from "@/lib/business";
 import { canViewPage, getMyPermissions } from "@/lib/permissions";
 import { formatMoney, toCents } from "@/lib/money";
 import { formatDateTime, formatInvoiceNo } from "@/lib/format";
+import { COST_PERMISSION, getSaleProfits, type SaleProfit } from "@/lib/profit";
 
 export const metadata: Metadata = {
   title: "Sales",
@@ -36,7 +37,22 @@ type SaleItem = {
   paid: bigint | null;
   remaining: bigint | null;
   cancelled: boolean;
+  // Only for users who may see cost; null for everyone else
+  profit: SaleProfit | null;
 };
+
+function ProfitValue({ value, currency }: { value: SaleProfit | null; currency: string }) {
+  if (!value) return <span className="text-ink-muted">—</span>;
+  return (
+    <span className="inline-flex flex-col items-end">
+      <span className={"font-semibold " + (value.netProfit < ZERO ? "text-danger" : "text-ink")}>
+        {formatMoney(value.netProfit, currency)}
+      </span>
+      {value.returnsProfit !== ZERO && <span className="text-xs text-ink-muted">after returns</span>}
+      {value.costMissing && <span className="text-xs font-semibold text-coral">cost missing</span>}
+    </span>
+  );
+}
 
 function RemainingPill({ value, currency }: { value: bigint | null; currency: string }) {
   if (value === null) return <span className="text-ink-muted">—</span>;
@@ -57,6 +73,7 @@ export default async function SalesPage() {
     return <AccessDenied />;
   }
   const canCreate = permissions.includes("sales.create");
+  const seesProfit = permissions.includes(COST_PERMISSION);
 
   const supabase = await createClient();
   const business = await getMyBusiness();
@@ -69,6 +86,8 @@ export default async function SalesPage() {
     .order("created_at", { ascending: false })
     .limit(LIMIT);
   const rows = (data ?? []) as SaleRow[];
+  // Profit (before VAT) is calculated by the database, only for users who may see cost
+  const profits = seesProfit ? await getSaleProfits(rows.map((row) => row.id)) : new Map<string, SaleProfit>();
 
   const sales: SaleItem[] = rows.map((row) => {
     const total = toCents(row.total);
@@ -89,6 +108,7 @@ export default async function SalesPage() {
       // A cancelled invoice owes nothing
       remaining:
         row.status === "void" ? ZERO : total !== null && paid !== null ? total - paid : null,
+      profit: row.status === "void" ? null : profits.get(row.id) ?? null,
     };
   });
 
@@ -104,7 +124,7 @@ export default async function SalesPage() {
       <PageHeader
         icon={ReceiptText}
         title="Sales"
-        description="The latest 30 sales."
+        description={seesProfit ? "The latest 30 sales. Profit is shown before VAT." : "The latest 30 sales."}
         action={newButton}
       />
 
@@ -151,6 +171,12 @@ export default async function SalesPage() {
                   </span>
                   <RemainingPill value={sale.remaining} currency={currency} />
                 </div>
+                {seesProfit && (
+                  <div className="mt-2 flex items-start justify-between gap-2 border-t border-line pt-2 text-xs">
+                    <span className="text-ink-muted">Profit (before VAT)</span>
+                    <ProfitValue value={sale.profit} currency={currency} />
+                  </div>
+                )}
                 </Link>
               </li>
             ))}
@@ -167,6 +193,7 @@ export default async function SalesPage() {
                   <th className="px-5 py-3 text-right">Total</th>
                   <th className="px-5 py-3 text-right">Paid</th>
                   <th className="px-5 py-3 text-right">Remaining</th>
+                  {seesProfit && <th className="px-5 py-3 text-right">Profit</th>}
                 </tr>
               </thead>
               <tbody>
@@ -200,6 +227,11 @@ export default async function SalesPage() {
                     <td className="px-5 py-3 text-right">
                       <RemainingPill value={sale.remaining} currency={currency} />
                     </td>
+                    {seesProfit && (
+                      <td className="px-5 py-3 text-right">
+                        <ProfitValue value={sale.profit} currency={currency} />
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
