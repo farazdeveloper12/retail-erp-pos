@@ -9,6 +9,7 @@ import {
   updateInvoiceSettings,
   updateProductCategory,
   updateStockSettings,
+  updateTaxRegionSettings,
   uploadLogo,
   type PreferencesState,
 } from "@/app/(app)/settings/preferences-actions";
@@ -21,6 +22,7 @@ import {
   secondaryButtonClass,
 } from "@/components/ui";
 import { DATE_FORMAT_OPTIONS } from "@/lib/format";
+import { PLAN_OPTIONS } from "@/lib/plans";
 
 const initial: PreferencesState = { error: null, success: null };
 
@@ -198,6 +200,145 @@ export function InvoiceSettingsForm({
       <Messages state={state} />
       <button type="submit" disabled={pending} className={primaryButtonClass + " w-full sm:w-auto"}>
         {pending ? "Saving..." : "Save invoice settings"}
+      </button>
+    </form>
+  );
+}
+
+// ---------- Region, VAT and plan ----------
+
+export function TaxRegionSettingsForm({
+  defaults,
+}: {
+  defaults: {
+    vat_enabled: boolean;
+    tax_rate: string;
+    trn: string;
+    name_ar: string;
+    address_ar: string;
+    invoice_language: string;
+    plan: string;
+  };
+}) {
+  const [state, action, pending] = useActionState(updateTaxRegionSettings, initial);
+  return (
+    <form action={action} className="space-y-4">
+      <Toggle
+        name="vat_enabled"
+        label="Charge VAT (prices include VAT; invoices become tax invoices)"
+        defaultChecked={defaults.vat_enabled}
+      />
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div>
+          <label htmlFor="tax-rate" className={labelClass}>
+            VAT rate (%)
+          </label>
+          <input
+            key={defaults.tax_rate}
+            id="tax-rate"
+            name="tax_rate"
+            type="text"
+            inputMode="decimal"
+            placeholder="5"
+            defaultValue={defaults.tax_rate}
+            className={inputClass}
+          />
+          <p className="mt-1 text-xs text-ink-muted">Used for new sales only. Saved invoices keep their rate.</p>
+        </div>
+        <div>
+          <label htmlFor="tax-trn" className={labelClass}>
+            TRN (Tax Registration Number)
+          </label>
+          <input
+            key={defaults.trn}
+            id="tax-trn"
+            name="trn"
+            type="text"
+            inputMode="numeric"
+            maxLength={20}
+            placeholder="15 digits"
+            defaultValue={defaults.trn}
+            className={inputClass}
+          />
+          <p className="mt-1 text-xs text-ink-muted">Required when VAT is on.</p>
+        </div>
+        <div>
+          <label htmlFor="tax-language" className={labelClass}>
+            Invoice language
+          </label>
+          <select
+            key={defaults.invoice_language}
+            id="tax-language"
+            name="invoice_language"
+            defaultValue={defaults.invoice_language}
+            className={inputClass}
+          >
+            <option value="en">English</option>
+            <option value="en_ar">English + Arabic</option>
+          </select>
+        </div>
+        <div>
+          <label htmlFor="tax-name-ar" className={labelClass}>
+            Business name in Arabic (optional)
+          </label>
+          <input
+            key={defaults.name_ar}
+            id="tax-name-ar"
+            name="name_ar"
+            type="text"
+            dir="rtl"
+            lang="ar"
+            maxLength={120}
+            defaultValue={defaults.name_ar}
+            className={inputClass + " font-arabic"}
+          />
+        </div>
+        <div className="sm:col-span-2">
+          <label htmlFor="tax-address-ar" className={labelClass}>
+            Address in Arabic (optional)
+          </label>
+          <textarea
+            key={defaults.address_ar}
+            id="tax-address-ar"
+            name="address_ar"
+            rows={2}
+            dir="rtl"
+            lang="ar"
+            maxLength={300}
+            defaultValue={defaults.address_ar}
+            className={inputClass + " font-arabic"}
+          />
+          <p className="mt-1 text-xs text-ink-muted">Shown on English + Arabic invoices.</p>
+        </div>
+      </div>
+      <fieldset>
+        <legend className={labelClass}>Plan</legend>
+        <div className="grid gap-2 sm:grid-cols-3">
+          {PLAN_OPTIONS.map((option) => (
+            <label
+              key={option.value}
+              className="flex min-h-11 cursor-pointer items-start gap-3 rounded-2xl border border-line px-4 py-3 text-sm text-ink has-[:checked]:border-accent"
+            >
+              <input
+                key={defaults.plan}
+                type="radio"
+                name="plan"
+                value={option.value}
+                defaultChecked={defaults.plan === option.value}
+                className="mt-0.5 h-5 w-5 shrink-0 accent-[var(--accent)]"
+              />
+              <span>
+                <span className="block font-semibold">{option.label}</span>
+                <span className="block text-xs text-ink-muted">{option.description}</span>
+              </span>
+            </label>
+          ))}
+        </div>
+        <p className="mt-1 text-xs text-ink-muted">The menu shows only the pages of the chosen plan.</p>
+      </fieldset>
+      <Messages state={state} />
+      <button type="submit" disabled={pending} className={primaryButtonClass + " w-full sm:w-auto"}>
+        {pending ? "Saving..." : "Save tax and region settings"}
       </button>
     </form>
   );

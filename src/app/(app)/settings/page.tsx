@@ -5,6 +5,7 @@ import {
   Database,
   Download,
   ImageIcon,
+  Globe,
   Landmark,
   Receipt,
   Settings,
@@ -27,6 +28,7 @@ import {
   LogoForm,
   ProductCategoriesManager,
   StockSettingsForm,
+  TaxRegionSettingsForm,
 } from "@/app/(app)/settings/PreferencesForms";
 
 export const metadata: Metadata = {
@@ -35,6 +37,7 @@ export const metadata: Metadata = {
 
 const SECTIONS = [
   { id: "shop", label: "Shop profile" },
+  { id: "tax", label: "Tax & region" },
   { id: "invoice", label: "Invoice" },
   { id: "stock", label: "Stock" },
   { id: "expenses", label: "Expense categories" },
@@ -129,9 +132,6 @@ export default async function SettingsPage() {
                 name: business.name ?? "",
                 legal_name: business.legal_name ?? "",
                 currency_code: business.currency_code ?? "PKR",
-                tax_label: business.tax_label ?? "",
-                tax_rate:
-                  business.tax_rate === null || business.tax_rate === undefined ? "" : String(business.tax_rate),
                 phone: business.phone ?? "",
                 email: business.email ?? "",
                 address: business.address ?? "",
@@ -144,6 +144,29 @@ export default async function SettingsPage() {
               </p>
               <LogoForm logoUrl={business.logo_url} />
             </div>
+          </Section>
+
+          <Section
+            id="tax"
+            icon={Globe}
+            title="Tax & region"
+            description="VAT, Tax Registration Number, invoice language and the plan of this business."
+          >
+            <TaxRegionSettingsForm
+              defaults={{
+                vat_enabled: business.vat_enabled ?? false,
+                // A VAT rate of 5% is suggested until a rate is saved
+                tax_rate:
+                  business.tax_rate === null || business.tax_rate === undefined || Number(business.tax_rate) <= 0
+                    ? "5"
+                    : String(business.tax_rate),
+                trn: business.trn ?? "",
+                name_ar: business.name_ar ?? "",
+                address_ar: business.address_ar ?? "",
+                invoice_language: business.invoice_language ?? "en",
+                plan: business.plan ?? "full",
+              }}
+            />
           </Section>
 
           <Section id="invoice" icon={Receipt} title="Invoice" description="Paper size, fields and text printed on invoices.">

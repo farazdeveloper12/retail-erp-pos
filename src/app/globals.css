@@ -80,6 +80,9 @@
 @theme inline {
   --font-sans: var(--font-jakarta), system-ui, -apple-system, "Segoe UI",
     Arial, sans-serif;
+  /* Arabic text (bilingual invoices) */
+  --font-arabic: var(--font-naskh-arabic), "Noto Naskh Arabic", "Segoe UI",
+    Tahoma, serif;
 
   --color-canvas: var(--background);
   --color-surface: var(--surface);

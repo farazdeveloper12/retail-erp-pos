@@ -21,6 +21,7 @@ type CustomerRow = {
   phone: string | null;
   address: string | null;
   notes: string | null;
+  trn: string | null;
   is_active: boolean;
 };
 
@@ -62,7 +63,7 @@ export default async function CustomerDetailPage({
   const supabase = await createClient();
   const { data: customerData } = await supabase
     .from("customers")
-    .select("id, name, phone, address, notes, is_active")
+    .select("id, name, phone, address, notes, trn, is_active")
     .eq("id", id)
     .maybeSingle();
   const customer = customerData as CustomerRow | null;
@@ -100,6 +101,7 @@ export default async function CustomerDetailPage({
   const details: [string, string][] = [
     ["Phone", customer.phone || "—"],
     ["Address", customer.address || "—"],
+    ...(customer.trn ? ([["TRN", customer.trn]] as [string, string][]) : []),
   ];
 
   return (

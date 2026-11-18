@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getMyBusiness } from "@/lib/business";
 import { getMyPermissions } from "@/lib/permissions";
 import { UUID_PATTERN } from "@/lib/catalog";
+import { isBusinessPlan } from "@/lib/plans";
 
 export type PreferencesState = { error: string | null; success: string | null };
 
@@ -78,6 +79,63 @@ export async function updateInvoiceSettings(
   if (!data?.length) return fail("The invoice settings could not be saved. Please check your permissions.");
   refreshEverywhere();
   return ok("Invoice settings saved.");
+}
+
+// ---------- Region, VAT and plan ----------
+
+// 0.01 to 100 with up to 2 decimals, for example 5 or 7.5
+const VAT_RATE_PATTERN = /^\d{1,3}(\.\d{1,2})?$/;
+// A UAE Tax Registration Number has 15 digits
+const TRN_PATTERN = /^\d{15}$/;
+
+export async function updateTaxRegionSettings(
+  _prev: PreferencesState,
+  formData: FormData
+): Promise<PreferencesState> {
+  const business = await requireSettingsManager();
+  if (!business) return fail("You do not have permission to change settings.");
+
+  const vatEnabled = formData.get("vat_enabled") === "on";
+  const vatRate = String(formData.get("tax_rate") ?? "").trim();
+  const trn = String(formData.get("trn") ?? "").replace(/[\s-]/g, "");
+  const nameAr = String(formData.get("name_ar") ?? "").trim();
+  const addressAr = String(formData.get("address_ar") ?? "").trim();
+  const language = String(formData.get("invoice_language") ?? "");
+  const plan = String(formData.get("plan") ?? "");
+
+  const rateValid = VAT_RATE_PATTERN.test(vatRate) && Number(vatRate) > 0 && Number(vatRate) <= 100;
+  // The rate is required when VAT is on; a rate typed while VAT is off must be valid too
+  if ((vatEnabled || vatRate !== "") && !rateValid) {
+    return fail("The VAT rate must be a number above 0 and up to 100, with up to 2 decimals.");
+  }
+  if (trn !== "" && !TRN_PATTERN.test(trn)) return fail("The TRN must have exactly 15 digits.");
+  if (vatEnabled && trn === "") return fail("Enter the TRN: it is printed on every tax invoice.");
+  if (nameAr.length > 120) return fail("The Arabic name cannot be longer than 120 characters.");
+  if (addressAr.length > 300) return fail("The Arabic address cannot be longer than 300 characters.");
+  if (language !== "en" && language !== "en_ar") return fail("Choose an invoice language.");
+  if (!isBusinessPlan(plan)) return fail("Choose a plan.");
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("businesses")
+    .update({
+      vat_enabled: vatEnabled,
+      // Sent as text so the numeric column keeps the exact value. An empty
+      // rate keeps the saved value; VAT is off in that case anyway.
+      ...(vatRate !== "" ? { tax_rate: vatRate } : {}),
+      trn: trn || null,
+      name_ar: nameAr || null,
+      address_ar: addressAr || null,
+      invoice_language: language,
+      plan,
+    })
+    .eq("id", business.id)
+    .select("id");
+
+  if (error) return fail(friendly(error, "The tax and region settings could not be saved."));
+  if (!data?.length) return fail("The tax and region settings could not be saved. Please check your permissions.");
+  refreshEverywhere();
+  return ok("Tax and region settings saved.");
 }
 
 // ---------- Stock ----------

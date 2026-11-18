@@ -60,60 +60,20 @@ export default function SettingsForm({
 
         <div>
           <label htmlFor="settings-currency_code" className={labelClass}>
-            Currency code
+            Currency
           </label>
-          <input
+          {/* key: React applies a select's defaultValue only on mount */}
+          <select
+            key={value("currency_code")}
             id="settings-currency_code"
             name="currency_code"
-            type="text"
             required
-            minLength={3}
-            maxLength={3}
-            pattern="[A-Za-z]{3}"
-            autoCapitalize="characters"
-            placeholder="PKR"
             defaultValue={value("currency_code") || "PKR"}
-            aria-describedby="currency-hint"
-            className={inputClass + " uppercase"}
-          />
-          <p id="currency-hint" className="mt-1 text-xs text-ink-muted">
-            Three letters, for example PKR.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label htmlFor="settings-tax_label" className={labelClass}>
-              Tax label
-            </label>
-            <input
-              id="settings-tax_label"
-              name="tax_label"
-              type="text"
-              maxLength={30}
-              placeholder="GST"
-              defaultValue={value("tax_label")}
-              className={inputClass}
-            />
-          </div>
-          <div>
-            <label htmlFor="settings-tax_rate" className={labelClass}>
-              Tax rate (%)
-            </label>
-            <input
-              id="settings-tax_rate"
-              name="tax_rate"
-              type="text"
-              inputMode="decimal"
-              placeholder="0"
-              defaultValue={value("tax_rate")}
-              aria-describedby="tax-hint"
-              className={inputClass}
-            />
-          </div>
-          <p id="tax-hint" className="col-span-2 -mt-1 text-xs text-ink-muted">
-            From 0 to 100, up to 2 decimals.
-          </p>
+            className={inputClass}
+          >
+            <option value="PKR">PKR – Pakistani rupee</option>
+            <option value="AED">AED – UAE dirham</option>
+          </select>
         </div>
 
         <div>

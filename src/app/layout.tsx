@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
-import { Plus_Jakarta_Sans } from "next/font/google";
+import { Noto_Naskh_Arabic, Plus_Jakarta_Sans } from "next/font/google";
 import { DEFAULT_WORKSPACE_NAME, getMyBusiness } from "@/lib/business";
 import "./globals.css";
 
@@ -8,6 +8,15 @@ const jakarta = Plus_Jakarta_Sans({
   subsets: ["latin"],
   variable: "--font-jakarta",
   display: "swap",
+});
+
+// Arabic text on bilingual invoices (prints Arabic letters correctly)
+const naskhArabic = Noto_Naskh_Arabic({
+  subsets: ["arabic"],
+  weight: ["400", "700"],
+  variable: "--font-naskh-arabic",
+  display: "swap",
+  preload: false,
 });
 
 // The tab title uses the business name. On the login page (no session)
@@ -54,7 +63,7 @@ const themeScript = `
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" className={jakarta.variable} suppressHydrationWarning>
+    <html lang="en" className={`${jakarta.variable} ${naskhArabic.variable}`} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>

@@ -3,6 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 
 export type DateFormatKey = "medium" | "dmy" | "mdy" | "iso";
 export type InvoicePaper = "a4" | "thermal";
+export type InvoiceLanguage = "en" | "en_ar";
+export type BusinessPlan = "mobile_shop" | "repair_shop" | "full";
 
 export type Business = {
   id: string;
@@ -27,6 +29,13 @@ export type Business = {
   invoice_show_warranty: boolean;
   invoice_show_payment_method: boolean;
   low_stock_threshold: number;
+  // Region, VAT and plan. tax_rate above is the VAT rate.
+  vat_enabled: boolean;
+  trn: string | null;
+  name_ar: string | null;
+  address_ar: string | null;
+  invoice_language: InvoiceLanguage;
+  plan: BusinessPlan;
 };
 
 const BUSINESS_COLUMNS = [
@@ -51,6 +60,12 @@ const BUSINESS_COLUMNS = [
   "invoice_show_warranty",
   "invoice_show_payment_method",
   "low_stock_threshold",
+  "vat_enabled",
+  "trn",
+  "name_ar",
+  "address_ar",
+  "invoice_language",
+  "plan",
 ].join(", ");
 
 // Fallback name used when no business can be read (login page, errors).

@@ -20,7 +20,7 @@ function multiline(value: FormDataEntryValue | null): string {
   return typeof value === "string" ? value.trim() : "";
 }
 
-type Fields = { name: string; phone: string; address: string; notes: string };
+type Fields = { name: string; phone: string; address: string; notes: string; trn: string };
 
 function readFields(formData: FormData): Fields {
   return {
@@ -28,6 +28,8 @@ function readFields(formData: FormData): Fields {
     phone: normalize(formData.get("phone")),
     address: multiline(formData.get("address")),
     notes: multiline(formData.get("notes")),
+    // Spaces and dashes are often typed between the digit groups
+    trn: normalize(formData.get("trn")).replace(/[\s-]/g, ""),
   };
 }
 
@@ -38,6 +40,7 @@ function validate(fields: Fields): string | null {
   if (fields.phone.length > 40) return "Phone cannot be longer than 40 characters.";
   if (fields.address.length > 300) return "Address cannot be longer than 300 characters.";
   if (fields.notes.length > 1000) return "Notes cannot be longer than 1000 characters.";
+  if (fields.trn !== "" && !/^\d{15}$/.test(fields.trn)) return "The TRN must have exactly 15 digits.";
   return null;
 }
 
@@ -73,6 +76,7 @@ export async function createCustomer(
     phone: fields.phone,
     address: fields.address || null,
     notes: fields.notes || null,
+    trn: fields.trn || null,
   });
   if (error) return fail(friendlyError(error, "The customer could not be saved."));
 
@@ -104,6 +108,7 @@ export async function updateCustomer(
       phone: fields.phone,
       address: fields.address || null,
       notes: fields.notes || null,
+      trn: fields.trn || null,
     })
     .eq("id", customerId)
     .select("id");

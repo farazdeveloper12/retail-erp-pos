@@ -20,7 +20,7 @@ import {
 
 const initialState: CustomerFormState = { error: null, success: null };
 
-type Defaults = { name: string; phone: string; address: string; notes: string };
+type Defaults = { name: string; phone: string; address: string; notes: string; trn: string };
 
 function CustomerFields({
   prefix,
@@ -59,6 +59,22 @@ function CustomerFields({
           autoComplete="off"
           placeholder="03XX XXXXXXX"
           defaultValue={defaults.phone ?? ""}
+          className={inputClass}
+        />
+      </div>
+      <div>
+        <label htmlFor={`${prefix}-trn`} className={labelClass}>
+          TRN (optional)
+        </label>
+        <input
+          id={`${prefix}-trn`}
+          name="trn"
+          type="text"
+          inputMode="numeric"
+          maxLength={20}
+          autoComplete="off"
+          placeholder="15 digits, for VAT-registered customers"
+          defaultValue={defaults.trn ?? ""}
           className={inputClass}
         />
       </div>

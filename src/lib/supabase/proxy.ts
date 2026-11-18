@@ -2,7 +2,12 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { getSupabaseEnv } from "@/lib/supabase/env";
 
+// Lets server components know the requested page (used for plan checks).
+// Always overwritten, so a value sent by the browser is never trusted.
+export const PATHNAME_HEADER = "x-app-pathname";
+
 export async function updateSession(request: NextRequest) {
+  request.headers.set(PATHNAME_HEADER, request.nextUrl.pathname);
   let response = NextResponse.next({ request });
 
   const { url, key } = getSupabaseEnv();

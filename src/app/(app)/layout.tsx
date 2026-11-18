@@ -1,10 +1,14 @@
 import type { ReactNode } from "react";
+import { headers } from "next/headers";
+import { PackageX } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { signOut } from "@/app/(app)/actions";
 import AppShell from "@/components/AppShell";
 import { navItems } from "@/lib/navigation";
 import { canViewPage, getMyPermissions } from "@/lib/permissions";
 import { getMyBusiness } from "@/lib/business";
+import { planIncludesPage } from "@/lib/plans";
+import { PATHNAME_HEADER } from "@/lib/supabase/proxy";
 
 const roleLabels: Record<string, string> = {
   owner: "Owner",
@@ -57,13 +61,21 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   }
 
   // Which items should appear in the sidebar, and the business name
-  const [permissions, business] = await Promise.all([
+  const [permissions, business, requestHeaders] = await Promise.all([
     getMyPermissions(),
     getMyBusiness(),
+    headers(),
   ]);
+  const plan = business?.plan;
   const allowedSlugs = navItems
-    .filter((item) => canViewPage(permissions, item.slug))
+    .filter((item) => planIncludesPage(plan, item.slug) && canViewPage(permissions, item.slug))
     .map((item) => item.slug);
+
+  // A page outside the business plan is not shown, even when opened by URL
+  const pathname = requestHeaders.get(PATHNAME_HEADER) ?? "/";
+  const slug = pathname.split("/")[1] ?? "";
+  const isKnownPage = navItems.some((item) => item.slug === slug);
+  const outsidePlan = isKnownPage && !planIncludesPage(plan, slug);
 
   return (
     <AppShell
@@ -72,7 +84,20 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
       allowedSlugs={allowedSlugs}
       businessName={business?.name ?? null}
     >
-      {children}
+      {outsidePlan ? (
+        <div className="mx-auto max-w-md rounded-card border border-line bg-surface p-8 text-center shadow-soft">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-peach text-coral">
+            <PackageX className="h-6 w-6" />
+          </div>
+          <h1 className="mt-4 text-lg font-bold text-ink">Not part of your plan</h1>
+          <p className="mt-1 text-sm text-ink-muted">
+            This module is not included in the current plan of this business. The owner can change the plan in
+            Settings.
+          </p>
+        </div>
+      ) : (
+        children
+      )}
     </AppShell>
   );
 }

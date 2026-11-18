@@ -8,7 +8,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getMyBusiness } from "@/lib/business";
 import { canViewPage, getMyPermissions } from "@/lib/permissions";
 import { UUID_PATTERN } from "@/lib/catalog";
-import { formatMoney } from "@/lib/money";
+import { formatMoney, toCents } from "@/lib/money";
 import { formatDateWith, formatInvoiceNo, type DateFormat } from "@/lib/format";
 import { formatSalesReturnNo } from "@/lib/returns";
 
@@ -25,6 +25,8 @@ type ReturnRow = {
   total: number | string;
   credit_amount: number | string;
   refund_amount: number | string;
+  vat_rate: number | string | null;
+  vat_amount: number | string | null;
   created_at: string;
   sale_id: string;
   sale: { invoice_no: number; customer_name: string | null; customer_phone: string | null } | null;
@@ -61,7 +63,7 @@ export default async function SalesReturnPage({ params }: { params: Promise<{ id
   const { data } = await supabase
     .from("sales_returns")
     .select(
-      "id, return_no, return_date, reason, notes, total, credit_amount, refund_amount, created_at, sale_id, sale:sales(invoice_no, customer_name, customer_phone), account:finance_accounts(name)"
+      "id, return_no, return_date, reason, notes, total, credit_amount, refund_amount, vat_rate, vat_amount, created_at, sale_id, sale:sales(invoice_no, customer_name, customer_phone), account:finance_accounts(name)"
     )
     .eq("id", id)
     .maybeSingle();
@@ -161,6 +163,18 @@ export default async function SalesReturnPage({ params }: { params: Promise<{ id
             <dt>Value returned</dt>
             <dd>{formatMoney(ret.total, currency)}</dd>
           </div>
+          {Number(ret.vat_rate ?? 0) > 0 && (
+            <>
+              <div className="flex justify-between gap-4">
+                <dt className={MUTED}>Value before VAT</dt>
+                <dd>{formatMoney((toCents(ret.total) ?? BigInt(0)) - (toCents(ret.vat_amount) ?? BigInt(0)), currency)}</dd>
+              </div>
+              <div className="flex justify-between gap-4">
+                <dt className={MUTED}>VAT reversed ({String(Number(Number(ret.vat_rate).toFixed(2)))}%)</dt>
+                <dd>{formatMoney(ret.vat_amount, currency)}</dd>
+              </div>
+            </>
+          )}
           <div className="flex justify-between gap-4">
             <dt className={MUTED}>Taken off the amount owed</dt>
             <dd>{formatMoney(ret.credit_amount, currency)}</dd>

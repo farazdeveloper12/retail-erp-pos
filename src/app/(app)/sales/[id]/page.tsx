@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { FileX, ReceiptText, RotateCcw, ShieldCheck } from "lucide-react";
 import AccessDenied from "@/components/AccessDenied";
@@ -41,6 +42,8 @@ type SaleRow = {
   warranty_terms: string | null;
   notes: string | null;
   status: string | null;
+  vat_rate: number | string | null;
+  vat_amount: number | string | null;
 };
 
 type SaleItemRow = {
@@ -76,6 +79,25 @@ const INK = "text-[#1f2a2a]";
 const MUTED = "text-[#5b6b6b]";
 const LINE = "border-[#ece6d8]";
 
+// English label, followed by the Arabic one on bilingual invoices
+function Label({ en, ar, bilingual }: { en: string; ar: string; bilingual: boolean }): ReactNode {
+  if (!bilingual) return en;
+  return (
+    <>
+      {en}{" "}
+      <span dir="rtl" lang="ar" className="font-arabic">
+        {ar}
+      </span>
+    </>
+  );
+}
+
+// "5.00" -> "5", "7.50" -> "7.5"
+function formatRate(value: unknown): string {
+  const n = Number(value);
+  return Number.isFinite(n) ? String(Number(n.toFixed(2))) : "0";
+}
+
 function NotFound() {
   return (
     <div className="mx-auto max-w-3xl space-y-4">
@@ -109,7 +131,7 @@ export default async function InvoicePage({
   const { data: saleData } = await supabase
     .from("sales")
     .select(
-      "id, invoice_no, created_at, customer_id, customer_name, customer_phone, subtotal, discount, total, paid_amount, payment_method, warranty_terms, notes, status, voided_at, void_reason, returned_total, refunded_total, return_credit"
+      "id, invoice_no, created_at, customer_id, customer_name, customer_phone, subtotal, discount, total, paid_amount, payment_method, warranty_terms, notes, status, vat_rate, vat_amount, voided_at, void_reason, returned_total, refunded_total, return_credit"
     )
     .eq("id", id)
     .maybeSingle();
@@ -125,7 +147,8 @@ export default async function InvoicePage({
   if (!sale) return <NotFound />;
 
   const canReturn = permissions.includes("returns.manage");
-  const [{ data: itemData }, { data: paymentData }, business, { data: returnData }] = await Promise.all([
+  const [{ data: itemData }, { data: paymentData }, business, { data: returnData }, { data: customerData }] =
+    await Promise.all([
     supabase
       .from("sale_items")
       .select(
@@ -141,10 +164,14 @@ export default async function InvoicePage({
     canReturn || permissions.includes("sales.view_all")
       ? supabase
           .from("sales_returns")
-          .select("id, return_no, return_date, total, refund_amount")
+          .select("id, return_no, return_date, total, refund_amount, vat_amount")
           .eq("sale_id", id)
           .order("return_no")
       : Promise.resolve({ data: [] }),
+    // The customer's TRN is printed on tax invoices
+    sale.customer_id
+      ? supabase.from("customers").select("trn").eq("id", sale.customer_id).maybeSingle()
+      : Promise.resolve({ data: null }),
   ]);
   const items = (itemData ?? []) as SaleItemRow[];
   const payments = (paymentData ?? []) as PaymentRow[];
@@ -154,7 +181,9 @@ export default async function InvoicePage({
     return_date: string;
     total: number | string;
     refund_amount: number | string;
+    vat_amount: number | string | null;
   }[];
+  const customerTrn = (customerData as { trn: string | null } | null)?.trn?.trim() || null;
 
   const currency = business?.currency_code || "PKR";
   const shopName = business?.name || "Retail workspace";
@@ -182,6 +211,18 @@ export default async function InvoicePage({
   const canCancel = !cancelled && returned === ZERO && permissions.includes("returns.manage");
   const fullyReturned = returned >= total && total > ZERO;
 
+  // VAT is inclusive: the total already contains it. The rate is the one
+  // saved with the sale, so older invoices stay plain invoices.
+  const isTaxInvoice = Number(sale.vat_rate ?? 0) > 0;
+  const bilingual = business?.invoice_language === "en_ar";
+  const vatRate = formatRate(sale.vat_rate);
+  const vatAmount = toCents(sale.vat_amount) ?? ZERO;
+  const amountBeforeVat = total - vatAmount;
+  const vatReversed = returns.reduce((sum, r) => sum + (toCents(r.vat_amount) ?? ZERO), ZERO);
+  const sellerTrn = business?.trn?.trim() || null;
+  const nameAr = bilingual ? business?.name_ar?.trim() || null : null;
+  const addressAr = bilingual ? business?.address_ar?.trim() || null : null;
+
   // Cash, Bank, or both when the payments used both
   const methods = new Set(payments.map((p) => p.method).filter(Boolean));
   const methodLabel =
@@ -197,7 +238,8 @@ export default async function InvoicePage({
   // Plain English WhatsApp message
   const lines = [
     shopName,
-    cancelled ? `Invoice ${invoiceNo} (CANCELLED)` : `Invoice ${invoiceNo}`,
+    ...(isTaxInvoice && sellerTrn ? [`TRN: ${sellerTrn}`] : []),
+    `${isTaxInvoice ? "Tax invoice" : "Invoice"} ${invoiceNo}${cancelled ? " (CANCELLED)" : ""}`,
     `Date: ${date}`,
     `Customer: ${customerName}`,
     "",
@@ -207,7 +249,13 @@ export default async function InvoicePage({
         `- ${item.description ?? "Item"} x ${item.quantity ?? 1}: ${formatMoney(item.line_total, currency)}`
     ),
     "",
-    `Total: ${formatMoney(total, currency)}`,
+    ...(isTaxInvoice
+      ? [
+          `Amount before VAT: ${formatMoney(amountBeforeVat, currency)}`,
+          `VAT ${vatRate}%: ${formatMoney(vatAmount, currency)}`,
+        ]
+      : []),
+    `Total${isTaxInvoice ? " (incl. VAT)" : ""}: ${formatMoney(total, currency)}`,
     ...(returned > ZERO
       ? [`Returned: ${formatMoney(returned, currency)}`, `Refunded: ${formatMoney(refunded, currency)}`]
       : []),
@@ -316,27 +364,63 @@ export default async function InvoicePage({
                   {business.legal_name}
                 </p>
               )}
+              {nameAr && (
+                <p dir="rtl" lang="ar" className="font-arabic text-lg font-bold group-data-[paper=thermal]:text-sm">
+                  {nameAr}
+                </p>
+              )}
               {contact.map((value) => (
                 <p key={value} className={`text-sm ${MUTED} group-data-[paper=thermal]:text-[10px]`}>
                   {value}
                 </p>
               ))}
+              {addressAr && (
+                <p dir="rtl" lang="ar" className={`font-arabic text-sm ${MUTED} group-data-[paper=thermal]:text-[10px]`}>
+                  {addressAr}
+                </p>
+              )}
+              {isTaxInvoice && sellerTrn && (
+                <p className="text-sm font-semibold group-data-[paper=thermal]:text-[10px]">
+                  <Label en="TRN" ar="الرقم الضريبي" bilingual={bilingual} />:{" "}
+                  <span className="font-mono">{sellerTrn}</span>
+                </p>
+              )}
               </div>
             </div>
             <div className="text-right group-data-[paper=thermal]:mt-2 group-data-[paper=thermal]:text-center">
               <p className="text-2xl font-bold tracking-widest group-data-[paper=thermal]:text-sm">
-                INVOICE
+                {isTaxInvoice ? "TAX INVOICE" : "INVOICE"}
               </p>
-              <p className="font-mono text-sm font-semibold">{invoiceNo}</p>
-              <p className={`text-sm ${MUTED} group-data-[paper=thermal]:text-[10px]`}>{date}</p>
+              {(isTaxInvoice || bilingual) && (
+                <p dir="rtl" lang="ar" className="font-arabic text-xl font-bold group-data-[paper=thermal]:text-sm">
+                  {isTaxInvoice ? "فاتورة ضريبية" : "فاتورة"}
+                </p>
+              )}
+              <p className="text-sm">
+                <span className={MUTED}>
+                  <Label en="Invoice no." ar="رقم الفاتورة" bilingual={bilingual} />:
+                </span>{" "}
+                <span className="font-mono font-semibold">{invoiceNo}</span>
+              </p>
+              <p className={`text-sm ${MUTED} group-data-[paper=thermal]:text-[10px]`}>
+                <Label en="Date" ar="التاريخ" bilingual={bilingual} />: {date}
+              </p>
             </div>
           </header>
 
           {/* Customer */}
           <section className="py-4 group-data-[paper=thermal]:py-2">
-            <p className={`text-xs font-semibold uppercase tracking-wide ${MUTED}`}>Bill to</p>
+            <p className={`text-xs font-semibold uppercase tracking-wide ${MUTED}`}>
+              <Label en="Bill to" ar="العميل" bilingual={bilingual} />
+            </p>
             <p className="font-semibold">{customerName}</p>
             {showPhone && sale.customer_phone && <p className={`text-sm ${MUTED}`}>{sale.customer_phone}</p>}
+            {isTaxInvoice && customerTrn && (
+              <p className="text-sm">
+                <Label en="Customer TRN" ar="الرقم الضريبي للعميل" bilingual={bilingual} />:{" "}
+                <span className="font-mono">{customerTrn}</span>
+              </p>
+            )}
           </section>
 
           {/* Items: A4 table */}
@@ -419,9 +503,31 @@ export default async function InvoicePage({
                   <dd>{value}</dd>
                 </div>
               ))}
+              {isTaxInvoice && (
+                <>
+                  <div className={`flex justify-between gap-4 border-t pt-1 ${LINE}`}>
+                    <dt className={MUTED}>
+                      <Label en="Amount before VAT" ar="المبلغ قبل الضريبة" bilingual={bilingual} />
+                    </dt>
+                    <dd className="whitespace-nowrap">{formatMoney(amountBeforeVat, currency)}</dd>
+                  </div>
+                  <div className="flex justify-between gap-4">
+                    <dt className={MUTED}>
+                      <Label en={`VAT ${vatRate}%`} ar={`ضريبة القيمة المضافة ${vatRate}%`} bilingual={bilingual} />
+                    </dt>
+                    <dd className="whitespace-nowrap">{formatMoney(vatAmount, currency)}</dd>
+                  </div>
+                </>
+              )}
               <div className={`flex justify-between gap-4 border-t pt-1 text-base font-bold ${LINE} group-data-[paper=thermal]:text-xs`}>
-                <dt>Grand total</dt>
-                <dd>{formatMoney(total, currency)}</dd>
+                <dt>
+                  {isTaxInvoice ? (
+                    <Label en="Total incl. VAT" ar="الإجمالي شامل الضريبة" bilingual={bilingual} />
+                  ) : (
+                    <Label en="Grand total" ar="الإجمالي" bilingual={bilingual} />
+                  )}
+                </dt>
+                <dd className="whitespace-nowrap">{formatMoney(total, currency)}</dd>
               </div>
               {returned > ZERO && (
                 <>
@@ -429,6 +535,12 @@ export default async function InvoicePage({
                     <dt className={MUTED}>Returned</dt>
                     <dd>-{formatMoney(returned, currency)}</dd>
                   </div>
+                  {isTaxInvoice && vatReversed > ZERO && (
+                    <div className="flex justify-between gap-4">
+                      <dt className={MUTED}>VAT reversed on returns</dt>
+                      <dd>-{formatMoney(vatReversed, currency)}</dd>
+                    </div>
+                  )}
                   <div className="flex justify-between gap-4">
                     <dt className={MUTED}>Refunded</dt>
                     <dd>{formatMoney(refunded, currency)}</dd>

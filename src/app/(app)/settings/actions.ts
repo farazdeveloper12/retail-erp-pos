@@ -11,16 +11,12 @@ export type SettingsState = {
 };
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const CURRENCY_PATTERN = /^[A-Z]{3}$/;
-// 0 to 100 with up to 2 decimals, for example 17, 17.5 or 17.25
-const TAX_RATE_PATTERN = /^\d{1,3}(\.\d{1,2})?$/;
+const CURRENCIES = new Set(["PKR", "AED"]);
 
 const FIELDS = [
   "name",
   "legal_name",
   "currency_code",
-  "tax_label",
-  "tax_rate",
   "phone",
   "email",
   "address",
@@ -62,17 +58,8 @@ export async function updateBusinessSettings(
   if (values.legal_name.length > 160) {
     return fail("Legal name cannot be longer than 160 characters.");
   }
-  if (!CURRENCY_PATTERN.test(values.currency_code)) {
-    return fail("Currency code must be exactly 3 letters, for example PKR.");
-  }
-  if (values.tax_label.length > 30) {
-    return fail("Tax label cannot be longer than 30 characters.");
-  }
-  const taxRate = values.tax_rate === "" ? "0" : values.tax_rate;
-  if (!TAX_RATE_PATTERN.test(taxRate) || Number(taxRate) > 100) {
-    return fail(
-      "Tax rate must be a number from 0 to 100 with up to 2 decimal places."
-    );
+  if (!CURRENCIES.has(values.currency_code)) {
+    return fail("Choose PKR or AED as the currency.");
   }
   if (values.phone.length > 40) {
     return fail("Phone cannot be longer than 40 characters.");
@@ -97,9 +84,6 @@ export async function updateBusinessSettings(
       name: values.name,
       legal_name: values.legal_name || null,
       currency_code: values.currency_code,
-      tax_label: values.tax_label || null,
-      // Sent as text so the numeric column keeps the exact value
-      tax_rate: taxRate,
       phone: values.phone || null,
       email: values.email || null,
       address: values.address || null,

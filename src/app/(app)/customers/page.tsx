@@ -35,13 +35,14 @@ type CustomerRow = {
   phone: string | null;
   address: string | null;
   notes: string | null;
+  trn: string | null;
   is_active: boolean;
 };
 
 type Filters = { q: string; status: string };
 
 const PAGE_SIZE = 200;
-const CUSTOMER_COLUMNS = "id, name, phone, address, notes, is_active";
+const CUSTOMER_COLUMNS = "id, name, phone, address, notes, trn, is_active";
 
 function pageHref(filters: Partial<Filters> & { edit?: string }) {
   const search = new URLSearchParams();
@@ -137,6 +138,7 @@ export default async function CustomersPage({
               phone: editing.phone ?? "",
               address: editing.address ?? "",
               notes: editing.notes ?? "",
+              trn: editing.trn ?? "",
             }}
             cancelHref={pageHref(filters)}
           />
