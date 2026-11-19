@@ -142,7 +142,7 @@ export default async function InvoicePage({
   const { data: saleData } = await supabase
     .from("sales")
     .select(
-      "id, invoice_no, created_at, customer_id, customer_name, customer_phone, subtotal, discount, total, paid_amount, payment_method, warranty_terms, notes, status, vat_rate, vat_amount, voided_at, void_reason, returned_total, refunded_total, return_credit"
+      "id, invoice_no, created_at, customer_id, customer_name, customer_phone, subtotal, discount, total, paid_amount, payment_method, warranty_terms, notes, status, vat_rate, vat_amount, voided_at, void_reason, returned_total, refunded_total, return_credit, trade_in_credit"
     )
     .eq("id", id)
     .maybeSingle();
@@ -153,13 +153,20 @@ export default async function InvoicePage({
         returned_total: number | string | null;
         refunded_total: number | string | null;
         return_credit: number | string | null;
+        trade_in_credit: number | string | null;
       })
     | null;
   if (!sale) return <NotFound />;
 
   const canReturn = permissions.includes("returns.manage");
-  const [{ data: itemData }, { data: paymentData }, business, { data: returnData }, { data: customerData }] =
-    await Promise.all([
+  const [
+    { data: itemData },
+    { data: paymentData },
+    business,
+    { data: returnData },
+    { data: customerData },
+    { data: tradeInData },
+  ] = await Promise.all([
     supabase
       .from("sale_items")
       .select(
@@ -183,6 +190,12 @@ export default async function InvoicePage({
     sale.customer_id
       ? supabase.from("customers").select("trn").eq("id", sale.customer_id).maybeSingle()
       : Promise.resolve({ data: null }),
+    // The traded-in phone (visible to purchase users; others see the amount only)
+    supabase
+      .from("customer_purchases")
+      .select("id, purchase_no, description, imei, price, phone:phone_units(brand_name)")
+      .eq("sale_id", id)
+      .maybeSingle(),
   ]);
   const items = (itemData ?? []) as SaleItemRow[];
   const payments = (paymentData ?? []) as PaymentRow[];
@@ -195,6 +208,14 @@ export default async function InvoicePage({
     vat_amount: number | string | null;
   }[];
   const customerTrn = (customerData as { trn: string | null } | null)?.trn?.trim() || null;
+  const tradeInRow = tradeInData as unknown as {
+    id: string;
+    purchase_no: number;
+    description: string;
+    imei: string;
+    price: number | string;
+    phone: { brand_name: string } | null;
+  } | null;
 
   // Cost and profit: only for users who may see cost, never printed
   const seesProfit = permissions.includes(COST_PERMISSION);
@@ -227,11 +248,17 @@ export default async function InvoicePage({
   const returnCredit = toCents(sale.return_credit) ?? ZERO;
   const returned = toCents(sale.returned_total) ?? ZERO;
   const refunded = toCents(sale.refunded_total) ?? ZERO;
-  const paid = (toCents(sale.paid_amount) ?? ZERO) - returnCredit;
+  // A trade-in pays part of the invoice like a credit; it is not money received
+  const tradeInCredit = toCents(sale.trade_in_credit) ?? ZERO;
+  const tradeInLabel = tradeInRow
+    ? `${tradeInRow.phone?.brand_name ? `${tradeInRow.phone.brand_name} ` : ""}${tradeInRow.description}`
+    : "Old phone";
+  const paid = (toCents(sale.paid_amount) ?? ZERO) - returnCredit - tradeInCredit;
   // A cancelled invoice owes nothing; everything paid was refunded
-  const remaining = cancelled ? ZERO : total - paid - returnCredit;
-  // An invoice with returns cannot be cancelled as a whole
-  const canCancel = !cancelled && returned === ZERO && permissions.includes("returns.manage");
+  const remaining = cancelled ? ZERO : total - paid - returnCredit - tradeInCredit;
+  // An invoice with returns or a trade-in cannot be cancelled as a whole
+  const canCancel =
+    !cancelled && returned === ZERO && tradeInCredit === ZERO && permissions.includes("returns.manage");
   const fullyReturned = returned >= total && total > ZERO;
 
   // VAT is inclusive: the total already contains it. The rate is the one
@@ -279,6 +306,7 @@ export default async function InvoicePage({
         ]
       : []),
     `Total${isTaxInvoice ? " (incl. VAT)" : ""}: ${formatMoney(total, currency)}`,
+    ...(tradeInCredit > ZERO ? [`Trade-in (${tradeInLabel}): -${formatMoney(tradeInCredit, currency)}`] : []),
     ...(returned > ZERO
       ? [`Returned: ${formatMoney(returned, currency)}`, `Refunded: ${formatMoney(refunded, currency)}`]
       : []),
@@ -560,6 +588,23 @@ export default async function InvoicePage({
                 </dt>
                 <dd className="whitespace-nowrap">{formatMoney(total, currency)}</dd>
               </div>
+              {tradeInCredit > ZERO && (
+                <div className="flex justify-between gap-4">
+                  <dt className={MUTED}>
+                    <Label en="Trade-in" ar="استبدال" bilingual={bilingual} />
+                    <span className="block text-xs">
+                      {tradeInLabel}
+                      {tradeInRow?.imei ? (
+                        <>
+                          {" · IMEI "}
+                          <span className="font-mono">{tradeInRow.imei}</span>
+                        </>
+                      ) : null}
+                    </span>
+                  </dt>
+                  <dd className="whitespace-nowrap">-{formatMoney(tradeInCredit, currency)}</dd>
+                </div>
+              )}
               {returned > ZERO && (
                 <>
                   <div className="flex justify-between gap-4">

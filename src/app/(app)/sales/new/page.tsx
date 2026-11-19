@@ -34,6 +34,8 @@ export default async function NewSalePage() {
         canSource={permissions.includes("purchases.manage")}
         canAddModels={permissions.includes("catalog.manage")}
         canCreateProducts={hasAny(permissions, ["catalog.create", "catalog.manage"])}
+        // Trade-in also buys a phone, so it needs the purchase permission
+        canTradeIn={permissions.includes("purchases.manage")}
       />
     </div>
   );

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getMyPermissions } from "@/lib/permissions";
 import { UUID_PATTERN } from "@/lib/catalog";
+import { PERMISSION_TRADE_IN, TradeInInputError, parseTradeIn } from "@/lib/trade-in";
 
 type Db = Awaited<ReturnType<typeof createClient>>;
 type Row = Record<string, unknown>;
@@ -57,6 +58,10 @@ export type SaleResult = {
   balance: number;
   purchase_no?: number | null;
   supplier_balance?: number | null;
+  // Set when the customer traded in an old phone
+  trade_in?: number | null;
+  trade_in_id?: string | null;
+  trade_in_no?: number | null;
 };
 
 export type CreateSaleResult = {
@@ -403,7 +408,8 @@ function paymentMethod(value: unknown, message: string): "cash" | "bank" {
 
 // Validates the sale part. Returns the payload for create_sale plus the
 // totals needed for the checks below.
-function buildSale(input: unknown) {
+// tradeInCredit: value of a trade-in, which pays part of the invoice
+function buildSale(input: unknown, tradeInCredit = 0) {
   if (!isRecord(input)) throw new InputError("The sale is not valid.");
   if (!Array.isArray(input.items) || input.items.length === 0) {
     throw new InputError("Add at least one item.");
@@ -503,6 +509,7 @@ function buildSale(input: unknown) {
   const total = lineTotal - cents(discount);
   if (total < BigInt(0)) throw new InputError("The invoice discount cannot be more than the subtotal.");
   if (cents(paid) > total) throw new InputError("Paid now cannot be more than the grand total.");
+  const covered = cents(paid) + cents(tradeInCredit);
 
   const sale: Row = {
     discount,
@@ -523,13 +530,13 @@ function buildSale(input: unknown) {
   if (phone) sale.customer_phone = phone;
 
   // Never save unpaid money against a walk-in customer
-  if (cents(paid) < total && !sale.customer_id && !(name && phone)) {
+  if (covered < total && !sale.customer_id && !(name && phone)) {
     throw new InputError(
       "Customer name and phone are required when part of the amount remains unpaid."
     );
   }
 
-  return { sale, sourcedCount, sourcedCost };
+  return { sale, sourcedCount, sourcedCost, total };
 }
 
 export async function createQuickSale(input: unknown): Promise<CreateSaleResult> {
@@ -540,8 +547,31 @@ export async function createQuickSale(input: unknown): Promise<CreateSaleResult>
     }
     if (!isRecord(input)) throw new InputError("The sale is not valid.");
 
-    const { sale, sourcedCount, sourcedCost } = buildSale(input.sale);
+    // Trade-in: the customer's old phone pays part of the invoice
+    let tradeIn: Row | null = null;
+    if (input.trade_in !== undefined && input.trade_in !== null) {
+      if (!permissions.includes(PERMISSION_TRADE_IN)) {
+        throw new InputError("You do not have permission to take a trade-in.");
+      }
+      tradeIn = parseTradeIn(input.trade_in);
+      // The seller is the buyer: a walk-in sale gets the seller's name and phone
+      if (isRecord(input.sale) && !input.sale.customer_id && !input.sale.customer_phone) {
+        input.sale = {
+          ...input.sale,
+          customer_name: tradeIn.seller_name,
+          customer_phone: tradeIn.seller_phone,
+        };
+      }
+    }
+
+    const { sale, sourcedCount, sourcedCost, total } = buildSale(input.sale, tradeIn ? (tradeIn.price as number) : 0);
     const payload: Row = { sale };
+    if (tradeIn) {
+      if (cents(sale.paid_amount as number) + cents(tradeIn.price as number) > total) {
+        throw new InputError("The trade-in value plus Paid now cannot be more than the grand total.");
+      }
+      payload.trade_in = tradeIn;
+    }
 
     if (sourcedCount > 0) {
       if (!permissions.includes("purchases.manage")) {
@@ -565,7 +595,9 @@ export async function createQuickSale(input: unknown): Promise<CreateSaleResult>
     }
 
     const supabase = await createClient();
-    const { data, error } = await supabase.rpc("create_quick_sale", { p_payload: payload });
+    const { data, error } = await supabase.rpc(tradeIn ? "create_trade_in_sale" : "create_quick_sale", {
+      p_payload: payload,
+    });
 
     if (error) {
       // The database raises clear English messages; show them as they are
@@ -574,9 +606,15 @@ export async function createQuickSale(input: unknown): Promise<CreateSaleResult>
 
     revalidatePath("/sales");
     if (sourcedCount > 0) revalidatePath("/purchases");
+    if (tradeIn) {
+      revalidatePath("/purchases/from-customers");
+      revalidatePath("/inventory");
+    }
     return { ok: true, error: null, result: data as SaleResult };
   } catch (e) {
-    if (e instanceof InputError) return { ok: false, error: e.message, result: null };
+    if (e instanceof InputError || e instanceof TradeInInputError) {
+      return { ok: false, error: e.message, result: null };
+    }
     console.error("createQuickSale error:", e);
     return { ok: false, error: "The sale could not be saved. Please try again.", result: null };
   }

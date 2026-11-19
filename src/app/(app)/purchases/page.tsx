@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { PackagePlus, ReceiptText } from "lucide-react";
+import { HandCoins, PackagePlus, ReceiptText } from "lucide-react";
 import AccessDenied from "@/components/AccessDenied";
-import { EmptyState, Notice, PageHeader, Pill, primaryButtonClass } from "@/components/ui";
+import { EmptyState, Notice, PageHeader, Pill, primaryButtonClass, secondaryButtonClass } from "@/components/ui";
 import { createClient } from "@/lib/supabase/server";
 import { getMyBusiness } from "@/lib/business";
 import { canViewPage, getMyPermissions } from "@/lib/permissions";
@@ -108,6 +108,16 @@ export default async function PurchasesPage() {
       New purchase
     </Link>
   );
+  // Used phones bought from customers (and POS trade-ins) have their own list
+  const headerActions = (
+    <div className="flex flex-wrap gap-2">
+      <Link href="/purchases/from-customers" className={secondaryButtonClass + " min-h-12"}>
+        <HandCoins className="h-5 w-5" />
+        Bought from customers
+      </Link>
+      {newButton}
+    </div>
+  );
 
   return (
     <div className="mx-auto max-w-6xl space-y-6">
@@ -115,7 +125,7 @@ export default async function PurchasesPage() {
         icon={ReceiptText}
         title="Purchases"
         description="Stock bought from suppliers. The latest 30 purchases are shown."
-        action={newButton}
+        action={headerActions}
       />
 
       {error ? (

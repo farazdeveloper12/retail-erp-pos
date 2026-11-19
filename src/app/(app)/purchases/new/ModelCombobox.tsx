@@ -1,7 +1,7 @@
 "use client";
 
 import { useId, useState, type KeyboardEvent } from "react";
-import { ExternalLink, RefreshCw } from "lucide-react";
+import { ExternalLink, Plus, RefreshCw } from "lucide-react";
 import { inputClass } from "@/components/ui";
 
 export type ModelOption = { id: string; label: string };
@@ -18,6 +18,7 @@ export default function ModelCombobox({
   onReload,
   reloading,
   label,
+  onQuickAdd,
 }: {
   models: ModelOption[];
   value: string;
@@ -26,6 +27,8 @@ export default function ModelCombobox({
   onReload: () => void;
   reloading: boolean;
   label: string;
+  // When given, a missing model can be added right here (with the typed name)
+  onQuickAdd?: (query: string) => void;
 }) {
   const listId = useId();
   const [editing, setEditing] = useState(false);
@@ -131,7 +134,19 @@ export default function ModelCombobox({
           ) : (
             <div id={listId} className="space-y-2 px-3 py-3 text-sm">
               <p className="text-ink-muted">No model matches &quot;{query.trim()}&quot;.</p>
-              {canAddModels ? (
+              {onQuickAdd ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onQuickAdd(query.trim());
+                    setEditing(false);
+                  }}
+                  className="inline-flex min-h-11 items-center gap-1.5 rounded-full bg-accent px-4 text-xs font-semibold text-accent-ink"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  Add &quot;{query.trim()}&quot; as a new model
+                </button>
+              ) : canAddModels ? (
                 <div className="flex flex-wrap gap-2">
                   <a
                     href="/catalog/new"

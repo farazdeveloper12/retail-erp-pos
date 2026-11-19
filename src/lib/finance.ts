@@ -70,6 +70,7 @@ export const CATEGORY_LABELS: Record<string, string> = {
   adjustment: "Adjustment",
   sale_refund: "Sale refund",
   purchase_refund: "Purchase refund",
+  customer_purchase: "Phone bought from customer",
 };
 
 export function categoryLabel(category: string) {
@@ -113,6 +114,7 @@ export function entrySourceHref(row: { ref_type: string | null; ref_id: string |
   if (row.ref_type === "expense" || row.ref_type === "expense_void") return "/expenses";
   if (row.ref_type === "sales_return") return `/returns/sales/${row.ref_id}`;
   if (row.ref_type === "purchase_return") return `/returns/purchases/${row.ref_id}`;
+  if (row.ref_type === "customer_purchase") return `/purchases/from-customers/${row.ref_id}`;
   return null;
 }
 

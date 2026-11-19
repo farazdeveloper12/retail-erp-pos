@@ -9,8 +9,10 @@ import {
   Headphones,
   PackagePlus,
   PackageSearch,
+  Pencil,
   Plus,
   Printer,
+  Repeat,
   ShoppingCart,
   Smartphone,
   Trash2,
@@ -37,6 +39,8 @@ import { loadPurchaseCatalog, type CatalogBrand } from "@/app/(app)/purchases/ne
 import SaleItemSearch from "@/app/(app)/sales/new/SaleItemSearch";
 import CustomerPanel, { type CustomerValue } from "@/app/(app)/sales/new/CustomerPanel";
 import QuickSourceCard, { type SourcedDraft } from "@/app/(app)/sales/new/QuickSourceCard";
+import TradeInCard from "@/app/(app)/sales/new/TradeInCard";
+import { EMPTY_TRADE_IN, cleanImei, tradeInPayload, type TradeInDraft } from "@/lib/trade-in";
 
 // ---------- Types and helpers ----------
 
@@ -255,12 +259,14 @@ export default function SaleEntry({
   canSource,
   canAddModels,
   canCreateProducts,
+  canTradeIn,
 }: {
   currency: string;
   seesCost: boolean;
   canSource: boolean;
   canAddModels: boolean;
   canCreateProducts: boolean;
+  canTradeIn: boolean;
 }) {
   const rootRef = useRef<HTMLDivElement>(null);
   const addItemRef = useRef<HTMLInputElement>(null);
@@ -285,6 +291,11 @@ export default function SaleEntry({
   const [supplier, setSupplier] = useState<PickedSupplier | null>(null);
   const [supplierPaid, setSupplierPaid] = useState("0");
   const [supplierMethod, setSupplierMethod] = useState<"cash" | "bank">("cash");
+
+  // The customer's old phone (trade-in): its value pays part of the invoice
+  const [tradeIn, setTradeIn] = useState<TradeInDraft | null>(null);
+  const [tradeInOpen, setTradeInOpen] = useState(false);
+  const [tradeInKey, setTradeInKey] = useState(0);
 
   // Focus a field after lines were added, or the Add item box after a reset
   useEffect(() => {
@@ -375,6 +386,30 @@ export default function SaleEntry({
     pendingFocus.current = "add-item";
   }
 
+  function openTradeIn() {
+    setNotice(null);
+    setTradeInKey((k) => k + 1);
+    setTradeInOpen(true);
+    if (!catalog && !catalogLoading) void loadCatalog();
+  }
+
+  // The POS customer is the seller unless the card says otherwise
+  function tradeInStart(): TradeInDraft {
+    if (tradeIn) return tradeIn;
+    return {
+      ...EMPTY_TRADE_IN,
+      customerId: customer.existing?.id ?? null,
+      sellerName: customer.existing?.name ?? customer.name,
+      sellerPhone: customer.existing?.phone ?? customer.phone,
+    };
+  }
+
+  function saveTradeIn(draft: TradeInDraft) {
+    setTradeIn(draft);
+    setTradeInOpen(false);
+    pendingFocus.current = "add-item";
+  }
+
   function addSourced(draft: SourcedDraft) {
     pendingFocus.current = fieldSelector(lines.length, "price");
     setLines((current) => [...current, lineFromDraft(draft)]);
@@ -389,7 +424,21 @@ export default function SaleEntry({
   const grandTotal =
     discountCents !== null && discountCents <= subtotal ? subtotal - discountCents : subtotal;
   const paidCents = money(paid);
-  const remaining = paidCents !== null ? grandTotal - paidCents : grandTotal;
+  const tradeInCents = tradeIn ? (toCents(tradeIn.price) ?? ZERO) : ZERO;
+  const remaining = (paidCents !== null ? grandTotal - paidCents : grandTotal) - tradeInCents;
+
+  // "Brand Model 128 GB" of the trade-in phone, from the loaded catalog
+  let tradeInLabel = "Old phone";
+  if (tradeIn && catalog) {
+    for (const brand of catalog) {
+      const model = brand.models.find((m) => m.id === tradeIn.modelId);
+      if (model) {
+        const variant = model.variants.find((v) => v.id === tradeIn.variantId);
+        tradeInLabel = `${brand.name} ${model.name}${variant ? ` ${variant.storage_gb} GB` : ""}`;
+        break;
+      }
+    }
+  }
 
   const hasSourced = lines.some((l) => l.sourced);
   const sourcedCost = lines.reduce<bigint>((sum, line, i) => {
@@ -425,11 +474,15 @@ export default function SaleEntry({
   else if (discountCents > subtotal) reasons.push("Invoice discount cannot be more than the subtotal.");
   if (paidCents === null) reasons.push("Enter a valid amount for Paid now.");
   else if (paidCents > grandTotal) reasons.push("Paid now cannot be more than the grand total.");
+  else if (tradeIn && paidCents + tradeInCents > grandTotal) {
+    reasons.push("The trade-in value plus Paid now cannot be more than the grand total.");
+  }
 
   // Unpaid money always needs a known customer
   const needsCustomer = paidCents === null || remaining > ZERO;
   const hasNewCustomer = customer.name.trim() !== "" && customer.phone.trim() !== "";
-  if (needsCustomer && !customer.existing && !hasNewCustomer) {
+  // A trade-in always has the seller's name and phone
+  if (needsCustomer && !customer.existing && !hasNewCustomer && !tradeIn) {
     reasons.push("Customer name and phone are required when part of the amount remains unpaid.");
   }
 
@@ -503,6 +556,7 @@ export default function SaleEntry({
     if (customer.phone.trim()) sale.customer_phone = customer.phone.trim();
 
     const payload: Record<string, unknown> = { sale };
+    if (tradeIn) payload.trade_in = tradeInPayload(tradeIn);
     if (hasSourced && supplier) {
       payload.supplier_id = supplier.id;
       payload.supplier_paid_amount = plainNumber(supplierPaid);
@@ -538,6 +592,8 @@ export default function SaleEntry({
     setSupplier(null);
     setSupplierPaid("0");
     setSupplierMethod("cash");
+    setTradeIn(null);
+    setTradeInOpen(false);
     pendingFocus.current = "add-item";
   }
 
@@ -589,6 +645,18 @@ export default function SaleEntry({
             </div>
           ))}
         </dl>
+        {result.trade_in_id && (
+          <p className="mt-4 flex items-start justify-center gap-2 rounded-2xl bg-lavender px-4 py-3 text-left text-sm text-ink">
+            <Repeat className="mt-0.5 h-4 w-4 shrink-0 text-purple" />
+            <span>
+              Trade-in of {formatMoney(result.trade_in ?? 0, currency)} taken off the invoice; the old phone is in
+              stock as Used.{" "}
+              <Link href={`/purchases/from-customers/${result.trade_in_id}`} className="font-semibold text-accent">
+                Open the trade-in slip
+              </Link>
+            </span>
+          </p>
+        )}
         {result.purchase_no !== undefined && result.purchase_no !== null && (
           <p className="mt-4 flex items-start justify-center gap-2 rounded-2xl bg-lavender px-4 py-3 text-left text-sm text-ink">
             <Truck className="mt-0.5 h-4 w-4 shrink-0 text-purple" />
@@ -643,10 +711,18 @@ export default function SaleEntry({
               <ShoppingCart className="h-5 w-5 text-accent" />
               <h2 className="text-base font-bold text-ink">Items</h2>
             </div>
-            <button type="button" onClick={addUnstocked} className={secondaryButtonClass}>
-              <PackageSearch className="h-4 w-4" />
-              Item not in stock
-            </button>
+            <div className="flex flex-wrap gap-2">
+              <button type="button" onClick={addUnstocked} className={secondaryButtonClass}>
+                <PackageSearch className="h-4 w-4" />
+                Item not in stock
+              </button>
+              {canTradeIn && !tradeIn && (
+                <button type="button" onClick={openTradeIn} className={secondaryButtonClass}>
+                  <Repeat className="h-4 w-4" />
+                  Trade-in
+                </button>
+              )}
+            </div>
           </div>
 
           <SaleItemSearch
@@ -673,6 +749,56 @@ export default function SaleEntry({
               onAdd={addSourced}
               onClose={closeSourcing}
             />
+          )}
+
+          {tradeInOpen && canTradeIn && (
+            <TradeInCard
+              key={tradeInKey}
+              initial={tradeInStart()}
+              brands={catalog}
+              loadingCatalog={catalogLoading}
+              onReloadCatalog={loadCatalog}
+              currency={currency}
+              usedImeis={usedImeis}
+              onSave={saveTradeIn}
+              onClose={() => setTradeInOpen(false)}
+            />
+          )}
+
+          {tradeIn && !tradeInOpen && (
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-line bg-lavender/40 px-4 py-3">
+              <div className="flex min-w-0 items-start gap-3">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-lavender text-purple">
+                  <Repeat className="h-4 w-4" />
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-sm font-semibold text-ink">Trade-in: {tradeInLabel}</span>
+                  <span className="block font-mono text-xs text-ink-muted">IMEI {cleanImei(tradeIn.imei)}</span>
+                  <span className="block text-xs text-ink-muted">
+                    Grade {tradeIn.grade} · from {tradeIn.sellerName.trim()}
+                  </span>
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-bold text-ink">-{formatMoney(tradeInCents, currency)}</span>
+                <button
+                  type="button"
+                  onClick={openTradeIn}
+                  aria-label="Edit trade-in"
+                  className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-line text-ink-muted hover:bg-surface"
+                >
+                  <Pencil className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTradeIn(null)}
+                  aria-label="Remove trade-in"
+                  className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-line text-ink-muted hover:bg-danger-soft hover:text-danger"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
           )}
 
           {lines.length === 0 ? (
@@ -1053,6 +1179,12 @@ export default function SaleEntry({
                 <dt className="text-xs text-ink-muted lg:text-sm">Grand total</dt>
                 <dd className="text-base font-bold text-ink">{formatMoney(grandTotal, currency)}</dd>
               </div>
+              {tradeIn && (
+                <div className="flex flex-col lg:flex-row lg:justify-between">
+                  <dt className="text-xs text-ink-muted lg:text-sm">Trade-in</dt>
+                  <dd className="font-semibold text-ink">-{formatMoney(tradeInCents, currency)}</dd>
+                </div>
+              )}
             </dl>
             {seesCost && profit !== null && lines.length > 0 && (
               <p className="text-xs text-ink-muted">
@@ -1079,7 +1211,9 @@ export default function SaleEntry({
               />
               <button
                 type="button"
-                onClick={() => setPaid(centsToPlain(grandTotal))}
+                onClick={() =>
+                  setPaid(centsToPlain(grandTotal > tradeInCents ? grandTotal - tradeInCents : ZERO))
+                }
                 className="mt-2 inline-flex min-h-11 w-full items-center justify-center rounded-full bg-mint px-3 text-xs font-semibold text-ink"
               >
                 Paid in full
