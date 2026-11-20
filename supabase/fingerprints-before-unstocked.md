@@ -37,3 +37,23 @@ with this table.
 migrations, the other four functions and `get_dashboard` have new fingerprints
 on gwadar-test, so always compare the real project with these tables, not
 with gwadar-test after the migrations.
+
+## Before Part 2 (phone catalog and PTA status)
+
+Read from **gwadar-test** on 20 Nov 2026, **before**
+`migrations/20261122000000_phone_catalog_pta.sql` was run (and after the
+unstocked, profit before VAT and trade-in migrations). That migration
+replaces these four functions.
+
+| Function | Arguments | Fingerprint |
+| --- | --- | --- |
+| `create_purchase` | `p_payload jsonb` | `38985d7d80ac6ea6bb1f3a5fbf212854` |
+| `create_quick_sale` | `p_payload jsonb` | `aa36949d4329f0e2210dd562cf802a69` |
+| `create_sale` | `p_payload jsonb` | `51cb81ed1e36dd665e74380fa140c102` |
+| `customer_purchase_add_unit` | `p_biz uuid, p_uid uuid, p_phone jsonb, OUT unit_id uuid, OUT description text` | `c077bc44d082ee75e92ae52917ce8227` |
+
+On the real project, compare these only after the earlier migrations have
+been run there too: `create_sale` is changed by the unstocked migration and
+`customer_purchase_add_unit` is created by the trade-in migration.
+`create_quick_sale` was not changed by any earlier migration, so its
+fingerprint is the same as in the first table.
