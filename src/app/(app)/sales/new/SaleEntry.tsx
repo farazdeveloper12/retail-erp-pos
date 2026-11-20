@@ -92,7 +92,7 @@ function lineFromOption(option: SaleItemOption): SaleLine {
     key: newKey(),
     quantity: "1",
     unitPrice: price === null ? "" : centsToPlain(price),
-    discount: "0",
+    discount: "",
     cost,
     sourced: false,
     sourceCost: "",
@@ -118,7 +118,7 @@ function lineFromOption(option: SaleItemOption): SaleLine {
     detail: "",
     imei: null,
     inStock: option.in_stock,
-    warranty: "0",
+    warranty: "",
   };
 }
 
@@ -126,7 +126,7 @@ function lineFromDraft(draft: SourcedDraft): SaleLine {
   const base = {
     key: newKey(),
     unitPrice: draft.salePrice,
-    discount: "0",
+    discount: "",
     cost: null,
     sourced: true,
     sourceCost: draft.cost,
@@ -159,7 +159,7 @@ function lineFromDraft(draft: SourcedDraft): SaleLine {
     imei: null,
     inStock: MAX_SOURCED_QTY,
     quantity: draft.quantity,
-    warranty: "0",
+    warranty: "",
     source: null,
   };
 }
@@ -175,8 +175,8 @@ function newUnstockedLine(): SaleLine {
     inStock: MAX_UNSTOCKED_QTY,
     quantity: "1",
     unitPrice: "",
-    discount: "0",
-    warranty: "0",
+    discount: "",
+    warranty: "",
     cost: null,
     sourced: false,
     sourceCost: "",
@@ -274,9 +274,9 @@ export default function SaleEntry({
 
   const [lines, setLines] = useState<SaleLine[]>([]);
   const [customer, setCustomer] = useState<CustomerValue>(emptyCustomer);
-  const [invoiceDiscount, setInvoiceDiscount] = useState("0");
+  const [invoiceDiscount, setInvoiceDiscount] = useState("");
   const [method, setMethod] = useState<"cash" | "bank">("cash");
-  const [paid, setPaid] = useState("0");
+  const [paid, setPaid] = useState("");
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -289,7 +289,7 @@ export default function SaleEntry({
   const [catalog, setCatalog] = useState<CatalogBrand[] | null>(null);
   const [catalogLoading, setCatalogLoading] = useState(false);
   const [supplier, setSupplier] = useState<PickedSupplier | null>(null);
-  const [supplierPaid, setSupplierPaid] = useState("0");
+  const [supplierPaid, setSupplierPaid] = useState("");
   const [supplierMethod, setSupplierMethod] = useState<"cash" | "bank">("cash");
 
   // The customer's old phone (trade-in): its value pays part of the invoice
@@ -581,16 +581,16 @@ export default function SaleEntry({
   function resetAll() {
     setLines([]);
     setCustomer(emptyCustomer);
-    setInvoiceDiscount("0");
+    setInvoiceDiscount("");
     setMethod("cash");
-    setPaid("0");
+    setPaid("");
     setNotes("");
     setSaveError(null);
     setNotice(null);
     setResult(null);
     setSourcingOpen(false);
     setSupplier(null);
-    setSupplierPaid("0");
+    setSupplierPaid("");
     setSupplierMethod("cash");
     setTradeIn(null);
     setTradeInOpen(false);
@@ -1004,6 +1004,7 @@ export default function SaleEntry({
                             type="text"
                             inputMode="decimal"
                             autoComplete="off"
+                            placeholder="0"
                             value={line.discount}
                             onChange={(e) => updateLine(index, { discount: e.target.value })}
                             aria-label={`Discount, line ${n}`}
@@ -1019,6 +1020,7 @@ export default function SaleEntry({
                             type="text"
                             inputMode="numeric"
                             autoComplete="off"
+                            placeholder="0"
                             value={line.warranty}
                             onChange={(e) => updateLine(index, { warranty: e.target.value })}
                             aria-label={`Warranty days, line ${n}`}
@@ -1120,6 +1122,7 @@ export default function SaleEntry({
                 type="text"
                 inputMode="decimal"
                 autoComplete="off"
+                placeholder="0"
                 value={supplierPaid}
                 onChange={(e) => setSupplierPaid(e.target.value)}
                 className={inputClass}
@@ -1169,6 +1172,7 @@ export default function SaleEntry({
                     type="text"
                     inputMode="decimal"
                     autoComplete="off"
+                    placeholder="0"
                     value={invoiceDiscount}
                     onChange={(e) => setInvoiceDiscount(e.target.value)}
                     className={inputClass + " min-h-11 lg:w-32 lg:text-right"}
@@ -1205,6 +1209,7 @@ export default function SaleEntry({
                 type="text"
                 inputMode="decimal"
                 autoComplete="off"
+                placeholder="0"
                 value={paid}
                 onChange={(e) => setPaid(e.target.value)}
                 className={inputClass}

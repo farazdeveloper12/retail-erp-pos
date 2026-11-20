@@ -676,7 +676,7 @@ export default async function InvoicePage({
             <>
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm">
-                  <thead className="border-b border-line text-xs font-semibold uppercase tracking-wide text-ink-muted">
+                  <thead className="border-b border-line bg-surface-muted text-xs font-semibold uppercase tracking-wide text-ink-muted">
                     <tr>
                       <th className="py-2 pr-3">Item</th>
                       <th className="px-2 py-2 text-right">Qty</th>

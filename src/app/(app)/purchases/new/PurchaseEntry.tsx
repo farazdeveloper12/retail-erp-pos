@@ -243,7 +243,7 @@ export default function PurchaseEntry({
   const [date, setDate] = useState(today);
   const [invoiceNo, setInvoiceNo] = useState("");
   const [moreOpen, setMoreOpen] = useState(false);
-  const [extraCost, setExtraCost] = useState("0");
+  const [extraCost, setExtraCost] = useState("");
   const [notes, setNotes] = useState("");
 
   // Lines
@@ -252,7 +252,7 @@ export default function PurchaseEntry({
   const [inStock, setInStock] = useState<Set<string>>(() => new Set());
 
   // Payment and saving
-  const [paid, setPaid] = useState("0");
+  const [paid, setPaid] = useState("");
   const [method, setMethod] = useState<"" | "cash" | "bank">("");
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -557,13 +557,13 @@ export default function PurchaseEntry({
     setSupplier(null);
     setDate(today);
     setInvoiceNo("");
-    setExtraCost("0");
+    setExtraCost("");
     setNotes("");
     setMoreOpen(false);
     setPhones([emptyPhone()]);
     setAccessories([emptyAccessory()]);
     setInStock(new Set());
-    setPaid("0");
+    setPaid("");
     setMethod("");
     setSaveError(null);
     setResult(null);
@@ -724,6 +724,7 @@ export default function PurchaseEntry({
                 id="purchase-extra"
                 type="text"
                 inputMode="decimal"
+                placeholder="0"
                 value={extraCost}
                 onChange={(event) => setExtraCost(event.target.value)}
                 className={inputClass}
@@ -1079,6 +1080,7 @@ export default function PurchaseEntry({
                 type="text"
                 inputMode="decimal"
                 autoComplete="off"
+                placeholder="0"
                 value={paid}
                 onChange={(event) => setPaid(event.target.value)}
                 className={inputClass}
@@ -1094,7 +1096,7 @@ export default function PurchaseEntry({
                 <button
                   type="button"
                   onClick={() => {
-                    setPaid("0");
+                    setPaid("");
                     setMethod("");
                   }}
                   className="inline-flex min-h-11 flex-1 items-center justify-center rounded-full border border-line-strong px-3 text-xs font-semibold text-ink"
