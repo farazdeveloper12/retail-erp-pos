@@ -5,6 +5,8 @@ import { createClient } from "@/lib/supabase/server";
 import { getMyPermissions } from "@/lib/permissions";
 import { UUID_PATTERN } from "@/lib/catalog";
 import { PERMISSION_TRADE_IN, TradeInInputError, parseTradeIn } from "@/lib/trade-in";
+import { PhoneOptionError, ptaValue, resolvePhoneOption } from "@/lib/phone-options";
+import { ptaLabel } from "@/lib/pta";
 
 type Db = Awaited<ReturnType<typeof createClient>>;
 type Row = Record<string, unknown>;
@@ -18,6 +20,8 @@ export type PhoneOption = {
   storage: string | null;
   color: string | null;
   condition: string | null;
+  // "PTA Approved", "Non-PTA", "JV" or null
+  pta: string | null;
   imei: string;
   sale_price: number | string | null;
   // Only present for users with inventory.view_cost
@@ -82,6 +86,7 @@ type PhoneUnitRow = {
   color_name: string | null;
   condition: string | null;
   sale_price: number | string | null;
+  pta_status: string | null;
 };
 
 type ProductRow = { id: string; name: string; sale_price: number | string | null };
@@ -89,7 +94,7 @@ type ProductStockRow = { product_id: string; qty: number | string | null };
 type CustomerRow = { id: string; name: string; phone: string | null; is_active: boolean };
 
 const PHONE_UNIT_COLUMNS =
-  "id, imei, brand_name, model_name, storage_gb, ram_gb, color_name, condition, sale_price";
+  "id, imei, brand_name, model_name, storage_gb, ram_gb, color_name, condition, sale_price, pta_status";
 
 // ---------- Helpers ----------
 
@@ -145,6 +150,7 @@ function toPhoneOption(unit: PhoneUnitRow): PhoneOption {
     storage,
     color: unit.color_name,
     condition: unit.condition ? CONDITION_LABELS[unit.condition] ?? unit.condition : null,
+    pta: ptaLabel(unit.pta_status),
     imei: unit.imei,
     sale_price: priceValue(unit.sale_price),
   };
@@ -169,21 +175,34 @@ async function searchPhones(
     if (error) throw new Error(error.message);
     units = (data ?? []) as PhoneUnitRow[];
   } else {
-    // Brand and model: the first word narrows in the database,
-    // then every typed word must appear in "Brand Model"
+    // Words in any order, partial words allowed: "iph 15 pro 256 blue".
+    // The longest word with a letter narrows in the database; then every
+    // typed word must appear in "Brand Model 256GB Colour PTA".
     const tokens = query.toLowerCase().split(" ").filter(Boolean);
-    const first = tokens[0];
-    const { data, error } = await supabase
-      .from("phone_units")
-      .select(PHONE_UNIT_COLUMNS)
-      .eq("status", "in_stock")
-      .or(`brand_name.ilike.%${first}%,model_name.ilike.%${first}%`)
-      .order("model_name")
-      .limit(100);
+    const narrow = [...tokens].filter((t) => /[a-z]/.test(t)).sort((a, b) => b.length - a.length)[0];
+    let request = supabase.from("phone_units").select(PHONE_UNIT_COLUMNS).eq("status", "in_stock");
+    if (narrow) {
+      request = request.or(
+        `brand_name.ilike.%${narrow}%,model_name.ilike.%${narrow}%,color_name.ilike.%${narrow}%`
+      );
+    }
+    const { data, error } = await request.order("model_name").limit(300);
     if (error) throw new Error(error.message);
     units = ((data ?? []) as PhoneUnitRow[])
       .filter((u) => {
-        const label = `${u.brand_name ?? ""} ${u.model_name ?? ""}`.toLowerCase();
+        const storage = u.storage_gb ?? 0;
+        const label = [
+          u.brand_name,
+          u.model_name,
+          storage ? `${storage}gb` : "",
+          storage ? storageLabel(storage).replace(/\s+/g, "").toLowerCase() : "",
+          u.ram_gb ? `${u.ram_gb}gb` : "",
+          u.color_name,
+          ptaLabel(u.pta_status),
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
         return tokens.every((t) => label.includes(t));
       })
       .slice(0, MAX_RESULTS);
@@ -448,10 +467,15 @@ function buildSale(input: unknown, tradeInCredit = 0) {
       item = {
         item_type: "phone",
         sourced: true,
-        model_id: uuid(raw.model_id, `${line}: choose a model.`),
-        variant_id: uuid(raw.variant_id, `${line}: choose the storage.`),
-        color_id: raw.color_id ? uuid(raw.color_id, `${line}: the colour is not valid.`) : null,
+        // Storage/RAM and colour are turned into catalog ids before saving
+        spec: {
+          model_id: uuid(raw.model_id, `${line}: choose a model.`),
+          storage_gb: raw.storage_gb,
+          ram_gb: raw.ram_gb ?? null,
+          color_name: raw.color_name ?? null,
+        },
         condition,
+        pta_status: ptaValue(raw.pta_status, line),
         imei,
         unit_cost: amount(raw.unit_cost, `${line}: purchase price`),
         ...common,
@@ -467,12 +491,14 @@ function buildSale(input: unknown, tradeInCredit = 0) {
       quantity = wholeNumber(raw.quantity, `${line}: quantity`, 1, 10000);
       const description = optionalText(raw.description, 200, `${line}: item name`);
       if (!description) throw new InputError(`${line}: enter the item name.`);
+      const pta = ptaValue(raw.pta_status, line);
       item = {
         item_type: "unstocked",
         description,
         imei: optionalText(raw.imei, 40, `${line}: IMEI or serial number`),
         quantity,
         unit_cost: amount(raw.unit_cost, `${line}: cost price`),
+        pta_status: pta,
         ...common,
       };
     } else if (raw.item_type === "accessory") {
@@ -595,6 +621,22 @@ export async function createQuickSale(input: unknown): Promise<CreateSaleResult>
     }
 
     const supabase = await createClient();
+    // Phones from a supplier and trade-ins: storage/RAM option and colour are
+    // found in the catalog, or created when missing
+    for (const [index, item] of (sale.items as Row[]).entries()) {
+      if (item.spec) {
+        const option = await resolvePhoneOption(supabase, item.spec, `Line ${index + 1}`);
+        delete item.spec;
+        item.model_id = option.model_id;
+        item.variant_id = option.variant_id;
+        item.color_id = option.color_id;
+      }
+    }
+    if (tradeIn) {
+      const option = await resolvePhoneOption(supabase, tradeIn, "Trade-in");
+      tradeIn.variant_id = option.variant_id;
+      tradeIn.color_id = option.color_id;
+    }
     const { data, error } = await supabase.rpc(tradeIn ? "create_trade_in_sale" : "create_quick_sale", {
       p_payload: payload,
     });
@@ -612,7 +654,7 @@ export async function createQuickSale(input: unknown): Promise<CreateSaleResult>
     }
     return { ok: true, error: null, result: data as SaleResult };
   } catch (e) {
-    if (e instanceof InputError || e instanceof TradeInInputError) {
+    if (e instanceof InputError || e instanceof TradeInInputError || e instanceof PhoneOptionError) {
       return { ok: false, error: e.message, result: null };
     }
     console.error("createQuickSale error:", e);

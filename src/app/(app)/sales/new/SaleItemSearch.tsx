@@ -239,6 +239,7 @@ export default function SaleItemSearch({
                         {option.model}
                         {option.storage ? ` · ${option.storage}` : ""}
                         {option.color ? ` · ${option.color}` : ""}
+                        {option.pta ? ` · ${option.pta}` : ""}
                       </span>
                       <span className="block truncate text-xs text-ink-muted">
                         {option.condition ? `${option.condition} · ` : ""}IMEI{" "}

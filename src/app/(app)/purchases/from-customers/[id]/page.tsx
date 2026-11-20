@@ -11,6 +11,7 @@ import { UUID_PATTERN } from "@/lib/catalog";
 import { formatMoney } from "@/lib/money";
 import { formatDateWith, formatInvoiceNo } from "@/lib/format";
 import { formatCustomerPurchaseNo, gradeLabel } from "@/lib/trade-in";
+import { ptaLabel } from "@/lib/pta";
 import AutoPrint from "@/app/(app)/purchases/from-customers/AutoPrint";
 
 export const metadata: Metadata = {
@@ -31,7 +32,13 @@ type SlipRow = {
   price: number | string;
   payment_method: string;
   sale_id: string | null;
-  phone: { brand_name: string; model_name: string; storage_gb: number; color_name: string | null } | null;
+  phone: {
+    brand_name: string;
+    model_name: string;
+    storage_gb: number;
+    color_name: string | null;
+    pta_status: string | null;
+  } | null;
   sale: { invoice_no: number | null } | null;
 };
 
@@ -67,7 +74,7 @@ export default async function CustomerPurchaseSlipPage({
     supabase
       .from("customer_purchases")
       .select(
-        "id, purchase_no, purchase_date, seller_name, seller_phone, seller_id_number, imei, description, grade, condition_notes, price, payment_method, sale_id, phone:phone_units(brand_name, model_name, storage_gb, color_name), sale:sales(invoice_no)"
+        "id, purchase_no, purchase_date, seller_name, seller_phone, seller_id_number, imei, description, grade, condition_notes, price, payment_method, sale_id, phone:phone_units(brand_name, model_name, storage_gb, color_name, pta_status), sale:sales(invoice_no)"
       )
       .eq("id", id)
       .maybeSingle(),
@@ -88,6 +95,7 @@ export default async function CustomerPurchaseSlipPage({
     ["CNIC / Emirates ID", slip.seller_id_number || "—"],
     ["Phone", phoneName],
     ["IMEI", slip.imei],
+    ...(ptaLabel(slip.phone?.pta_status) ? ([["PTA status", ptaLabel(slip.phone?.pta_status)!]] as [string, string][]) : []),
     ["Condition", gradeLabel(slip.grade) + (slip.condition_notes ? ` · ${slip.condition_notes}` : "")],
     ["Paid by", METHOD_LABELS[slip.payment_method] ?? slip.payment_method],
   ];

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -41,13 +41,15 @@ import CustomerPanel, { type CustomerValue } from "@/app/(app)/sales/new/Custome
 import QuickSourceCard, { type SourcedDraft } from "@/app/(app)/sales/new/QuickSourceCard";
 import TradeInCard from "@/app/(app)/sales/new/TradeInCard";
 import { EMPTY_TRADE_IN, cleanImei, tradeInPayload, type TradeInDraft } from "@/lib/trade-in";
+import { buildPhoneIndex, specLabel, specPayload, type PhoneSpec } from "@/lib/phone-catalog";
+import { showsPta } from "@/lib/pta";
+import { PtaSelect } from "@/components/phone/PhoneOptionPickers";
 
 // ---------- Types and helpers ----------
 
 type SourceInfo = {
-  modelId: string;
-  variantId: string;
-  colorId: string | null;
+  spec: PhoneSpec;
+  pta: string;
   condition: string;
 };
 
@@ -72,6 +74,8 @@ type SaleLine = {
   sourced: boolean;
   sourceCost: string;
   source: SourceInfo | null;
+  // PTA status of an "Item not in stock" line ("" = not known)
+  pta: string;
 };
 
 const ZERO = BigInt(0);
@@ -97,6 +101,7 @@ function lineFromOption(option: SaleItemOption): SaleLine {
     sourced: false,
     sourceCost: "",
     source: null,
+    pta: "",
   };
   if (option.kind === "phone") {
     return {
@@ -104,7 +109,7 @@ function lineFromOption(option: SaleItemOption): SaleLine {
       kind: "phone",
       refId: option.phone_unit_id,
       title: option.model,
-      detail: [option.storage, option.color, option.condition].filter(Boolean).join(" · "),
+      detail: [option.storage, option.color, option.condition, option.pta].filter(Boolean).join(" · "),
       imei: option.imei,
       inStock: 1,
       warranty: "7",
@@ -125,6 +130,7 @@ function lineFromOption(option: SaleItemOption): SaleLine {
 function lineFromDraft(draft: SourcedDraft): SaleLine {
   const base = {
     key: newKey(),
+    pta: "",
     unitPrice: draft.salePrice,
     discount: "",
     cost: null,
@@ -143,9 +149,8 @@ function lineFromDraft(draft: SourcedDraft): SaleLine {
       quantity: "1",
       warranty: "7",
       source: {
-        modelId: draft.modelId,
-        variantId: draft.variantId,
-        colorId: draft.colorId,
+        spec: draft.spec,
+        pta: draft.pta,
         condition: draft.condition,
       },
     };
@@ -161,6 +166,7 @@ function lineFromDraft(draft: SourcedDraft): SaleLine {
     quantity: draft.quantity,
     warranty: "",
     source: null,
+    pta: "",
   };
 }
 
@@ -181,6 +187,7 @@ function newUnstockedLine(): SaleLine {
     sourced: false,
     sourceCost: "",
     source: null,
+    pta: "",
   };
 }
 
@@ -257,14 +264,12 @@ export default function SaleEntry({
   currency,
   seesCost,
   canSource,
-  canAddModels,
   canCreateProducts,
   canTradeIn,
 }: {
   currency: string;
   seesCost: boolean;
   canSource: boolean;
-  canAddModels: boolean;
   canCreateProducts: boolean;
   canTradeIn: boolean;
 }) {
@@ -428,17 +433,8 @@ export default function SaleEntry({
   const remaining = (paidCents !== null ? grandTotal - paidCents : grandTotal) - tradeInCents;
 
   // "Brand Model 128 GB" of the trade-in phone, from the loaded catalog
-  let tradeInLabel = "Old phone";
-  if (tradeIn && catalog) {
-    for (const brand of catalog) {
-      const model = brand.models.find((m) => m.id === tradeIn.modelId);
-      if (model) {
-        const variant = model.variants.find((v) => v.id === tradeIn.variantId);
-        tradeInLabel = `${brand.name} ${model.name}${variant ? ` ${variant.storage_gb} GB` : ""}`;
-        break;
-      }
-    }
-  }
+  const phoneIndex = useMemo(() => buildPhoneIndex(catalog), [catalog]);
+  const tradeInLabel = tradeIn ? specLabel(phoneIndex, tradeIn.spec) : "Old phone";
 
   const hasSourced = lines.some((l) => l.sourced);
   const sourcedCost = lines.reduce<bigint>((sum, line, i) => {
@@ -518,9 +514,8 @@ export default function SaleEntry({
           return {
             item_type: "phone",
             sourced: true,
-            model_id: line.source.modelId,
-            variant_id: line.source.variantId,
-            color_id: line.source.colorId,
+            ...specPayload(line.source.spec),
+            pta_status: line.source.pta || null,
             condition: line.source.condition,
             imei: line.imei,
             unit_cost: plainNumber(line.sourceCost),
@@ -534,6 +529,7 @@ export default function SaleEntry({
           return {
             item_type: "unstocked",
             description: line.title.trim(),
+            pta_status: line.pta || null,
             imei: line.imei?.trim() || null,
             quantity: Number(line.quantity.trim()),
             unit_cost: plainNumber(line.sourceCost),
@@ -741,8 +737,7 @@ export default function SaleEntry({
               key={sourcingKey}
               brands={catalog}
               loadingCatalog={catalogLoading}
-              onReloadCatalog={() => void loadCatalog()}
-              canAddModels={canAddModels}
+              onReloadCatalog={loadCatalog}
               canCreateProducts={canCreateProducts}
               currency={currency}
               usedImeis={usedImeis}
@@ -897,6 +892,13 @@ export default function SaleEntry({
                                   aria-label={`IMEI or serial number, line ${n}`}
                                   className={inputClass + " font-mono"}
                                 />
+                                {showsPta(currency) && (
+                                  <PtaSelect
+                                    value={line.pta}
+                                    onChange={(pta) => updateLine(index, { pta })}
+                                    label={`PTA status, line ${n}`}
+                                  />
+                                )}
                               </span>
                               <span className="inline-flex items-center gap-1 rounded-full bg-lavender px-2 py-0.5 text-xs font-semibold text-ink">
                                 Not in stock · no stock change

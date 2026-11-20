@@ -15,6 +15,7 @@ import {
   secondaryButtonClass,
 } from "@/components/ui";
 import { createClient } from "@/lib/supabase/server";
+import { PTA_OPTIONS, isPtaStatus, ptaLabel, showsPta } from "@/lib/pta";
 import { DEFAULT_LOW_STOCK_THRESHOLD, getMyBusiness } from "@/lib/business";
 import { canViewPage, getMyPermissions } from "@/lib/permissions";
 import { formatMoney, toCents } from "@/lib/money";
@@ -39,6 +40,7 @@ type Params = {
   q?: string;
   status?: string;
   condition?: string;
+  pta?: string;
   filter?: string;
   page?: string;
 };
@@ -58,6 +60,7 @@ type PhoneRow = {
   sale_id: string | null;
   created_at: string;
   sold_at: string | null;
+  pta_status: string | null;
 };
 
 const CONDITIONS: { value: string; label: string }[] = [
@@ -206,19 +209,24 @@ async function PhonesTab({
   const supabase = await createClient();
   const status = params.status === "sold" || params.status === "all" ? params.status : "in_stock";
   const condition = CONDITIONS.some((c) => c.value === params.condition) ? params.condition! : "";
+  // PTA filter (PKR shops): approved, non_pta, jv or unknown (not recorded)
+  const ptaShown = showsPta(currency);
+  const pta = ptaShown && (isPtaStatus(params.pta) || params.pta === "unknown") ? params.pta! : "";
   const q = cleanSearch(params.q ?? "");
   const page = Math.max(1, Number.parseInt(params.page ?? "1", 10) || 1);
 
   let query = supabase
     .from("phone_units")
     .select(
-      "id, imei, brand_name, model_name, storage_gb, ram_gb, color_name, condition, sale_price, status, purchase_id, sale_id, created_at, sold_at",
+      "id, imei, brand_name, model_name, storage_gb, ram_gb, color_name, condition, sale_price, status, purchase_id, sale_id, created_at, sold_at, pta_status",
       { count: "exact" }
     )
     .order("created_at", { ascending: false })
     .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1);
   if (status !== "all") query = query.eq("status", status);
   if (condition) query = query.eq("condition", condition);
+  if (pta === "unknown") query = query.is("pta_status", null);
+  else if (pta) query = query.eq("pta_status", pta);
   if (q) {
     const compact = q.replace(/\s+/g, "");
     if (/^\d{3,15}$/.test(compact)) {
@@ -289,8 +297,14 @@ async function PhonesTab({
       : null,
   ]);
 
-  const base = { tab: "phones", q: params.q, status: status === "in_stock" ? undefined : status, condition };
-  const filtering = Boolean(q || condition || status !== "in_stock");
+  const base = {
+    tab: "phones",
+    q: params.q,
+    status: status === "in_stock" ? undefined : status,
+    condition,
+    pta: pta || undefined,
+  };
+  const filtering = Boolean(q || condition || pta || status !== "in_stock");
 
   function PurchaseLink({ phone }: { phone: PhoneRow }) {
     if (!canOpenPurchases || !phone.purchase_id) return null;
@@ -344,7 +358,15 @@ async function PhonesTab({
       </section>
 
       {/* Filters */}
-      <form method="get" className={cardClass + " grid gap-3 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-end"}>
+      <form
+        method="get"
+        className={
+          cardClass +
+          (ptaShown
+            ? " grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto] lg:items-end"
+            : " grid gap-3 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-end")
+        }
+      >
         <input type="hidden" name="tab" value="phones" />
         <div>
           <label htmlFor="phone-q" className={labelClass}>
@@ -385,6 +407,22 @@ async function PhonesTab({
             ))}
           </select>
         </div>
+        {ptaShown && (
+          <div>
+            <label htmlFor="phone-pta" className={labelClass}>
+              PTA status
+            </label>
+            <select id="phone-pta" name="pta" defaultValue={pta} className={inputClass}>
+              <option value="">All</option>
+              {PTA_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+              <option value="unknown">Not recorded</option>
+            </select>
+          </div>
+        )}
         <div className="flex gap-2">
           <button type="submit" className={primaryButtonClass + " flex-1"}>
             Search
@@ -423,7 +461,12 @@ async function PhonesTab({
                         {`${phone.brand_name ?? ""} ${phone.model_name ?? ""}`.trim() || "Phone"}
                       </p>
                       <p className="text-xs text-ink-muted">
-                        {[storageLabel(phone.storage_gb, phone.ram_gb), phone.color_name, phone.condition ? CONDITION_LABELS[phone.condition] ?? phone.condition : null]
+                        {[
+                          storageLabel(phone.storage_gb, phone.ram_gb),
+                          phone.color_name,
+                          phone.condition ? CONDITION_LABELS[phone.condition] ?? phone.condition : null,
+                          ptaLabel(phone.pta_status),
+                        ]
                           .filter(Boolean)
                           .join(" · ")}
                       </p>
@@ -476,6 +519,9 @@ async function PhonesTab({
                     <td className="px-4 py-3 font-mono text-xs text-ink">{phone.imei}</td>
                     <td className="px-4 py-3 text-ink-muted">
                       {phone.condition ? CONDITION_LABELS[phone.condition] ?? phone.condition : "—"}
+                      {ptaLabel(phone.pta_status) && (
+                        <span className="block text-xs text-ink-muted">{ptaLabel(phone.pta_status)}</span>
+                      )}
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-right font-semibold text-ink">
                       {formatMoney(phone.sale_price, currency)}

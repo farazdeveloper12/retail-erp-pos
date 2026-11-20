@@ -43,10 +43,20 @@ import {
   loadPurchaseCatalog,
   savePurchase,
   type CatalogBrand,
-  type CatalogModel,
   type PurchaseResult,
 } from "@/app/(app)/purchases/new/actions";
-import ModelCombobox, { type ModelOption } from "@/app/(app)/purchases/new/ModelCombobox";
+import PhoneModelSearch from "@/components/phone/PhoneModelSearch";
+import QuickAddModelForm from "@/components/phone/QuickAddModelForm";
+import { ColorPicker, PtaSelect, RamPicker, StoragePicker } from "@/components/phone/PhoneOptionPickers";
+import {
+  EMPTY_SPEC,
+  buildPhoneIndex,
+  isApple,
+  specPayload,
+  specProblem,
+  type PhoneSpec,
+} from "@/lib/phone-catalog";
+import { showsPta } from "@/lib/pta";
 import ImeiInput from "@/app/(app)/purchases/new/ImeiInput";
 
 // ---------- Types and helpers ----------
@@ -62,9 +72,9 @@ const CONDITIONS: { value: Condition; label: string }[] = [
 
 type PhoneRow = {
   key: string;
-  modelId: string;
-  variantId: string;
-  colorId: string;
+  // Model, storage, RAM and colour; missing options are created when saving
+  spec: PhoneSpec;
+  pta: string; // "" = not known
   condition: Condition;
   imeis: string[];
   unitCost: string;
@@ -94,9 +104,8 @@ function newKey() {
 function emptyPhone(): PhoneRow {
   return {
     key: newKey(),
-    modelId: "",
-    variantId: "",
-    colorId: "",
+    spec: EMPTY_SPEC,
+    pta: "",
     condition: "new",
     imeis: [],
     unitCost: "",
@@ -109,19 +118,11 @@ function emptyAccessory(): AccessoryRow {
 }
 
 function isPhoneEmpty(row: PhoneRow) {
-  return !row.modelId && row.imeis.length === 0 && !row.unitCost.trim() && !row.salePrice.trim();
+  return !row.spec.modelId && row.imeis.length === 0 && !row.unitCost.trim() && !row.salePrice.trim();
 }
 
 function isAccessoryEmpty(row: AccessoryRow) {
   return !row.product && !row.unitCost.trim() && !row.salePrice.trim();
-}
-
-function storageLabel(gb: number) {
-  return gb >= 1024 && gb % 1024 === 0 ? `${gb / 1024} TB` : `${gb} GB`;
-}
-
-function variantLabel(v: { storage_gb: number; ram_gb: number | null }) {
-  return v.ram_gb ? `${storageLabel(v.storage_gb)} / ${v.ram_gb} GB RAM` : storageLabel(v.storage_gb);
 }
 
 function moneyNumber(value: string): number {
@@ -258,19 +259,10 @@ export default function PurchaseEntry({
   const [saveError, setSaveError] = useState<string | null>(null);
   const [result, setResult] = useState<PurchaseResult | null>(null);
 
-  // Flat "Brand Model" list for the model search
-  const { modelOptions, modelMap } = useMemo(() => {
-    const options: ModelOption[] = [];
-    const map = new Map<string, CatalogModel>();
-    for (const brand of brands) {
-      for (const model of brand.models) {
-        options.push({ id: model.id, label: `${brand.name} ${model.name}` });
-        map.set(model.id, model);
-      }
-    }
-    options.sort((a, b) => a.label.localeCompare(b.label));
-    return { modelOptions: options, modelMap: map };
-  }, [brands]);
+  // Type-ahead search over every brand, model and storage option
+  const phoneIndex = useMemo(() => buildPhoneIndex(brands), [brands]);
+  // Row whose missing model is being added right now
+  const [quickAdd, setQuickAdd] = useState<{ row: number; query: string } | null>(null);
 
   // Focus a cell after rows were added or changed
   useEffect(() => {
@@ -307,13 +299,8 @@ export default function PurchaseEntry({
     setPhones((rows) => rows.map((row, i) => (i === index ? { ...row, ...patch } : row)));
   }
 
-  function setPhoneModel(index: number, modelId: string) {
-    const model = modelMap.get(modelId);
-    updatePhone(index, {
-      modelId,
-      variantId: model && model.variants.length === 1 ? model.variants[0].id : "",
-      colorId: model && model.colors.length === 1 ? model.colors[0].id : "",
-    });
+  function updateSpec(index: number, patch: Partial<PhoneSpec>) {
+    setPhones((rows) => rows.map((row, i) => (i === index ? { ...row, spec: { ...row.spec, ...patch } } : row)));
   }
 
   function addPhoneRow() {
@@ -415,7 +402,7 @@ export default function PurchaseEntry({
     );
   }
 
-  async function reloadModels() {
+  async function reloadModels(): Promise<void> {
     setReloading(true);
     setReloadMessage(null);
     try {
@@ -463,8 +450,8 @@ export default function PurchaseEntry({
   phones.forEach((row, i) => {
     if (isPhoneEmpty(row)) return;
     const n = `Phone row ${i + 1}`;
-    if (!row.modelId) reasons.push(`${n}: choose a model.`);
-    else if (!row.variantId) reasons.push(`${n}: choose the storage.`);
+    const specIssue = specProblem(row.spec);
+    if (specIssue) reasons.push(`${n}: ${specIssue.charAt(0).toLowerCase()}${specIssue.slice(1)}`);
     if (row.imeis.length === 0) reasons.push(`${n}: add at least one IMEI.`);
     if (!isValidMoneyInput(row.unitCost)) reasons.push(`${n}: enter a valid purchase price.`);
     if (row.salePrice.trim() && !isValidMoneyInput(row.salePrice)) {
@@ -520,9 +507,8 @@ export default function PurchaseEntry({
       items: [
         ...filledPhones.map((row) => ({
           item_type: "phone",
-          model_id: row.modelId,
-          variant_id: row.variantId,
-          color_id: row.colorId || null,
+          ...specPayload(row.spec),
+          pta_status: row.pta || null,
           condition: row.condition,
           unit_cost: moneyNumber(row.unitCost),
           sale_price: row.salePrice.trim() ? moneyNumber(row.salePrice) : null,
@@ -646,6 +632,7 @@ export default function PurchaseEntry({
 
   // ---------- Entry screen ----------
 
+  const ptaShown = showsPta(currency);
   const phoneGrid =
     "grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-[minmax(0,2.2fr)_minmax(0,1.4fr)_minmax(0,1.1fr)_minmax(0,1.1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.9fr)_auto] xl:items-start xl:gap-2";
   const accessoryGrid =
@@ -771,11 +758,27 @@ export default function PurchaseEntry({
           </div>
         </div>
 
+        {quickAdd && (
+          <div className="mb-3">
+            <QuickAddModelForm
+              key={`${quickAdd.row}-${quickAdd.query}`}
+              query={quickAdd.query}
+              brandNames={phoneIndex.brandNames}
+              onCancel={() => setQuickAdd(null)}
+              onAdded={async (added) => {
+                await reloadModels();
+                updateSpec(quickAdd.row, { modelId: added.modelId, storage: added.storage, ram: added.ram });
+                setQuickAdd(null);
+              }}
+            />
+          </div>
+        )}
+
         <div className={"hidden border-b border-line pb-2 xl:grid " + phoneGrid}>
           <span className={headerCell}>Model</span>
-          <span className={headerCell}>Storage</span>
+          <span className={headerCell}>Storage / RAM</span>
           <span className={headerCell}>Colour</span>
-          <span className={headerCell}>Condition</span>
+          <span className={headerCell}>{ptaShown ? "Condition / PTA" : "Condition"}</span>
           <span className={headerCell}>Purchase price</span>
           <span className={headerCell}>Sale price</span>
           <span className={headerCell + " text-right"}>Total</span>
@@ -784,7 +787,8 @@ export default function PurchaseEntry({
 
         <div className="space-y-3 xl:space-y-0">
           {phones.map((row, index) => {
-            const model = modelMap.get(row.modelId);
+            const entry = phoneIndex.models.get(row.spec.modelId);
+            const model = entry?.model;
             const rowTotal = phoneTotals[index];
             return (
               <div
@@ -801,49 +805,55 @@ export default function PurchaseEntry({
                 </div>
                 <div className={phoneGrid}>
                   <Cell label="Model" group="phones" row={index} col="model" className="col-span-2 md:col-span-2 xl:col-span-1">
-                    <ModelCombobox
-                      models={modelOptions}
-                      value={row.modelId}
-                      onChange={(modelId) => setPhoneModel(index, modelId)}
-                      canAddModels={canAddModels}
-                      onReload={reloadModels}
+                    <PhoneModelSearch
+                      index={phoneIndex}
+                      value={row.spec.modelId}
+                      selectedLabel={entry?.label ?? ""}
+                      onPick={(option) =>
+                        updateSpec(index, {
+                          modelId: option.modelId,
+                          storage: option.storage ? String(option.storage) : "",
+                          ram: option.ram ? String(option.ram) : "",
+                        })
+                      }
+                      onClear={() => updateSpec(index, EMPTY_SPEC)}
+                      onQuickAdd={(query) => setQuickAdd({ row: index, query })}
+                      onReload={() => void reloadModels()}
                       reloading={reloading}
                       label={`Model, phone row ${index + 1}`}
                     />
                   </Cell>
                   <Cell label="Storage" group="phones" row={index} col="storage">
-                    <select
-                      value={row.variantId}
-                      onChange={(event) => updatePhone(index, { variantId: event.target.value })}
-                      disabled={!model}
-                      aria-label={`Storage, phone row ${index + 1}`}
-                      className={inputClass + " disabled:opacity-60"}
-                    >
-                      <option value="">{model ? "Choose" : "Pick a model"}</option>
-                      {model?.variants.map((variant) => (
-                        <option key={variant.id} value={variant.id}>
-                          {variantLabel(variant)}
-                        </option>
-                      ))}
-                    </select>
+                    <div className="space-y-1.5">
+                      <StoragePicker
+                        key={`${row.key}-${row.spec.modelId}-storage`}
+                        model={model}
+                        value={row.spec.storage}
+                        onChange={(storage) => updateSpec(index, { storage })}
+                        label={`Storage, phone row ${index + 1}`}
+                      />
+                      {!isApple(entry?.brand) && (
+                        <RamPicker
+                          key={`${row.key}-${row.spec.modelId}-ram`}
+                          model={model}
+                          storage={row.spec.storage}
+                          value={row.spec.ram}
+                          onChange={(ram) => updateSpec(index, { ram })}
+                          label={`RAM, phone row ${index + 1}`}
+                        />
+                      )}
+                    </div>
                   </Cell>
                   <Cell label="Colour" group="phones" row={index} col="color">
-                    <select
-                      value={row.colorId}
-                      onChange={(event) => updatePhone(index, { colorId: event.target.value })}
-                      disabled={!model}
-                      aria-label={`Colour, phone row ${index + 1}`}
-                      className={inputClass + " disabled:opacity-60"}
-                    >
-                      <option value="">{model && model.colors.length === 0 ? "No colours" : "Optional"}</option>
-                      {model?.colors.map((color) => (
-                        <option key={color.id} value={color.id}>
-                          {color.name}
-                        </option>
-                      ))}
-                    </select>
+                    <ColorPicker
+                      model={model}
+                      value={row.spec.color}
+                      onChange={(color) => updateSpec(index, { color })}
+                      label={`Colour, phone row ${index + 1}`}
+                    />
                   </Cell>
                   <Cell label="Condition" group="phones" row={index} col="condition">
+                    <div className="space-y-1.5">
                     <select
                       value={row.condition}
                       onChange={(event) =>
@@ -858,6 +868,14 @@ export default function PurchaseEntry({
                         </option>
                       ))}
                     </select>
+                    {ptaShown && (
+                      <PtaSelect
+                        value={row.pta}
+                        onChange={(pta) => updatePhone(index, { pta })}
+                        label={`PTA status, phone row ${index + 1}`}
+                      />
+                    )}
+                    </div>
                   </Cell>
                   <Cell
                     label="IMEI numbers"

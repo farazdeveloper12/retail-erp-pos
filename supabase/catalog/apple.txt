@@ -1,0 +1,39 @@
+# Apple
+iPhone 7 | 2016 | 32, 128, 256 | Jet Black, Black, Silver, Gold, Rose Gold, (PRODUCT)RED
+iPhone 7 Plus | 2016 | 32, 128, 256 | Jet Black, Black, Silver, Gold, Rose Gold, (PRODUCT)RED
+iPhone 8 | 2017 | 64, 128, 256 | Silver, Gold, Space Gray, (PRODUCT)RED
+iPhone 8 Plus | 2017 | 64, 128, 256 | Silver, Gold, Space Gray, (PRODUCT)RED
+iPhone X | 2017 | 64, 256 | Silver, Space Gray
+iPhone XR | 2018 | 64, 128, 256 | Black, White, Blue, Yellow, Coral, (PRODUCT)RED
+iPhone XS | 2018 | 64, 256, 512 | Silver, Space Gray, Gold
+iPhone XS Max | 2018 | 64, 256, 512 | Silver, Space Gray, Gold
+iPhone 11 | 2019 | 64, 128, 256 | Black, White, Green, Yellow, Purple, (PRODUCT)RED
+iPhone 11 Pro | 2019 | 64, 256, 512 | Midnight Green, Space Gray, Silver, Gold
+iPhone 11 Pro Max | 2019 | 64, 256, 512 | Midnight Green, Space Gray, Silver, Gold
+iPhone SE (2020) | 2020 | 64, 128, 256 | Black, White, (PRODUCT)RED
+iPhone 12 mini | 2020 | 64, 128, 256 | Black, White, Blue, Green, Purple, (PRODUCT)RED
+iPhone 12 | 2020 | 64, 128, 256 | Black, White, Blue, Green, Purple, (PRODUCT)RED
+iPhone 12 Pro | 2020 | 128, 256, 512 | Graphite, Silver, Gold, Pacific Blue
+iPhone 12 Pro Max | 2020 | 128, 256, 512 | Graphite, Silver, Gold, Pacific Blue
+iPhone 13 mini | 2021 | 128, 256, 512 | Midnight, Starlight, Blue, Pink, Green, (PRODUCT)RED
+iPhone 13 | 2021 | 128, 256, 512 | Midnight, Starlight, Blue, Pink, Green, (PRODUCT)RED
+iPhone 13 Pro | 2021 | 128, 256, 512, 1TB | Graphite, Gold, Silver, Sierra Blue, Alpine Green
+iPhone 13 Pro Max | 2021 | 128, 256, 512, 1TB | Graphite, Gold, Silver, Sierra Blue, Alpine Green
+iPhone SE (2022) | 2022 | 64, 128, 256 | Midnight, Starlight, (PRODUCT)RED
+iPhone 14 | 2022 | 128, 256, 512 | Midnight, Starlight, Blue, Purple, Yellow, (PRODUCT)RED
+iPhone 14 Plus | 2022 | 128, 256, 512 | Midnight, Starlight, Blue, Purple, Yellow, (PRODUCT)RED
+iPhone 14 Pro | 2022 | 128, 256, 512, 1TB | Space Black, Silver, Gold, Deep Purple
+iPhone 14 Pro Max | 2022 | 128, 256, 512, 1TB | Space Black, Silver, Gold, Deep Purple
+iPhone 15 | 2023 | 128, 256, 512 | Black, Blue, Green, Yellow, Pink
+iPhone 15 Plus | 2023 | 128, 256, 512 | Black, Blue, Green, Yellow, Pink
+iPhone 15 Pro | 2023 | 128, 256, 512, 1TB | Black Titanium, White Titanium, Blue Titanium, Natural Titanium
+iPhone 15 Pro Max | 2023 | 256, 512, 1TB | Black Titanium, White Titanium, Blue Titanium, Natural Titanium
+iPhone 16 | 2024 | 128, 256, 512 | Black, White, Pink, Teal, Ultramarine
+iPhone 16 Plus | 2024 | 128, 256, 512 | Black, White, Pink, Teal, Ultramarine
+iPhone 16 Pro | 2024 | 128, 256, 512, 1TB | Black Titanium, White Titanium, Natural Titanium, Desert Titanium
+iPhone 16 Pro Max | 2024 | 256, 512, 1TB | Black Titanium, White Titanium, Natural Titanium, Desert Titanium
+iPhone 16e | 2025 | 128, 256, 512 | Black, White
+iPhone 17 | 2025 | 256, 512 | Black, White, Mist Blue, Sage, Lavender
+iPhone Air | 2025 | 256, 512, 1TB | Space Black, Cloud White, Light Gold, Sky Blue
+iPhone 17 Pro | 2025 | 256, 512, 1TB | Cosmic Orange, Deep Blue, Silver
+iPhone 17 Pro Max | 2025 | 256, 512, 1TB, 2TB | Cosmic Orange, Deep Blue, Silver

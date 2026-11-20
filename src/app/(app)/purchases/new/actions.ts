@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getMyPermissions } from "@/lib/permissions";
 import { UUID_PATTERN } from "@/lib/catalog";
+import { PhoneOptionError, ptaValue, resolvePhoneOption } from "@/lib/phone-options";
 
 // ---------- Types shared with the client ----------
 
@@ -16,6 +17,7 @@ export type CatalogColor = { id: string; name: string };
 export type CatalogModel = {
   id: string;
   name: string;
+  year: number | null;
   variants: CatalogVariant[];
   colors: CatalogColor[];
 };
@@ -97,6 +99,7 @@ function optionalText(value: unknown, max: number, label: string): string | null
 type ModelRow = {
   id: string;
   name: string;
+  release_year: number | null;
   brands: { id: string; name: string; is_active: boolean } | null;
   model_variants: (CatalogVariant & { is_active: boolean })[];
   model_colors: (CatalogColor & { is_active: boolean })[];
@@ -109,18 +112,25 @@ export async function loadPurchaseCatalog(): Promise<CatalogResult> {
   }
 
   const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("product_models")
-    .select(
-      "id, name, brands(id, name, is_active), model_variants(id, storage_gb, ram_gb, is_active), model_colors(id, name, is_active)"
-    )
-    .eq("is_active", true)
-    .order("name")
-    .limit(2000);
-
-  if (error) {
-    console.error("loadPurchaseCatalog error:", error.message);
-    return { ok: false, error: "The catalog could not be loaded.", brands: [] };
+  // Read in pages: the API returns at most 1000 rows per request
+  const PAGE = 1000;
+  const data: unknown[] = [];
+  for (let from = 0; from < 20000; from += PAGE) {
+    const { data: page, error } = await supabase
+      .from("product_models")
+      .select(
+        "id, name, release_year, brands(id, name, is_active), model_variants(id, storage_gb, ram_gb, is_active), model_colors(id, name, is_active)"
+      )
+      .eq("is_active", true)
+      .order("name")
+      .order("id")
+      .range(from, from + PAGE - 1);
+    if (error) {
+      console.error("loadPurchaseCatalog error:", error.message);
+      return { ok: false, error: "The catalog could not be loaded.", brands: [] };
+    }
+    data.push(...(page ?? []));
+    if (!page || page.length < PAGE) break;
   }
 
   const byBrand = new Map<string, CatalogBrand>();
@@ -142,7 +152,7 @@ export async function loadPurchaseCatalog(): Promise<CatalogResult> {
     if (!byBrand.has(brand.id)) {
       byBrand.set(brand.id, { id: brand.id, name: brand.name, models: [] });
     }
-    byBrand.get(brand.id)!.models.push({ id: row.id, name: row.name, variants, colors });
+    byBrand.get(brand.id)!.models.push({ id: row.id, name: row.name, year: row.release_year, variants, colors });
   }
 
   const brands = [...byBrand.values()].sort((a, b) => a.name.localeCompare(b.name));
@@ -251,9 +261,14 @@ function buildPayload(input: unknown) {
 
       items.push({
         item_type: "phone",
-        model_id: uuid(raw.model_id, `${line}: model`),
-        variant_id: uuid(raw.variant_id, `${line}: storage`),
-        color_id: raw.color_id ? uuid(raw.color_id, `${line}: colour`) : null,
+        // Storage/RAM and colour are turned into catalog ids before saving
+        spec: {
+          model_id: uuid(raw.model_id, `${line}: model`),
+          storage_gb: raw.storage_gb,
+          ram_gb: raw.ram_gb ?? null,
+          color_name: raw.color_name ?? null,
+        },
+        pta_status: ptaValue(raw.pta_status, line),
         condition,
         unit_cost: amount(raw.unit_cost, `${line}: purchase price`),
         sale_price: amount(raw.sale_price, `${line}: sale price`, true),
@@ -306,6 +321,17 @@ export async function savePurchase(input: unknown): Promise<SavePurchaseResult> 
     }
 
     const payload = buildPayload(input);
+    const supabaseForOptions = await createClient();
+    // Storage/RAM option and colour of each phone line: found, or created when missing
+    for (const [index, item] of (payload.items as Record<string, unknown>[]).entries()) {
+      if (item.spec) {
+        const option = await resolvePhoneOption(supabaseForOptions, item.spec, `Item ${index + 1}`);
+        delete item.spec;
+        item.model_id = option.model_id;
+        item.variant_id = option.variant_id;
+        item.color_id = option.color_id;
+      }
+    }
 
     const supabase = await createClient();
     const { data, error } = await supabase.rpc("create_purchase", {
@@ -320,7 +346,7 @@ export async function savePurchase(input: unknown): Promise<SavePurchaseResult> 
     revalidatePath("/purchases");
     return { ok: true, error: null, result: (data ?? null) as PurchaseResult | null };
   } catch (e) {
-    if (e instanceof InputError) {
+    if (e instanceof InputError || e instanceof PhoneOptionError) {
       return { ok: false, error: e.message, result: null };
     }
     console.error("savePurchase error:", e);

@@ -1,0 +1,121 @@
+// Lower confidence: RAM/storage combinations and colour names vary by country.
+# Infinix
+Hot 8 | 2019 | 4/64 | Cosmic Purple, Quetzal Cyan
+Hot 9 | 2020 | 4/64, 4/128 | Midnight Black, Ocean Wave, Violet
+Hot 9 Play | 2020 | 2/32, 4/64 | Ocean Wave, Violet, Midnight Black
+Hot 10 | 2020 | 4/64, 4/128, 6/128 | Obsidian Black, Ocean Wave, Moonlight Jade
+Hot 10 Play | 2021 | 2/32, 4/64 | Obsidian Black, Aegean Blue, Morandi Green
+Hot 11 | 2021 | 4/64, 4/128 | Polar Black, Emerald Green, Silver Wave
+Hot 11 Play | 2021 | 4/64, 4/128 | Polar Black, Aurora Green, Sunset Gold
+Hot 11s | 2021 | 4/64, 6/128 | Polar Black, Green Wave, Purple
+Hot 12 | 2022 | 4/64, 6/128 | Polar Black, Turquoise Cyan, Light Gold
+Hot 12 Play | 2022 | 4/64, 6/128 | Racing Black, Horizon Blue, Daylight Green
+Hot 20 | 2022 | 6/128 | Sonic Black, Fantasy Purple, Racing Green
+Hot 20 Play | 2022 | 4/64 | Racing Black, Aurora Green, Fantasy Purple
+Hot 30 | 2023 | 4/128, 8/128 | Racing Black, Surfing Green, Sonic Blue
+Hot 30 Play | 2023 | 4/64, 8/128 | Mirage Black, Blade White, Luna Blue
+Hot 30i | 2023 | 4/128, 8/128 | Mirror Black, Glacier Blue, Diamond White
+Hot 40 | 2024 | 8/128, 8/256 | Starlit Black, Palm Blue, Horizon Gold
+Hot 40i | 2023 | 4/128, 8/128, 8/256 | Starlit Black, Palm Blue, Horizon Gold, Starfall Green
+Hot 40 Pro | 2024 | 8/256 | Starlit Black, Palm Blue, Horizon Gold
+Hot 50 | 2024 | 6/128, 8/128, 8/256 | Sleek Black, Sage Green, Titanium Grey
+Hot 50i | 2024 | 4/128, 6/128 | Sleek Black, Sage Green, Titanium Grey
+Hot 50 Pro | 2024 | 8/256 | Sleek Black, Glacier Blue, Titanium Grey
+Hot 60 | 2025 | 8/128, 8/256 | Shadow Blue, Glacier Green, Titanium Grey
+Hot 60i | 2025 | 4/128, 6/128, 8/128 | Shadow Blue, Titanium Grey
+Smart 5 | 2020 | 2/32, 3/64 | Midnight Black, Aegean Blue, Morandi Green
+Smart 6 | 2021 | 2/32, 3/64 | Polar Black, Heart of Ocean, Starry Purple
+Smart 6 Plus | 2022 | 2/64, 3/64 | Miracle Black, Crystal Violet
+Smart 7 | 2023 | 3/64, 4/64 | Night Black, Emerald Green, Peacock Blue
+Smart 8 | 2023 | 3/64, 4/64, 4/128 | Timber Black, Galaxy White, Shiny Gold, Rainbow Blue
+Smart 9 | 2024 | 3/64, 4/128 | Metallic Black, Neo Titanium, Sage Green
+Smart 10 | 2025 | 4/64, 4/128 | Iris Blue, Sleek Black, Titanium Silver
+Note 7 | 2020 | 4/64, 6/128 | Aether Black, Forest Green, Bolivia Blue
+Note 8 | 2020 | 6/128 | Black, Green, Grey
+Note 10 | 2021 | 4/64, 6/128 | Obsidian Black, 95 Degree Purple, 7 Degree Purple
+Note 10 Pro | 2021 | 8/128 | Nordic Secret, Purple, 95 Degree Black
+Note 11 | 2022 | 6/128 | Graphite Black, Glacier Green, Celestial Snow
+Note 12 | 2022 | 6/128, 8/128 | Force Black, Jewel Blue, Sapphire Blue
+Note 12 G96 | 2022 | 8/128 | Force Black, Jewel Blue, Volcanic Grey
+Note 30 | 2023 | 8/128, 8/256 | Obsidian Black, Interstellar Blue, Sunset Gold
+Note 30 Pro | 2023 | 8/256 | Magic Black, Variable Gold
+Note 40 | 2024 | 8/256 | Obsidian Black, Vintage Green, Titan Gold
+Note 40 Pro | 2024 | 8/256 | Vintage Green, Titan Gold
+Note 50 | 2025 | 8/256 | Titanium Grey, Shadow Blue, Ruby Red
+Note 50 Pro | 2025 | 8/256 | Enchanted Purple, Titanium Grey, Racing Edition
+Zero 20 | 2023 | 8/256 | Glitter Gold, Space Grey, Green Fantasy
+Zero 30 | 2023 | 8/256, 12/256 | Golden Hour, Misty Green, Rome Green
+Zero 40 | 2024 | 12/256, 12/512 | Violet Garden, Blossom Glow, Rock Black
+GT 20 Pro | 2024 | 8/256, 12/256 | Mecha Orange, Mecha Blue, Mecha Silver
+GT 30 Pro | 2025 | 8/256, 12/256 | Dark Flare, Blade White
+
+# Tecno
+Spark 5 | 2020 | 2/32, 4/64 | Ice Jadeite, Spark Orange, Misty Grey
+Spark 6 | 2020 | 4/64, 4/128 | Ocean Blue, Comet Black, Dynamic Orange
+Spark 6 Go | 2020 | 2/32, 3/64 | Aqua Blue, Ice Jadeite, Mystery White
+Spark 7 | 2021 | 2/32, 3/64, 4/64 | Magnet Black, Morpheus Blue, Spruce Green
+Spark 7 Pro | 2021 | 4/64, 6/128 | Magnet Black, Neon Dream, Alps Blue
+Spark 8 | 2021 | 2/32, 3/64, 4/64 | Atlantic Blue, Iris Purple, Turquoise Cyan
+Spark 8C | 2022 | 2/32, 3/64, 4/64 | Magnet Black, Turquoise Cyan, Diamond Grey
+Spark 8 Pro | 2022 | 4/64, 6/128 | Interstellar Black, Winter Mist, Turquoise Cyan
+Spark 9 | 2022 | 4/64, 4/128 | Sky Mirror, Infinity Black
+Spark 9 Pro | 2022 | 4/128 | Quantum Black, Burano Blue, Hologram Gold
+Spark 10 | 2023 | 4/128, 8/128 | Meta Black, Meta Blue, Meta White
+Spark 10C | 2023 | 4/64, 4/128 | Meta Black, Meta Blue, Meta Green
+Spark 10 Pro | 2023 | 8/128, 8/256 | Starry Black, Pearl White, Lunar Frost
+Spark 20 | 2023 | 8/128, 8/256 | Gravity Black, Cyber White, Neon Gold, Magic Skin Blue
+Spark 20C | 2023 | 4/128, 8/128 | Gravity Black, Mystery White, Alpenglow Gold
+Spark 20 Pro | 2024 | 8/256 | Moonlit Black, Frosty Ivory, Sunset Blush
+Spark 30 | 2024 | 8/128, 8/256 | Stellar Shadow, Astral Ice
+Spark 30C | 2024 | 4/128, 8/128, 8/256 | Orbit Black, Orbit White, Magic Skin Green
+Spark 30 Pro | 2024 | 8/256 | Obsidian Edge, Arctic Glow
+Spark 40 | 2025 | 8/128, 8/256 | Ink Black, Mirage Blue, Titanium Grey
+Spark Go 2024 | 2023 | 3/64, 4/64, 4/128 | Gravity Black, Mystery White, Alpenglow Gold
+Spark Go 1 | 2024 | 3/64, 4/64, 4/128 | Startrail Black, Glittery White
+Camon 15 | 2020 | 4/64 | Fascinating Purple, Shoal Gold, Dark Jade
+Camon 16 | 2020 | 4/64, 4/128 | Cloud White, Purist Blue
+Camon 17 | 2021 | 6/128 | Tranquil Green, Frost Silver
+Camon 18 | 2021 | 4/128 | Dusk Grey, Glory Purple
+Camon 19 | 2022 | 6/128 | Eco Black, Sea Salt White, Geometric Green
+Camon 19 Pro | 2022 | 8/128 | Eco Black, Polar Blue, Mondrian
+Camon 20 | 2023 | 8/256 | Predawn Black, Serenity Blue, Glacier Glow
+Camon 20 Pro | 2023 | 8/256 | Dark Welkin, Serenity Blue
+Camon 30 | 2024 | 8/256, 12/256 | Basaltic Dark, Uyuni Salt White, Iceland Basaltic Dark
+Camon 30 Pro | 2024 | 8/256 | Snowy Silver, Basaltic Dark
+Camon 40 | 2025 | 8/256 | Galaxy Black, Glacier White, Emerald Lake Green
+Camon 40 Pro | 2025 | 8/256 | Galaxy Black, Glacier White, Emerald Lake Green
+Pova 2 | 2021 | 4/64, 6/128 | Dazzle Black, Polar Silver, Energy Blue
+Pova 3 | 2022 | 6/128 | Tech Silver, Eco Black, Electric Blue
+Pova 4 | 2022 | 8/128 | Uranolith Grey, Cryolite Blue, Fluorite Blue
+Pova 5 | 2023 | 8/128, 8/256 | Mecha Black, Hurricane Blue, Amber Gold
+Pova 6 Pro | 2024 | 8/256, 12/256 | Comet Green, Meteorite Grey
+Pova 7 | 2025 | 8/128, 8/256 | Geek Black, Magic Silver
+Pop 7 | 2023 | 2/64, 3/64 | Endless Black, Uyuni Blue, Sandstorm Black
+Pop 8 | 2023 | 3/64, 4/64, 4/128 | Gravity Black, Mystery White, Alpenglow Gold
+Pop 9 | 2024 | 3/64, 4/128 | Startrail Black, Glittery White, Aurora Cloud
+Pop 10 | 2025 | 3/64, 4/128 | Ink Black, Glacier White
+
+# itel
+A25 | 2019 | 1/16 | Gradation Blue, Gradation Purple
+A26 | 2020 | 2/32 | Gradation Blue, Gradation Green
+A27 | 2022 | 2/32 | Crystal Purple, Deep Grey, Lake Cyan
+A37 | 2021 | 1/16 | Gradation Green, Gradation Blue
+A48 | 2021 | 2/32 | Gradation Green, Gradation Purple
+A49 | 2022 | 2/32 | Dome Blue, Crystal Purple
+A58 | 2022 | 2/32 | Dome Blue, Crystal Purple
+A60 | 2023 | 2/32 | Dawn Blue, Sapphire Black
+A70 | 2023 | 3/64, 4/64, 4/128 | Field Green, Brilliant Gold, Starlish Black
+A80 | 2024 | 3/64, 4/128 | Glacier White, Sandstone Black
+P17 | 2021 | 2/32 | Sky Blue, Grey
+P36 | 2020 | 2/32 | Metallic Blue, Royal Purple
+P38 | 2022 | 2/32, 3/64 | Lake Blue, Deep Ocean Black
+P40 | 2023 | 4/64, 4/128 | Force Black, Dreamy Blue
+P55 | 2023 | 4/64, 4/128, 8/128 | Galaxy Blue, Moonlit Black
+P65 | 2024 | 4/128, 8/256 | Starry Black, Ocean Blue
+S23 | 2022 | 4/64, 8/128 | Mystery White, Starry Black
+S24 | 2024 | 8/128, 8/256 | Dawn White, Starry Black
+S25 Ultra | 2025 | 8/256 | Meteor Black, Titanium Gray
+Vision 1 | 2020 | 2/32 | Gradation Green, Gradation Blue
+Vision 1 Pro | 2020 | 2/32 | Aurora Blue, Ocean Blue
+Vision 2 | 2021 | 3/32 | Gradation Green, Deep Blue
+Vision 3 | 2022 | 3/32, 3/64 | Deep Ocean Black, Jewel Blue, Multi Green

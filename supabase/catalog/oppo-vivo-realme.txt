@@ -1,0 +1,170 @@
+# Oppo
+A3s | 2018 | 2/16, 3/32 | Dark Purple, Red
+A5s | 2019 | 2/32, 3/32, 4/64 | Black, Red, Blue
+A5 2020 | 2019 | 3/64, 4/128 | Mirror Black, Dazzling White
+A9 2020 | 2019 | 4/128, 8/128 | Marine Green, Space Purple, Vanilla Mint
+A12 | 2020 | 3/32, 4/64 | Black, Blue
+A15 | 2020 | 2/32, 3/32 | Dynamic Black, Mystery Blue
+A15s | 2021 | 4/64 | Dynamic Black, Fancy White, Rainbow Silver
+A16 | 2021 | 3/32, 4/64 | Crystal Black, Pearl Blue, Space Silver
+A16e | 2022 | 3/32, 4/64 | Midnight Black, Blue, Pearl White
+A16k | 2022 | 3/32, 4/64 | Black, Blue, White
+A17 | 2023 | 4/64 | Midnight Black, Lake Blue
+A17k | 2023 | 3/64 | Gold, Navy Blue
+A18 | 2023 | 4/64, 4/128 | Glowing Black, Glowing Blue
+A38 | 2023 | 4/128, 6/128 | Glowing Black, Glowing Gold
+A57 | 2022 | 3/64, 4/64, 4/128 | Glowing Black, Glowing Green
+A58 | 2023 | 6/128, 8/128 | Glowing Black, Dazzling Green
+A60 | 2024 | 6/128, 8/128, 8/256 | Midnight Purple, Ripple Blue
+A74 | 2021 | 6/128 | Prism Black, Midnight Blue
+A76 | 2022 | 4/128, 6/128 | Glowing Black, Glowing Blue
+A77 | 2022 | 4/128, 6/128 | Ocean Blue, Sunset Orange
+A77s | 2022 | 8/128 | Starry Black, Sunset Orange
+A78 | 2023 | 8/128, 8/256 | Mist Black, Aqua Green
+A79 5G | 2023 | 8/256 | Mystery Black, Glowing Purple
+A3x | 2024 | 4/64, 4/128 | Ocean Blue, Nebula Red, Sparkle Black
+A3 | 2024 | 6/128, 8/256 | Starry Purple, Nebula Red
+A5 Pro | 2024 | 8/256 | Olive Green, Mocha Brown
+A5 | 2025 | 6/128, 8/256 | Mist White, Aurora Green
+A96 | 2022 | 8/128 | Starry Black, Sunset Blue
+F11 | 2019 | 4/64, 6/128 | Fluorite Purple, Marble Green
+F11 Pro | 2019 | 6/64, 6/128 | Aurora Green, Thunder Black
+F15 | 2020 | 8/128 | Lightning Black, Unicorn White
+F17 | 2020 | 6/128, 8/128 | Navy Blue, Dynamic Orange, Classic Silver
+F17 Pro | 2020 | 8/128 | Magic Black, Metallic White, Matte Black
+F19 | 2021 | 6/128 | Prism Black, Midnight Blue
+F19 Pro | 2021 | 8/128, 8/256 | Fluid Black, Crystal Silver
+F21 Pro | 2022 | 8/128 | Cosmic Black, Sunset Orange
+F25 Pro 5G | 2024 | 8/128, 8/256 | Ocean Blue, Lava Red
+Reno 2F | 2019 | 8/128 | Lake Green, Sky White
+Reno 4 | 2020 | 8/128 | Space Black, Galactic Blue
+Reno 5 | 2020 | 8/128 | Starry Black, Aurora Blue
+Reno 6 | 2021 | 8/128 | Aurora, Stellar Black
+Reno 7 | 2022 | 8/128 | Starry Black, Startrails Orange
+Reno 8 | 2022 | 8/128, 8/256 | Shimmer Gold, Shimmer Black
+Reno 8T | 2023 | 8/128, 8/256 | Midnight Black, Sunrise Gold
+Reno 10 5G | 2023 | 8/256 | Silvery Grey, Ice Blue
+Reno 11 F 5G | 2024 | 8/256 | Ocean Blue, Palm Green, Coral Purple
+Reno 11 5G | 2024 | 8/256, 12/256 | Wave Green, Rock Grey
+Reno 12 F | 2024 | 8/256, 12/512 | Olive Green, Matte Gray, Amber Orange
+Reno 12 5G | 2024 | 12/256, 12/512 | Astro Silver, Matte Brown, Sunset Pink
+Reno 13 F | 2025 | 8/256, 12/512 | Graphite Grey, Plume Purple, Skyline Blue
+Reno 13 5G | 2025 | 12/256, 12/512 | Plume White, Luminous Blue
+Reno 14 F 5G | 2025 | 12/256, 12/512 | Luminous Green, Opal Blue
+Find X5 Pro | 2022 | 12/256 | Glaze Black, Ceramic White
+Find X8 Pro | 2024 | 16/512 | Space Black, Pearl White
+
+# Vivo
+Y11 | 2019 | 3/32 | Mineral Blue, Agate Red
+Y12 | 2019 | 3/64 | Aqua Blue, Burgundy Red
+Y15 | 2019 | 4/64 | Aqua Blue, Burgundy Red
+Y17 | 2019 | 4/128 | Mineral Purple, Mystic Purple
+Y20 | 2020 | 4/64 | Obsidian Black, Dawn White, Nebula Blue
+Y21 | 2021 | 4/64 | Midnight Blue, Diamond Glow
+Y21s | 2021 | 4/128 | Midnight Blue, Pearl White
+Y15s | 2021 | 3/32 | Mystic Blue, Wave Green
+Y22 | 2022 | 4/64, 4/128, 6/128 | Starlit Blue, Metaverse Green
+Y02 | 2022 | 2/32, 3/32 | Cosmic Grey, Orchid Blue
+Y02s | 2022 | 3/32 | Vibrant Blue, Dynamic Black
+Y16 | 2022 | 3/32, 4/64, 4/128 | Stellar Black, Drizzling Gold
+Y17s | 2023 | 4/64, 4/128, 6/128 | Glitter Purple, Forest Green
+Y27 | 2023 | 6/128 | Burgundy Black, Sea Blue
+Y36 | 2023 | 8/128, 8/256 | Meteor Black, Vibrant Gold
+Y03 | 2024 | 4/64, 4/128 | Space Black, Gem Green
+Y18 | 2024 | 4/64, 4/128 | Space Black, Gem Green
+Y28 | 2024 | 6/128, 8/128, 8/256 | Agate Green, Crystal Purple
+Y19s | 2024 | 4/128, 6/128 | Glossy Black, Pearl Silver
+Y29 | 2024 | 6/128, 8/128, 8/256 | Glacier Blue, Titanium Gold, Diamond Black
+Y04 | 2025 | 4/64, 4/128 | Gem Green, Crystal Black
+Y29s | 2025 | 6/128, 8/256 | Glacier Blue, Diamond Black
+V15 | 2019 | 6/64 | Topaz Blue, Ruby Red
+V17 | 2019 | 8/128 | Midnight Ocean, Glacier Ice
+V19 | 2020 | 8/128 | Gleam Black, Piano Black, Mystic Silver
+V20 | 2020 | 8/128 | Midnight Jazz, Sunset Melody
+V21 | 2021 | 8/128 | Dusk Blue, Sunset Dazzle
+V23 5G | 2022 | 8/128, 12/256 | Stardust Black, Sunshine Gold
+V25 | 2022 | 8/128 | Elegant Black, Surfing Blue
+V27 | 2023 | 8/256, 12/256 | Noble Black, Magic Blue
+V29 | 2023 | 8/256, 12/256, 12/512 | Noble Black, Peak Blue, Majestic Red
+V29e | 2023 | 8/128, 8/256 | Artistic Red, Artistic Blue
+V30 | 2024 | 12/256, 12/512 | Peacock Green, Noble Black, Waving Aqua
+V30e | 2024 | 8/256, 12/256 | Silk Blue, Velvet Red
+V40 | 2024 | 8/256, 12/512 | Lotus Purple, Titanium Grey, Ganges Blue
+V40e | 2024 | 8/128, 8/256 | Royal Bronze, Mint Green
+V50 | 2025 | 8/256, 12/512 | Titanium Grey, Rose Red, Starry Night
+V60 | 2025 | 12/256, 12/512 | Mist Gray, Moonlit Gold, Auspicious Gold
+S1 | 2019 | 4/128, 6/64, 6/128 | Skyline Blue, Diamond Black
+S1 Pro | 2019 | 8/128 | Knight Black, Mystic Blue, Jazzy Blue
+X60 Pro | 2021 | 12/256 | Midnight Black, Shimmer Blue
+X100 Pro | 2024 | 12/256, 16/512 | Asteroid Black, Startrail Blue
+X200 Pro | 2024 | 12/256, 16/512 | Titanium Grey, Cosmos Black
+
+# Realme
+C2 | 2019 | 2/16, 2/32, 3/32 | Diamond Black, Diamond Blue
+C3 | 2020 | 2/32, 3/32, 3/64, 4/64 | Frozen Blue, Volcano Grey
+C11 | 2020 | 2/32 | Rich Green, Rich Grey
+C11 2021 | 2021 | 2/32, 4/64 | Cool Grey, Cool Blue
+C15 | 2020 | 3/32, 4/64, 4/128 | Power Silver, Power Blue
+C17 | 2020 | 6/128 | Lake Green, Navy Blue
+C21 | 2021 | 3/32, 4/64 | Cross Black, Cross Blue
+C21Y | 2021 | 3/32, 4/64 | Cross Black, Cross Blue
+C25 | 2021 | 4/64, 4/128 | Watery Blue, Watery Grey
+C25s | 2021 | 4/64, 4/128 | Watery Blue, Watery Grey
+C30 | 2022 | 2/32, 3/32 | Denim Black, Lake Blue, Bamboo Green
+C31 | 2022 | 3/32, 4/64 | Light Silver, Dark Green
+C33 | 2022 | 3/32, 4/64, 4/128 | Sandy Gold, Night Sea, Aqua Blue
+C35 | 2022 | 4/64, 4/128 | Glowing Black, Glowing Green
+C51 | 2023 | 4/64, 4/128 | Mint Green, Carbon Black
+C53 | 2023 | 6/128, 8/256 | Champion Gold, Mighty Black
+C55 | 2023 | 6/128, 8/256 | Rainforest, Sunshower
+C61 | 2024 | 4/64, 4/128, 6/128 | Safari Green, Marble Black
+C63 | 2024 | 6/128, 8/256 | Leather Blue, Jade Green
+C65 | 2024 | 6/128, 8/256 | Starlight Black, Glowing Purple
+C67 | 2023 | 8/128, 8/256 | Black Rock, Sunny Oasis
+C75 | 2024 | 6/128, 8/256 | Lightning Gold, Storm Night
+Note 50 | 2024 | 3/64, 4/128 | Midnight Black, Sky Blue
+Note 60 | 2024 | 4/64, 4/128, 6/128 | Marble Black, Voyage Blue
+5 | 2019 | 3/32, 4/64, 4/128 | Crystal Blue, Crystal Purple
+5i | 2020 | 3/32, 4/64 | Aqua Blue, Forest Green
+6 | 2020 | 4/64, 6/128, 8/128 | Comet White, Comet Blue
+6i | 2020 | 4/64, 6/128 | Lunar White, Green Tea
+7 | 2020 | 6/64, 8/128 | Mist White, Mist Blue
+7i | 2020 | 4/64, 4/128, 8/128 | Aurora Green, Polar Blue
+8 | 2021 | 4/128, 6/128, 8/128 | Cyber Black, Cyber Silver
+8i | 2021 | 4/64, 6/128 | Space Black, Space Purple
+9 | 2022 | 6/128, 8/128 | Sunburst Gold, Rock Black, Stargaze White
+9i | 2022 | 4/64, 4/128, 6/128 | Prism Black, Prism Blue
+10 | 2023 | 4/128, 8/128, 8/256 | Rush Black, Clash White
+11 | 2023 | 8/128, 8/256 | Glory Gold, Glory Black
+11 Pro 5G | 2023 | 8/256, 12/256 | Sunrise Beige, Astral Black, Oasis Green
+12 Pro 5G | 2024 | 8/256, 12/256 | Submarine Blue, Navigator Beige
+12 4G | 2024 | 8/256 | Twilight Purple, Woodland Green
+13 4G | 2024 | 8/256, 12/256 | Dark Purple, Skyline Green
+14 Pro 5G | 2025 | 8/256, 12/512 | Pearl White, Suede Grey
+
+# OnePlus
+7 | 2019 | 6/128, 8/256 | Mirror Grey, Red
+7 Pro | 2019 | 6/128, 8/256, 12/256 | Mirror Grey, Almond, Nebula Blue
+7T | 2019 | 8/128, 8/256 | Glacier Blue, Frosted Silver
+8 | 2020 | 8/128, 12/256 | Onyx Black, Glacial Green, Interstellar Glow
+8 Pro | 2020 | 8/128, 12/256 | Onyx Black, Glacial Green, Ultramarine Blue
+8T | 2020 | 8/128, 12/256 | Aquamarine Green, Lunar Silver
+9 | 2021 | 8/128, 12/256 | Winter Mist, Arctic Sky, Astral Black
+9 Pro | 2021 | 8/128, 12/256 | Morning Mist, Pine Green, Stellar Black
+9R | 2021 | 8/128, 12/256 | Carbon Black, Lake Blue
+10 Pro | 2022 | 8/128, 12/256 | Volcanic Black, Emerald Forest
+10T | 2022 | 8/128, 12/256, 16/256 | Moonstone Black, Jade Green
+11 | 2023 | 8/128, 16/256 | Titan Black, Eternal Green
+12 | 2024 | 12/256, 16/512 | Silky Black, Flowy Emerald
+12R | 2024 | 8/128, 16/256 | Iron Gray, Cool Blue
+13 | 2025 | 12/256, 16/512 | Black Eclipse, Arctic Dawn, Midnight Ocean
+13R | 2025 | 12/256, 16/512 | Nebula Noir, Astral Trail
+Nord | 2020 | 8/128, 12/256 | Blue Marble, Gray Onyx
+Nord 2 5G | 2021 | 8/128, 12/256 | Blue Haze, Gray Sierra
+Nord CE 5G | 2021 | 6/128, 8/128, 12/256 | Charcoal Ink, Blue Void, Silver Ray
+Nord CE 2 5G | 2022 | 6/128, 8/128 | Gray Mirror, Bahama Blue
+Nord 3 5G | 2023 | 8/128, 16/256 | Misty Green, Tempest Gray
+Nord CE 3 Lite 5G | 2023 | 8/128, 8/256 | Pastel Lime, Chromatic Gray
+Nord CE 4 | 2024 | 8/128, 8/256 | Celadon Marble, Dark Chrome
+Nord 4 | 2024 | 8/128, 8/256, 12/256 | Obsidian Midnight, Mercurial Silver, Oasis Green
+Nord CE4 Lite 5G | 2024 | 8/128, 8/256 | Mega Blue, Super Silver, Ultra Orange

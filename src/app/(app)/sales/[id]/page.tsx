@@ -23,6 +23,7 @@ import ReceivePayment from "@/app/(app)/sales/[id]/ReceivePayment";
 import { cancelSale } from "@/app/(app)/sales/[id]/actions";
 import CancelDocument from "@/components/CancelDocument";
 import { COST_PERMISSION, getSaleProfits } from "@/lib/profit";
+import { ptaLabel } from "@/lib/pta";
 
 export const metadata: Metadata = {
   title: "Invoice",
@@ -58,6 +59,7 @@ type SaleItemRow = {
   discount: number | string | null;
   line_total: number | string | null;
   warranty_days: number | null;
+  pta_status: string | null;
 };
 
 type PaymentRow = {
@@ -170,7 +172,7 @@ export default async function InvoicePage({
     supabase
       .from("sale_items")
       .select(
-        "id, item_type, description, condition, imei, quantity, unit_price, discount, line_total, warranty_days"
+        "id, item_type, description, condition, imei, quantity, unit_price, discount, line_total, warranty_days, pta_status"
       )
       .eq("sale_id", id),
     supabase
@@ -492,9 +494,14 @@ export default async function InvoicePage({
                   <tr key={index} className={`border-b align-top ${LINE}`}>
                     <td className="py-2.5 pr-3">
                       <p className="font-semibold">{item.description ?? "Item"}</p>
-                      {item.item_type === "unstocked" && item.imei && (
+                      {item.item_type === "unstocked" && (item.imei || item.pta_status) && (
                         <p className={`text-xs ${MUTED}`}>
-                          IMEI/Serial <span className="font-mono">{item.imei}</span>
+                          {item.imei ? (
+                            <>
+                              IMEI/Serial <span className="font-mono">{item.imei}</span>
+                            </>
+                          ) : null}
+                          {ptaLabel(item.pta_status) ? `${item.imei ? " · " : ""}${ptaLabel(item.pta_status)}` : ""}
                         </p>
                       )}
                       {item.item_type === "phone" && (
@@ -505,6 +512,7 @@ export default async function InvoicePage({
                               IMEI <span className="font-mono">{item.imei}</span>
                             </>
                           ) : null}
+                          {ptaLabel(item.pta_status) ? ` · ${ptaLabel(item.pta_status)}` : ""}
                         </p>
                       )}
                     </td>
@@ -538,6 +546,7 @@ export default async function InvoicePage({
                 {item.item_type === "unstocked" && item.imei && (
                   <p className="font-mono text-[10px]">IMEI/Serial {item.imei}</p>
                 )}
+                {ptaLabel(item.pta_status) && <p className="text-[10px]">{ptaLabel(item.pta_status)}</p>}
                 <div className="flex justify-between">
                   <span>
                     {item.quantity ?? 1} x {formatMoney(item.unit_price, currency)}

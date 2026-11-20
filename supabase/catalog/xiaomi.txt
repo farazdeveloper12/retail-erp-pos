@@ -1,0 +1,88 @@
+# Xiaomi
+// Redmi Note
+Redmi Note 7 | 2019 | 3/32, 4/64, 4/128, 6/64 | Space Black, Neptune Blue, Nebula Red
+Redmi Note 8 | 2019 | 3/32, 4/64, 4/128, 6/128 | Space Black, Neptune Blue, Moonlight White, Cosmic Purple
+Redmi Note 8 Pro | 2019 | 6/64, 6/128, 8/128 | Mineral Grey, Forest Green, Pearl White
+Redmi Note 9 | 2020 | 3/64, 4/128 | Midnight Grey, Forest Green, Polar White
+Redmi Note 9S | 2020 | 4/64, 6/128 | Interstellar Grey, Aurora Blue, Glacier White
+Redmi Note 9 Pro | 2020 | 6/64, 6/128 | Interstellar Grey, Tropical Green, Glacier White
+Redmi Note 10 | 2021 | 4/64, 4/128, 6/128 | Onyx Gray, Pebble White, Lake Green
+Redmi Note 10S | 2021 | 6/64, 6/128, 8/128 | Onyx Gray, Pebble White, Ocean Blue
+Redmi Note 10 Pro | 2021 | 6/64, 6/128, 8/128 | Onyx Gray, Glacier Blue, Gradient Bronze
+Redmi Note 11 | 2022 | 4/64, 4/128, 6/128 | Graphite Gray, Twilight Blue, Star Blue
+Redmi Note 11S | 2022 | 6/64, 6/128, 8/128 | Graphite Gray, Twilight Blue, Pearl White
+Redmi Note 11 Pro | 2022 | 6/64, 6/128, 8/128 | Graphite Gray, Polar White, Star Blue
+Redmi Note 12 | 2023 | 4/64, 4/128, 6/128, 8/128, 8/256 | Onyx Gray, Mint Green, Ice Blue
+Redmi Note 12S | 2023 | 6/128, 8/256 | Onyx Black, Pearl Green, Ice Blue
+Redmi Note 12 Pro | 2023 | 6/128, 8/128, 8/256 | Graphite Gray, Polar White, Sky Blue
+Redmi Note 13 | 2024 | 6/128, 8/128, 8/256 | Midnight Black, Mint Green, Ice Blue, Ocean Sunset
+Redmi Note 13 Pro | 2024 | 8/256, 12/512 | Midnight Black, Lavender Purple, Forest Green
+Redmi Note 13 Pro+ 5G | 2024 | 8/256, 12/512 | Midnight Black, Moonlight White, Aurora Purple
+Redmi Note 14 | 2025 | 6/128, 8/128, 8/256 | Midnight Black, Mist Purple, Lime Green, Ocean Blue
+Redmi Note 14 Pro | 2025 | 8/256, 12/512 | Midnight Black, Aurora Purple, Ocean Blue
+Redmi Note 14 Pro+ 5G | 2025 | 8/256, 12/512 | Midnight Black, Lavender Purple, Frost Blue
+// Redmi
+Redmi 8 | 2019 | 3/32, 4/64 | Onyx Black, Sapphire Blue, Ruby Red
+Redmi 8A | 2019 | 2/32, 3/32 | Midnight Black, Ocean Blue, Sunset Red
+Redmi 9 | 2020 | 3/32, 4/64 | Carbon Grey, Sunset Purple, Ocean Green
+Redmi 9A | 2020 | 2/32, 3/32 | Granite Gray, Peacock Green, Sky Blue
+Redmi 9C | 2020 | 2/32, 3/64, 4/128 | Midnight Gray, Sunrise Orange, Twilight Blue
+Redmi 9T | 2021 | 4/64, 4/128, 6/128 | Carbon Gray, Twilight Blue, Sunrise Orange, Ocean Green
+Redmi 10 | 2021 | 4/64, 4/128, 6/128 | Carbon Gray, Pebble White, Sea Blue
+Redmi 10A | 2022 | 2/32, 3/64, 4/64, 4/128 | Graphite Gray, Chrome Silver, Sky Blue
+Redmi 10C | 2022 | 3/64, 4/64, 4/128 | Graphite Gray, Ocean Blue, Mint Green
+Redmi 12 | 2023 | 4/128, 8/128, 8/256 | Midnight Black, Sky Blue, Polar Silver
+Redmi 12C | 2023 | 3/32, 3/64, 4/64, 4/128 | Graphite Gray, Ocean Blue, Mint Green, Lavender Purple
+Redmi 13 | 2024 | 6/128, 8/128, 8/256 | Midnight Black, Ocean Blue, Sandy Gold, Pearl Pink
+Redmi 13C | 2023 | 4/128, 6/128, 8/256 | Midnight Black, Navy Blue, Clover Green, Glacier White
+Redmi 14C | 2024 | 4/128, 6/128, 8/256 | Midnight Black, Dreamy Purple, Sage Green, Starry Blue
+Redmi 15C | 2025 | 4/128, 6/128, 8/256 | Midnight Black, Moonlight Blue, Mint Green
+Redmi A1 | 2022 | 2/32 | Black, Light Blue, Light Green
+Redmi A2 | 2023 | 2/32, 2/64, 3/64 | Black, Light Blue, Light Green
+Redmi A3 | 2024 | 3/64, 4/128 | Midnight Black, Olive Green, Star Blue
+Redmi A5 | 2025 | 3/64, 4/128 | Midnight Black, Sandy Gold, Lake Green
+// Xiaomi
+Mi 9 | 2019 | 6/64, 6/128 | Piano Black, Ocean Blue, Lavender Violet
+Mi 9T | 2019 | 6/64, 6/128 | Carbon Black, Glacier Blue, Flame Red
+Mi 10T | 2020 | 6/128, 8/128 | Cosmic Black, Lunar Silver
+Mi 10T Pro | 2020 | 8/128, 8/256 | Cosmic Black, Lunar Silver, Aurora Blue
+Mi 11 Lite | 2021 | 6/64, 6/128 | Boba Black, Bubblegum Blue, Peach Pink
+Xiaomi 11T | 2021 | 8/128, 8/256 | Meteorite Gray, Moonlight White, Celestial Blue
+Xiaomi 11T Pro | 2021 | 8/128, 8/256, 12/256 | Meteorite Gray, Moonlight White, Celestial Blue
+Xiaomi 11 Lite 5G NE | 2021 | 6/128, 8/128, 8/256 | Truffle Black, Bubblegum Blue, Peach Pink, Snowflake White
+Xiaomi 12 | 2022 | 8/128, 8/256, 12/256 | Gray, Blue, Purple
+Xiaomi 12 Lite | 2022 | 6/128, 8/128, 8/256 | Black, Lite Green, Lite Pink
+Xiaomi 12T | 2022 | 8/128, 8/256 | Black, Silver, Blue
+Xiaomi 12T Pro | 2022 | 8/256, 12/256 | Black, Silver, Blue
+Xiaomi 13 | 2023 | 8/256, 12/256 | Black, White, Flora Green
+Xiaomi 13 Lite | 2023 | 8/128, 8/256 | Black, Lite Blue, Lite Pink
+Xiaomi 13T | 2023 | 8/256, 12/256 | Black, Meadow Green, Alpine Blue
+Xiaomi 13T Pro | 2023 | 12/256, 12/512, 16/1TB | Black, Meadow Green, Alpine Blue
+Xiaomi 14 | 2024 | 12/256, 12/512 | Black, White, Jade Green
+Xiaomi 14 Ultra | 2024 | 16/512 | Black, White
+Xiaomi 14T | 2024 | 12/256, 12/512 | Titan Black, Titan Gray, Titan Blue, Lemon Green
+Xiaomi 14T Pro | 2024 | 12/256, 12/512, 12/1TB | Titan Black, Titan Gray, Titan Blue
+Xiaomi 15 | 2025 | 12/256, 12/512 | Black, White, Green, Liquid Silver
+Xiaomi 15 Ultra | 2025 | 16/512, 16/1TB | Black, White, Silver Chrome
+Xiaomi 15T | 2025 | 12/256, 12/512 | Black, Gray, Rose Gold
+Xiaomi 15T Pro | 2025 | 12/256, 12/512, 12/1TB | Black, Gray, Mocha Gold
+// Poco
+Poco X3 NFC | 2020 | 6/64, 6/128 | Shadow Gray, Cobalt Blue
+Poco X3 Pro | 2021 | 6/128, 8/256 | Phantom Black, Frost Blue, Metal Bronze
+Poco F3 | 2021 | 6/128, 8/256 | Night Black, Arctic White, Deep Ocean Blue
+Poco M3 | 2020 | 4/64, 4/128 | Power Black, Cool Blue, Poco Yellow
+Poco X4 Pro 5G | 2022 | 6/128, 8/256 | Laser Black, Laser Blue, Poco Yellow
+Poco M4 Pro | 2022 | 6/128, 8/256 | Power Black, Cool Blue, Poco Yellow
+Poco F4 | 2022 | 6/128, 8/256 | Night Black, Moonlight Silver, Nebula Green
+Poco X5 Pro 5G | 2023 | 6/128, 8/256 | Astral Black, Horizon Blue, Poco Yellow
+Poco F5 | 2023 | 8/256, 12/256 | Black, White, Blue
+Poco X6 Pro 5G | 2024 | 8/256, 12/512 | Black, Gray, Poco Yellow
+Poco X6 5G | 2024 | 8/256, 12/256, 12/512 | Black, White, Blue
+Poco F6 | 2024 | 8/256, 12/512 | Black, Green, Titanium
+Poco M6 Pro | 2024 | 8/256, 12/512 | Black, Purple, Blue
+Poco C65 | 2023 | 6/128, 8/256 | Black, Blue, Purple
+Poco C75 | 2024 | 6/128, 8/256 | Black, Green, Gold
+Poco X7 Pro | 2025 | 8/256, 12/512 | Black, Green, Yellow
+Poco X7 | 2025 | 8/256, 12/512 | Black, Silver, Green
+Poco F7 Pro | 2025 | 12/256, 12/512 | Black, Silver, Blue
+Poco F7 | 2025 | 12/256, 12/512 | Black, White, Cyber Silver

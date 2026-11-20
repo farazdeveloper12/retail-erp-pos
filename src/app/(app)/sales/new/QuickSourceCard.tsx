@@ -1,17 +1,18 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
-import { Headphones, Loader2, PackagePlus, Smartphone, X } from "lucide-react";
+import { Headphones, PackagePlus, Smartphone, X } from "lucide-react";
 import ProductPicker, { type PickedProduct } from "@/components/ProductPicker";
 import { inputClass, labelClass, primaryButtonClass } from "@/components/ui";
 import { centsToPlain, isValidMoneyInput, toCents } from "@/lib/money";
-import ModelCombobox, { type ModelOption } from "@/app/(app)/purchases/new/ModelCombobox";
+import PhoneSpecFields from "@/components/phone/PhoneSpecFields";
+import { EMPTY_SPEC, buildPhoneIndex, specLabel, specProblem, type PhoneSpec } from "@/lib/phone-catalog";
+import { showsPta } from "@/lib/pta";
 import ImeiInput from "@/app/(app)/purchases/new/ImeiInput";
 import {
   checkImeisInStock,
   getProductSalePrice,
   type CatalogBrand,
-  type CatalogModel,
 } from "@/app/(app)/purchases/new/actions";
 
 type Condition = "new" | "used" | "open_box" | "refurbished";
@@ -30,9 +31,8 @@ const WHOLE = /^\d+$/;
 export type SourcedDraft =
   | {
       kind: "phone";
-      modelId: string;
-      variantId: string;
-      colorId: string | null;
+      spec: PhoneSpec;
+      pta: string;
       condition: Condition;
       imei: string;
       title: string;
@@ -49,14 +49,6 @@ export type SourcedDraft =
       salePrice: string;
     };
 
-function storageLabel(gb: number) {
-  return gb >= 1024 && gb % 1024 === 0 ? `${gb / 1024} TB` : `${gb} GB`;
-}
-
-function variantLabel(v: { storage_gb: number; ram_gb: number | null }) {
-  return v.ram_gb ? `${storageLabel(v.storage_gb)} / ${v.ram_gb} GB RAM` : storageLabel(v.storage_gb);
-}
-
 function focusField(element: Element | null) {
   if (!element) return;
   const target = element.matches("input, select, button")
@@ -71,7 +63,6 @@ export default function QuickSourceCard({
   brands,
   loadingCatalog,
   onReloadCatalog,
-  canAddModels,
   canCreateProducts,
   currency,
   usedImeis,
@@ -80,8 +71,7 @@ export default function QuickSourceCard({
 }: {
   brands: CatalogBrand[] | null;
   loadingCatalog: boolean;
-  onReloadCatalog: () => void;
-  canAddModels: boolean;
+  onReloadCatalog: () => Promise<void>;
   canCreateProducts: boolean;
   currency: string;
   usedImeis: Set<string>;
@@ -93,9 +83,8 @@ export default function QuickSourceCard({
   const [mode, setMode] = useState<"phone" | "accessory">("phone");
 
   // Phone fields
-  const [modelId, setModelId] = useState("");
-  const [variantId, setVariantId] = useState("");
-  const [colorId, setColorId] = useState("");
+  const [spec, setSpec] = useState<PhoneSpec>(EMPTY_SPEC);
+  const [pta, setPta] = useState("");
   const [condition, setCondition] = useState<Condition>("new");
   const [imeis, setImeis] = useState<string[]>([]);
   const [inStock, setInStock] = useState<Set<string>>(() => new Set());
@@ -109,34 +98,12 @@ export default function QuickSourceCard({
   const [cost, setCost] = useState("");
   const [salePrice, setSalePrice] = useState("");
 
-  const { modelOptions, modelMap } = useMemo(() => {
-    const options: ModelOption[] = [];
-    const map = new Map<string, { model: CatalogModel; label: string }>();
-    for (const brand of brands ?? []) {
-      for (const model of brand.models) {
-        const label = `${brand.name} ${model.name}`;
-        options.push({ id: model.id, label });
-        map.set(model.id, { model, label });
-      }
-    }
-    options.sort((a, b) => a.label.localeCompare(b.label));
-    return { modelOptions: options, modelMap: map };
-  }, [brands]);
-
-  const selected = modelMap.get(modelId);
-  const model = selected?.model;
+  const phoneIndex = useMemo(() => buildPhoneIndex(brands), [brands]);
 
   // Focus the first field when the card opens or the mode changes
   useEffect(() => {
     focusField(cardRef.current?.querySelector("[data-src-field]") ?? null);
   }, [mode]);
-
-  function chooseModel(id: string) {
-    const next = modelMap.get(id)?.model;
-    setModelId(id);
-    setVariantId(next && next.variants.length === 1 ? next.variants[0].id : "");
-    setColorId(next && next.colors.length === 1 ? next.colors[0].id : "");
-  }
 
   // One IMEI per line; the stock check runs right away
   function addImei(values: string[]): string | null {
@@ -187,8 +154,8 @@ export default function QuickSourceCard({
 
   const reasons: string[] = [];
   if (mode === "phone") {
-    if (!modelId) reasons.push("Choose a model.");
-    else if (!variantId) reasons.push("Choose the storage.");
+    const specIssue = specProblem(spec);
+    if (specIssue) reasons.push(specIssue);
     if (imeis.length === 0) reasons.push("Add the IMEI.");
     else if (inStock.has(imeis[0])) {
       reasons.push("This IMEI is already in stock. Pick it from the Add item list instead.");
@@ -205,21 +172,16 @@ export default function QuickSourceCard({
 
   function add() {
     if (!canAdd) return;
-    if (mode === "phone" && model && selected) {
-      const variant = model.variants.find((v) => v.id === variantId);
-      const color = model.colors.find((c) => c.id === colorId);
+    if (mode === "phone" && spec.modelId) {
       const conditionLabel = CONDITIONS.find((c) => c.value === condition)?.label ?? condition;
       onAdd({
         kind: "phone",
-        modelId,
-        variantId,
-        colorId: colorId || null,
+        spec,
+        pta,
         condition,
         imei: imeis[0],
-        title: selected.label,
-        detail: [variant ? variantLabel(variant) : null, color?.name, conditionLabel]
-          .filter(Boolean)
-          .join(" · "),
+        title: specLabel(phoneIndex, spec),
+        detail: conditionLabel,
         cost,
         salePrice,
       });
@@ -318,64 +280,22 @@ export default function QuickSourceCard({
         </div>
 
         {mode === "phone" ? (
+          <div className="space-y-3">
+          <div data-src-field="model">
+            <PhoneSpecFields
+              idPrefix="src-phone"
+              index={phoneIndex}
+              loading={loadingCatalog}
+              onReloadCatalog={onReloadCatalog}
+              spec={spec}
+              onChange={(patch) => setSpec((current) => ({ ...current, ...patch }))}
+              pta={pta}
+              onPtaChange={setPta}
+              showPta={showsPta(currency)}
+              canQuickAdd
+            />
+          </div>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <div data-src-field="model" className="sm:col-span-2">
-              <span className={labelClass}>Model</span>
-              {loadingCatalog && !brands ? (
-                <p className="flex min-h-11 items-center gap-2 text-sm text-ink-muted">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Loading models...
-                </p>
-              ) : (
-                <ModelCombobox
-                  models={modelOptions}
-                  value={modelId}
-                  onChange={chooseModel}
-                  canAddModels={canAddModels}
-                  onReload={onReloadCatalog}
-                  reloading={loadingCatalog}
-                  label="Model"
-                />
-              )}
-            </div>
-            <div data-src-field="storage">
-              <label htmlFor="src-storage" className={labelClass}>
-                Storage
-              </label>
-              <select
-                id="src-storage"
-                value={variantId}
-                onChange={(e) => setVariantId(e.target.value)}
-                disabled={!model}
-                className={inputClass + " disabled:opacity-60"}
-              >
-                <option value="">{model ? "Choose" : "Pick a model"}</option>
-                {model?.variants.map((v) => (
-                  <option key={v.id} value={v.id}>
-                    {variantLabel(v)}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div data-src-field="color">
-              <label htmlFor="src-color" className={labelClass}>
-                Colour
-              </label>
-              <select
-                id="src-color"
-                value={colorId}
-                onChange={(e) => setColorId(e.target.value)}
-                disabled={!model}
-                className={inputClass + " disabled:opacity-60"}
-              >
-                <option value="">{model && model.colors.length === 0 ? "No colours" : "Optional"}</option>
-                {model?.colors.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            </div>
             <div data-src-field="condition">
               <label htmlFor="src-condition" className={labelClass}>
                 Condition
@@ -432,6 +352,7 @@ export default function QuickSourceCard({
                 className={inputClass}
               />
             </div>
+          </div>
           </div>
         ) : (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">

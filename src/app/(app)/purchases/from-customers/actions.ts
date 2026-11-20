@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getMyPermissions, hasAny } from "@/lib/permissions";
 import { PERMISSION_TRADE_IN, TradeInInputError, parseTradeIn } from "@/lib/trade-in";
+import { PhoneOptionError, resolvePhoneOption } from "@/lib/phone-options";
 
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -39,6 +40,10 @@ export async function buyFromCustomer(input: unknown): Promise<BuyFromCustomerRe
     }
 
     const supabase = await createClient();
+    // Storage/RAM option and colour: found, or created when missing
+    const option = await resolvePhoneOption(supabase, payload, "Phone");
+    payload.variant_id = option.variant_id;
+    payload.color_id = option.color_id;
     const { data, error } = await supabase.rpc("buy_from_customer", { p_payload: payload });
     if (error) {
       // The database raises clear English messages; show them as they are
@@ -51,7 +56,9 @@ export async function buyFromCustomer(input: unknown): Promise<BuyFromCustomerRe
     const id = (data as { id?: string } | null)?.id ?? null;
     return { ok: true, error: null, id };
   } catch (e) {
-    if (e instanceof TradeInInputError) return { ok: false, error: e.message, id: null };
+    if (e instanceof TradeInInputError || e instanceof PhoneOptionError) {
+      return { ok: false, error: e.message, id: null };
+    }
     console.error("buyFromCustomer error:", e);
     return { ok: false, error: "The phone could not be saved. Please try again.", id: null };
   }

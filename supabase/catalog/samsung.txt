@@ -1,0 +1,106 @@
+# Samsung
+// Galaxy S
+Galaxy S9 | 2018 | 4/64, 4/128, 4/256 | Midnight Black, Coral Blue, Lilac Purple, Titanium Gray
+Galaxy S9+ | 2018 | 6/64, 6/128, 6/256 | Midnight Black, Coral Blue, Lilac Purple, Titanium Gray
+Galaxy S10e | 2019 | 6/128, 8/256 | Prism Black, Prism White, Prism Blue, Canary Yellow
+Galaxy S10 | 2019 | 8/128, 8/512 | Prism Black, Prism White, Prism Blue, Prism Green
+Galaxy S10+ | 2019 | 8/128, 8/512, 12/1TB | Prism Black, Prism White, Prism Blue, Ceramic Black, Ceramic White
+Galaxy S20 | 2020 | 8/128, 12/128 | Cosmic Gray, Cloud Blue, Cloud Pink
+Galaxy S20+ | 2020 | 8/128, 12/128, 12/512 | Cosmic Gray, Cosmic Black, Cloud Blue
+Galaxy S20 Ultra | 2020 | 12/128, 12/256, 16/512 | Cosmic Gray, Cosmic Black
+Galaxy S20 FE | 2020 | 6/128, 8/128, 8/256 | Cloud Navy, Cloud Mint, Cloud Lavender, Cloud Red, Cloud White, Cloud Orange
+Galaxy S21 | 2021 | 8/128, 8/256 | Phantom Gray, Phantom White, Phantom Violet, Phantom Pink
+Galaxy S21+ | 2021 | 8/128, 8/256 | Phantom Black, Phantom Silver, Phantom Violet
+Galaxy S21 Ultra | 2021 | 12/128, 12/256, 16/512 | Phantom Black, Phantom Silver
+Galaxy S21 FE | 2022 | 6/128, 8/128, 8/256 | Graphite, White, Olive, Lavender
+Galaxy S22 | 2022 | 8/128, 8/256 | Phantom Black, Phantom White, Green, Pink Gold
+Galaxy S22+ | 2022 | 8/128, 8/256 | Phantom Black, Phantom White, Green, Pink Gold
+Galaxy S22 Ultra | 2022 | 8/128, 12/256, 12/512, 12/1TB | Phantom Black, Phantom White, Burgundy, Green
+Galaxy S23 | 2023 | 8/128, 8/256, 8/512 | Phantom Black, Cream, Green, Lavender
+Galaxy S23+ | 2023 | 8/256, 8/512 | Phantom Black, Cream, Green, Lavender
+Galaxy S23 Ultra | 2023 | 8/256, 12/256, 12/512, 12/1TB | Phantom Black, Cream, Green, Lavender
+Galaxy S23 FE | 2023 | 8/128, 8/256 | Mint, Cream, Graphite, Purple
+Galaxy S24 | 2024 | 8/128, 8/256, 8/512 | Onyx Black, Marble Grey, Cobalt Violet, Amber Yellow
+Galaxy S24+ | 2024 | 12/256, 12/512 | Onyx Black, Marble Grey, Cobalt Violet, Amber Yellow
+Galaxy S24 Ultra | 2024 | 12/256, 12/512, 12/1TB | Titanium Black, Titanium Gray, Titanium Violet, Titanium Yellow
+Galaxy S24 FE | 2024 | 8/128, 8/256, 8/512 | Blue, Graphite, Gray, Mint, Yellow
+Galaxy S25 | 2025 | 12/128, 12/256, 12/512 | Navy, Icyblue, Mint, Silver Shadow
+Galaxy S25+ | 2025 | 12/256, 12/512 | Navy, Icyblue, Mint, Silver Shadow
+Galaxy S25 Ultra | 2025 | 12/256, 12/512, 16/1TB | Titanium Silverblue, Titanium Black, Titanium Whitesilver, Titanium Gray
+Galaxy S25 Edge | 2025 | 12/256, 12/512 | Titanium Silver, Titanium Jetblack, Titanium Icyblue
+Galaxy S25 FE | 2025 | 8/128, 8/256, 8/512 | Navy, Jetblack, Icyblue, White
+// Galaxy Note
+Galaxy Note 9 | 2018 | 6/128, 8/512 | Midnight Black, Ocean Blue, Lavender Purple, Metallic Copper
+Galaxy Note 10 | 2019 | 8/256 | Aura Glow, Aura Black, Aura White, Aura Pink
+Galaxy Note 10+ | 2019 | 12/256, 12/512 | Aura Glow, Aura Black, Aura White, Aura Blue
+Galaxy Note 20 | 2020 | 8/256 | Mystic Bronze, Mystic Gray, Mystic Green
+Galaxy Note 20 Ultra | 2020 | 12/256, 12/512 | Mystic Bronze, Mystic Black, Mystic White
+// Galaxy Z
+Galaxy Z Flip3 | 2021 | 8/128, 8/256 | Cream, Green, Lavender, Phantom Black
+Galaxy Z Fold3 | 2021 | 12/256, 12/512 | Phantom Black, Phantom Green, Phantom Silver
+Galaxy Z Flip4 | 2022 | 8/128, 8/256, 8/512 | Bora Purple, Graphite, Pink Gold, Blue
+Galaxy Z Fold4 | 2022 | 12/256, 12/512, 12/1TB | Graygreen, Phantom Black, Beige
+Galaxy Z Flip5 | 2023 | 8/256, 8/512 | Mint, Graphite, Cream, Lavender
+Galaxy Z Fold5 | 2023 | 12/256, 12/512, 12/1TB | Icy Blue, Phantom Black, Cream
+Galaxy Z Flip6 | 2024 | 12/256, 12/512 | Blue, Yellow, Mint, Silver Shadow
+Galaxy Z Fold6 | 2024 | 12/256, 12/512, 12/1TB | Silver Shadow, Pink, Navy
+Galaxy Z Flip7 | 2025 | 12/256, 12/512 | Blue Shadow, Jetblack, Coralred
+Galaxy Z Fold7 | 2025 | 12/256, 12/512, 16/1TB | Blue Shadow, Silver Shadow, Jetblack
+// Galaxy A
+Galaxy A10 | 2019 | 2/32 | Black, Blue, Red
+Galaxy A10s | 2019 | 2/32 | Black, Blue, Green, Red
+Galaxy A20 | 2019 | 3/32 | Black, Blue, Red
+Galaxy A20s | 2019 | 3/32, 4/64 | Black, Blue, Red
+Galaxy A30 | 2019 | 3/32, 4/64 | Black, Blue, White
+Galaxy A30s | 2019 | 4/64, 4/128 | Prism Crush Black, Prism Crush White, Prism Crush Green, Prism Crush Violet
+Galaxy A50 | 2019 | 4/64, 6/128 | Black, White, Blue, Coral
+Galaxy A50s | 2019 | 4/128, 6/128 | Prism Crush Black, Prism Crush White, Prism Crush Green, Prism Crush Violet
+Galaxy A70 | 2019 | 6/128, 8/128 | Black, White, Blue, Coral
+Galaxy A01 | 2020 | 2/16, 2/32 | Black, Blue, Red
+Galaxy A11 | 2020 | 2/32, 3/32 | Black, White, Blue, Red
+Galaxy A21s | 2020 | 3/32, 4/64, 6/64, 4/128 | Black, White, Blue, Red
+Galaxy A31 | 2020 | 4/64, 4/128, 6/128 | Prism Crush Black, Prism Crush White, Prism Crush Blue, Prism Crush Red
+Galaxy A51 | 2020 | 4/64, 4/128, 6/128, 8/128 | Prism Crush Black, Prism Crush White, Prism Crush Blue, Prism Crush Pink
+Galaxy A71 | 2020 | 6/128, 8/128 | Prism Crush Black, Prism Crush Silver, Prism Crush Blue, Prism Crush Pink
+Galaxy A02 | 2021 | 2/32, 3/32, 3/64 | Black, Blue, Gray, Red
+Galaxy A02s | 2021 | 3/32, 4/64 | Black, Blue, White, Red
+Galaxy A12 | 2020 | 3/32, 4/64, 4/128, 6/128 | Black, White, Blue, Red
+Galaxy A22 | 2021 | 4/64, 4/128, 6/128 | Black, White, Mint, Violet
+Galaxy A32 | 2021 | 4/64, 4/128, 6/128, 8/128 | Awesome Black, Awesome White, Awesome Blue, Awesome Violet
+Galaxy A52 | 2021 | 4/128, 6/128, 8/128, 8/256 | Awesome Black, Awesome White, Awesome Blue, Awesome Violet
+Galaxy A52s | 2021 | 6/128, 8/128, 8/256 | Awesome Black, Awesome White, Awesome Mint, Awesome Violet
+Galaxy A72 | 2021 | 6/128, 8/128, 8/256 | Awesome Black, Awesome White, Awesome Blue, Awesome Violet
+Galaxy A03 | 2021 | 3/32, 4/64, 4/128 | Black, Blue, Red
+Galaxy A03s | 2021 | 3/32, 4/64 | Black, White, Blue
+Galaxy A03 Core | 2021 | 2/32 | Black, Blue
+Galaxy A13 | 2022 | 3/32, 4/64, 4/128, 6/128 | Black, White, Blue, Peach
+Galaxy A23 | 2022 | 4/64, 4/128, 6/128, 8/128 | Black, White, Blue, Peach
+Galaxy A33 5G | 2022 | 6/128, 8/128 | Awesome Black, Awesome White, Awesome Blue, Awesome Peach
+Galaxy A53 5G | 2022 | 6/128, 8/128, 8/256 | Awesome Black, Awesome White, Awesome Blue, Awesome Peach
+Galaxy A73 5G | 2022 | 6/128, 8/128, 8/256 | Awesome Gray, Awesome White, Awesome Mint
+Galaxy A04 | 2022 | 3/32, 4/64, 4/128 | Black, Green, Copper, White
+Galaxy A04s | 2022 | 3/32, 4/64, 4/128 | Black, White, Green, Copper
+Galaxy A04e | 2022 | 3/32, 3/64 | Black, Light Blue, Copper
+Galaxy A14 | 2023 | 4/64, 4/128, 6/128 | Black, Silver, Light Green, Dark Red
+Galaxy A24 | 2023 | 4/128, 6/128, 8/128 | Black, Light Green, Silver, Dark Red
+Galaxy A34 5G | 2023 | 6/128, 8/128, 8/256 | Awesome Graphite, Awesome Silver, Awesome Lime, Awesome Violet
+Galaxy A54 5G | 2023 | 6/128, 8/128, 8/256 | Awesome Graphite, Awesome White, Awesome Lime, Awesome Violet
+Galaxy A05 | 2023 | 4/64, 4/128, 6/128 | Black, Silver, Light Green
+Galaxy A05s | 2023 | 4/64, 4/128, 6/128 | Black, Silver, Light Green, Light Violet
+Galaxy A15 | 2023 | 4/128, 6/128, 8/128, 8/256 | Blue Black, Light Blue, Yellow
+Galaxy A25 5G | 2023 | 6/128, 8/128, 8/256 | Blue Black, Blue, Light Blue, Yellow
+Galaxy A35 5G | 2024 | 6/128, 8/128, 8/256 | Awesome Navy, Awesome Iceblue, Awesome Lilac, Awesome Lemon
+Galaxy A55 5G | 2024 | 8/128, 8/256, 12/256 | Awesome Navy, Awesome Iceblue, Awesome Lilac, Awesome Lemon
+Galaxy A06 | 2024 | 4/64, 4/128, 6/128 | Black, Gold, Light Blue
+Galaxy A16 | 2024 | 4/128, 6/128, 8/128, 8/256 | Black, Gray, Light Green, Gold
+Galaxy A26 5G | 2025 | 6/128, 8/128, 8/256 | Black, White, Mint, Peach Pink
+Galaxy A36 5G | 2025 | 6/128, 8/128, 8/256, 12/256 | Awesome Black, Awesome White, Awesome Lavender, Awesome Lime
+Galaxy A56 5G | 2025 | 8/128, 8/256, 12/256 | Awesome Graphite, Awesome Lightgray, Awesome Olive, Awesome Pink
+Galaxy A07 | 2025 | 4/64, 4/128, 6/128 | Black, Green, Light Violet
+Galaxy A17 | 2025 | 4/128, 6/128, 8/128, 8/256 | Black, Blue, Gray
+// Galaxy M
+Galaxy M12 | 2021 | 4/64, 4/128, 6/128 | Black, Blue, Green
+Galaxy M13 | 2022 | 4/64, 4/128, 6/128 | Deep Green, Light Blue, Orange Copper
+Galaxy M14 | 2023 | 4/64, 4/128, 6/128 | Navy Blue, Light Blue, Silver
+Galaxy M15 5G | 2024 | 4/128, 6/128 | Blue Topaz, Celestial Blue, Stone Gray
+Galaxy M35 5G | 2024 | 6/128, 8/128, 8/256 | Moonlight Blue, Daybreak Blue, Thunder Gray

@@ -4,6 +4,8 @@
 // again; these checks only give clear messages early.
 
 import { cleanMoneyInput, isValidMoneyInput, toCents } from "@/lib/money";
+import { EMPTY_SPEC, specPayload, specProblem, type PhoneSpec } from "@/lib/phone-catalog";
+import { isPtaStatus } from "@/lib/pta";
 
 export const PERMISSION_TRADE_IN = "purchases.manage";
 
@@ -21,9 +23,9 @@ export type TradeInDraft = {
   sellerName: string;
   sellerPhone: string;
   sellerIdNumber: string;
-  modelId: string;
-  variantId: string;
-  colorId: string;
+  // Model, storage, RAM and colour; missing options are created when saving
+  spec: PhoneSpec;
+  pta: string; // "" = not known
   imei: string;
   grade: TradeInGrade | "";
   notes: string;
@@ -36,9 +38,8 @@ export const EMPTY_TRADE_IN: TradeInDraft = {
   sellerName: "",
   sellerPhone: "",
   sellerIdNumber: "",
-  modelId: "",
-  variantId: "",
-  colorId: "",
+  spec: EMPTY_SPEC,
+  pta: "",
   imei: "",
   grade: "",
   notes: "",
@@ -64,8 +65,8 @@ export function tradeInProblems(draft: TradeInDraft): string[] {
   if (id && !ID_NUMBER_PATTERN.test(id)) {
     problems.push("The CNIC / Emirates ID must be 5 to 40 letters, digits, spaces or dashes.");
   }
-  if (!draft.modelId) problems.push("Choose the phone model.");
-  else if (!draft.variantId) problems.push("Choose the storage.");
+  const specIssue = specProblem(draft.spec);
+  if (specIssue) problems.push(specIssue);
   if (!IMEI_PATTERN.test(cleanImei(draft.imei))) problems.push("The IMEI must be exactly 15 digits.");
   if (!draft.grade) problems.push("Choose the condition grade A, B or C.");
   if (draft.notes.length > 500) problems.push("The condition notes can have at most 500 characters.");
@@ -82,9 +83,8 @@ export function tradeInPayload(draft: TradeInDraft): Record<string, unknown> {
     seller_name: draft.sellerName.trim(),
     seller_phone: draft.sellerPhone.trim(),
     seller_id_number: draft.sellerIdNumber.trim() || null,
-    model_id: draft.modelId,
-    variant_id: draft.variantId,
-    color_id: draft.colorId || null,
+    ...specPayload(draft.spec),
+    pta_status: draft.pta || null,
     imei: cleanImei(draft.imei),
     grade: draft.grade,
     condition_notes: draft.notes.trim() || null,
@@ -138,7 +138,9 @@ function money(value: unknown, label: string, required: boolean, positive: boole
   return value;
 }
 
-// Server side: checks what the browser sent and returns the database payload
+// Server side: checks what the browser sent and returns the database payload.
+// The phone (model_id, storage_gb, ram_gb, color_name) is turned into
+// variant_id / color_id by the server action (resolvePhoneOption).
 export function parseTradeIn(input: unknown): Record<string, unknown> {
   if (!isRecord(input)) throw new TradeInInputError("The phone details are not valid.");
   const imei = typeof input.imei === "string" ? cleanImei(input.imei) : "";
@@ -151,14 +153,20 @@ export function parseTradeIn(input: unknown): Record<string, unknown> {
   if (grade !== "A" && grade !== "B" && grade !== "C") {
     throw new TradeInInputError("Choose the condition grade A, B or C.");
   }
+  const pta = input.pta_status;
+  if (pta !== null && pta !== undefined && pta !== "" && !isPtaStatus(pta)) {
+    throw new TradeInInputError("The PTA status is not valid.");
+  }
   return {
     customer_id: uuid(input.customer_id, "Customer", false),
     seller_name: text(input.seller_name, 120, "Seller name", true),
     seller_phone: text(input.seller_phone, 40, "Seller phone", true),
     seller_id_number: idNumber,
     model_id: uuid(input.model_id, "Phone model", true),
-    variant_id: uuid(input.variant_id, "Storage", true),
-    color_id: uuid(input.color_id, "Colour", false),
+    storage_gb: input.storage_gb,
+    ram_gb: input.ram_gb ?? null,
+    color_name: text(input.color_name, 60, "Colour", false),
+    pta_status: pta || null,
     imei,
     grade,
     condition_notes: text(input.condition_notes, 500, "Condition notes", false),

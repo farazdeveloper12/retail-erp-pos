@@ -1,0 +1,160 @@
+# Google
+Pixel 3 | 2018 | 4/64, 4/128 | Just Black, Clearly White, Not Pink
+Pixel 3 XL | 2018 | 4/64, 4/128 | Just Black, Clearly White, Not Pink
+Pixel 3a | 2019 | 4/64 | Just Black, Clearly White, Purple-ish
+Pixel 3a XL | 2019 | 4/64 | Just Black, Clearly White, Purple-ish
+Pixel 4 | 2019 | 6/64, 6/128 | Just Black, Clearly White, Oh So Orange
+Pixel 4 XL | 2019 | 6/64, 6/128 | Just Black, Clearly White, Oh So Orange
+Pixel 4a | 2020 | 6/128 | Just Black, Barely Blue
+Pixel 5 | 2020 | 8/128 | Just Black, Sorta Sage
+Pixel 5a | 2021 | 6/128 | Mostly Black
+Pixel 6 | 2021 | 8/128, 8/256 | Stormy Black, Kinda Coral, Sorta Seafoam
+Pixel 6 Pro | 2021 | 12/128, 12/256, 12/512 | Stormy Black, Cloudy White, Sorta Sunny
+Pixel 6a | 2022 | 6/128 | Charcoal, Chalk, Sage
+Pixel 7 | 2022 | 8/128, 8/256 | Obsidian, Snow, Lemongrass
+Pixel 7 Pro | 2022 | 12/128, 12/256, 12/512 | Obsidian, Snow, Hazel
+Pixel 7a | 2023 | 8/128 | Charcoal, Snow, Sea, Coral
+Pixel 8 | 2023 | 8/128, 8/256 | Obsidian, Hazel, Rose, Mint
+Pixel 8 Pro | 2023 | 12/128, 12/256, 12/512, 12/1TB | Obsidian, Porcelain, Bay, Mint
+Pixel 8a | 2024 | 8/128, 8/256 | Obsidian, Porcelain, Bay, Aloe
+Pixel 9 | 2024 | 12/128, 12/256 | Obsidian, Porcelain, Wintergreen, Peony
+Pixel 9 Pro | 2024 | 16/128, 16/256, 16/512, 16/1TB | Obsidian, Porcelain, Hazel, Rose Quartz
+Pixel 9 Pro XL | 2024 | 16/128, 16/256, 16/512, 16/1TB | Obsidian, Porcelain, Hazel, Rose Quartz
+Pixel 9 Pro Fold | 2024 | 16/256, 16/512 | Obsidian, Porcelain
+Pixel 9a | 2025 | 8/128, 8/256 | Obsidian, Porcelain, Iris, Peony
+Pixel 10 | 2025 | 12/128, 12/256 | Obsidian, Frost, Indigo, Lemongrass
+Pixel 10 Pro | 2025 | 16/128, 16/256, 16/512, 16/1TB | Obsidian, Porcelain, Moonstone, Jade
+Pixel 10 Pro XL | 2025 | 16/256, 16/512, 16/1TB | Obsidian, Porcelain, Moonstone, Jade
+
+# Huawei
+P20 | 2018 | 4/128 | Black, Midnight Blue, Twilight, Pink Gold
+P20 Pro | 2018 | 6/128 | Black, Midnight Blue, Twilight, Pink Gold
+P30 | 2019 | 6/128, 8/128 | Black, Aurora, Breathing Crystal, Amber Sunrise
+P30 Lite | 2019 | 4/128, 6/128 | Midnight Black, Peacock Blue, Breathing Crystal
+P30 Pro | 2019 | 8/128, 8/256 | Black, Aurora, Breathing Crystal, Amber Sunrise
+Mate 20 Pro | 2018 | 6/128, 8/256 | Black, Twilight, Emerald Green, Midnight Blue
+Y6 2019 | 2019 | 2/32 | Midnight Black, Sapphire Blue, Amber Brown
+Y7 Prime 2019 | 2019 | 3/32, 3/64 | Midnight Black, Aurora Blue, Coral Red
+Y9 2019 | 2018 | 4/64, 6/128 | Midnight Black, Sapphire Blue, Aurora Purple
+Y9 Prime 2019 | 2019 | 4/128 | Midnight Black, Sapphire Blue, Emerald Green
+Y7a | 2020 | 4/128 | Midnight Black, Crush Green, Blush Gold
+Y9a | 2020 | 8/128 | Midnight Black, Space Silver, Sakura Pink
+Nova 3i | 2018 | 4/128 | Black, Iris Purple, Pearl White
+Nova 5T | 2019 | 6/128, 8/128 | Black, Crush Blue, Midsummer Purple
+Nova 7i | 2020 | 8/128 | Midnight Black, Crush Green, Sakura Pink
+Nova 9 | 2021 | 8/128 | Black, Starry Blue
+Nova 10 | 2022 | 8/128, 8/256 | Starry Silver, Black
+Nova 11 | 2023 | 8/256 | Black, Green
+Nova 11i | 2023 | 8/128 | Mint Green, Starry Black
+Nova 12i | 2024 | 8/128 | Black, Green
+Nova Y70 | 2022 | 4/128 | Midnight Black, Crystal Blue, Pearl White
+Nova Y90 | 2022 | 8/128 | Midnight Black, Emerald Green, Crystal Blue
+Nova 13 | 2024 | 12/256 | Black, White, Green
+
+# Honor
+X5 | 2022 | 2/32 | Midnight Black, Ocean Blue, Emerald Green
+X5 Plus | 2023 | 4/64 | Midnight Black, Cyan Lake
+X6 | 2022 | 4/64 | Midnight Black, Ocean Blue, Titanium Silver
+X6a | 2023 | 4/128, 6/128 | Midnight Black, Cyan Lake, Titanium Silver
+X6b | 2024 | 4/128, 6/128 | Midnight Black, Forest Green, Starry Purple
+X7 | 2022 | 4/128 | Midnight Black, Ocean Blue, Titanium Silver
+X7a | 2023 | 4/128, 6/128 | Midnight Black, Ocean Blue, Titanium Silver
+X7b | 2023 | 6/128, 8/256 | Midnight Black, Emerald Green, Flowing Silver
+X7c | 2024 | 6/128, 8/256 | Moonlight White, Forest Green, Midnight Black
+X8 | 2022 | 6/128, 8/128 | Midnight Black, Ocean Blue, Titanium Silver
+X8a | 2023 | 6/128, 8/128 | Midnight Black, Cyan Lake, Titanium Silver
+X8b | 2024 | 8/256, 8/512 | Midnight Black, Titanium Silver, Glamorous Green
+X8c | 2024 | 8/256, 8/512 | Midnight Black, Moonlight White, Cyan Lake
+X9a | 2024 | 8/256 | Midnight Black, Titanium Silver, Emerald Green
+X9b | 2024 | 8/256, 12/256 | Midnight Black, Sunrise Orange, Emerald Green
+X9c | 2024 | 8/256, 12/256 | Titanium Black, Jade Cyan, Titanium Purple
+90 | 2023 | 8/256, 12/512 | Midnight Black, Emerald Green, Diamond Silver
+90 Lite | 2023 | 8/256 | Midnight Black, Titanium Silver, Cyan Lake
+200 | 2024 | 8/256, 12/512 | Black, Emerald Green, Moonlight White
+200 Lite | 2024 | 8/256 | Midnight Black, Cyan Lake, Starry Blue
+200 Pro | 2024 | 12/512 | Black, Ocean Cyan, Moonlight White
+400 | 2025 | 8/256, 12/512 | Midnight Black, Desert Gold, Tidal Blue
+Magic6 Pro | 2024 | 12/512 | Black, Epi Green
+Magic7 Pro | 2025 | 12/512 | Black, Lunar Shadow Grey, Breeze Blue
+
+# Nokia
+2.3 | 2019 | 2/32 | Charcoal, Cyan Green, Sand
+3.4 | 2020 | 3/32, 3/64, 4/64 | Charcoal, Dusk, Fjord
+5.4 | 2020 | 4/64, 4/128, 6/64 | Polar Night, Dusk
+6.1 | 2018 | 3/32, 4/64 | Blue/Gold, Black/Copper, White/Iron
+7.2 | 2019 | 4/64, 6/128 | Charcoal, Cyan Green, Ice
+8.3 5G | 2020 | 6/64, 8/128 | Polar Night
+C1 | 2019 | 1/16 | Red, Blue
+C10 | 2021 | 1/16, 2/32 | Dark Cyan, Light Purple
+C20 | 2021 | 2/32 | Dark Blue, Sand
+C21 Plus | 2022 | 2/32, 3/32 | Dark Cyan, Warm Grey
+C30 | 2021 | 2/32, 3/32, 4/64 | Green, White
+C31 | 2022 | 3/32, 4/64, 4/128 | Charcoal, Mint, Cyan
+C32 | 2023 | 4/64, 4/128 | Charcoal, Autumn Green, Beach Pink
+G10 | 2021 | 3/32, 4/64 | Night, Dusk
+G20 | 2021 | 4/64, 4/128 | Night, Glacier
+G21 | 2021 | 4/64, 4/128, 6/128 | Nordic Blue, Dusk
+G22 | 2022 | 4/64, 4/128 | Meteor Grey, Lagoon Blue
+G42 5G | 2022 | 4/128, 6/128 | So Grey, So Purple
+
+# Motorola
+Moto G8 | 2020 | 4/64 | Neon Blue, Pearl White
+Moto G9 Play | 2020 | 4/64 | Sapphire Blue, Forest Green
+Moto G10 | 2021 | 4/64, 4/128 | Aurora Grey, Iridescent Pearl
+Moto G20 | 2021 | 4/64, 4/128 | Breeze Blue, Flamingo Red
+Moto G30 | 2021 | 4/128, 6/128 | Dark Pearl, Pastel Sky
+Moto G31 | 2021 | 4/64, 4/128 | Mineral Grey, Baby Blue
+Moto G32 | 2022 | 4/64, 4/128, 8/128 | Mineral Grey, Satin Silver, Rose Gold
+Moto G42 | 2022 | 4/64, 4/128 | Atlantic Green, Metallic Rose
+Moto G52 | 2022 | 4/128, 6/128 | Charcoal Grey, Porcelain White
+Moto G54 5G | 2023 | 8/128, 8/256, 12/256 | Midnight Blue, Mint Green, Pearl Blue
+Moto G62 5G | 2022 | 4/64, 6/128 | Midnight Grey, Frosted Blue
+Moto G72 | 2022 | 6/128, 8/128 | Meteorite Grey, Polar Blue
+Moto G73 5G | 2023 | 8/128, 8/256 | Midnight Blue, Lucent White
+Moto G84 5G | 2023 | 12/256 | Midnight Blue, Viva Magenta, Marshmallow Blue
+Moto G85 5G | 2024 | 8/128, 12/256 | Cobalt Blue, Olive Green, Urban Grey
+Moto E13 | 2023 | 2/64, 4/64, 8/128 | Cosmic Black, Aurora Green, Creamy White
+Moto E22 | 2022 | 3/32, 4/64 | Astro Black, Crystal Blue
+Moto E32 | 2022 | 4/64 | Misty Silver, Slate Grey
+Edge 20 | 2021 | 8/128 | Frosted Grey, Frosted Emerald
+Edge 30 | 2022 | 6/128, 8/128, 8/256 | Meteor Grey, Aurora Green
+Edge 40 | 2023 | 8/256 | Eclipse Black, Lunar Blue, Nebula Green, Viva Magenta
+Edge 40 Neo | 2023 | 8/128, 12/256 | Black Beauty, Caneel Bay, Soothing Sea
+Edge 50 Pro | 2024 | 8/256, 12/256 | Black Beauty, Luxe Lavender, Moonlight Pearl
+Edge 50 Fusion | 2024 | 8/128, 12/256 | Forest Blue, Marshmallow Blue, Hot Pink
+Razr 40 | 2023 | 8/256 | Sage Green, Summer Lilac, Vanilla Cream
+Razr 40 Ultra | 2023 | 8/256 | Infinite Black, Viva Magenta, Glacier Blue
+Razr 50 | 2024 | 8/256 | Koala Grey, Sand Cream, Spritz Orange
+Razr 50 Ultra | 2024 | 12/512 | Midnight Blue, Spring Green, Peach Fuzz
+
+# Nothing
+Phone (1) | 2022 | 8/128, 8/256, 12/256 | Black, White
+Phone (2) | 2023 | 8/128, 12/256, 12/512 | Dark Grey, White
+Phone (2a) | 2024 | 8/128, 8/256, 12/256 | Black, White
+Phone (3a) | 2025 | 8/128, 12/256 | Black, White, Blue
+Phone (3a) Pro | 2025 | 12/256 | Black, Grey
+CMF Phone 1 | 2024 | 6/128, 8/128, 8/256 | Black, Blue, Light Green, Orange
+
+// Sparx: low confidence. Pakistani brand; check models and options in the shop.
+# Sparx
+Neo 5 Plus | 2021 | 3/32 | Black, Blue
+Neo 6 Plus | 2022 | 3/64 | Black, Blue, Green
+Neo 7 | 2022 | 4/64 | Black, Blue
+Neo 7 Plus | 2023 | 4/128 | Black, Blue, Green
+Neo 7 Pro | 2023 | 6/128 | Black, Blue
+Neo 8 | 2023 | 4/128 | Black, Green
+Neo 8 Plus | 2024 | 6/128 | Black, Blue
+Neo 9 | 2024 | 4/128, 6/128 | Black, Green
+Neo 9 Pro | 2024 | 8/256 | Black, Blue
+Note 10 | 2024 | 8/256 | Black, Blue
+
+// ZTE
+# ZTE
+Blade A31 | 2021 | 2/32 | Gray, Blue
+Blade A51 | 2021 | 2/32, 3/64 | Gray, Blue
+Blade A71 | 2021 | 3/64 | Gray, Blue
+Blade A72 | 2022 | 3/64, 4/64 | Space Gray, Sky Blue
+Blade A73 | 2023 | 4/128 | Black, Blue
+Blade A75 | 2024 | 4/128, 6/128 | Black, Blue, Purple
+Blade V40 | 2022 | 4/128, 6/128 | Black, Blue
+Blade V50 Design | 2023 | 8/256 | Black, Blue, Purple
