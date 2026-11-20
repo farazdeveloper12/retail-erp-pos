@@ -28,7 +28,7 @@ function initials(name: string) {
 function Brand({ name }: { name: string }) {
   return (
     <div className="flex min-w-0 items-center gap-3">
-      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent text-accent-ink shadow-sm">
+      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-accent text-accent-ink shadow-soft">
         <Store className="h-5 w-5" />
       </div>
       <div className="min-w-0 leading-tight">
@@ -49,7 +49,7 @@ function NavLinks({
   onNavigate?: () => void;
 }) {
   return (
-    <nav className="flex flex-col gap-0.5">
+    <nav className="flex flex-col gap-1">
       {items.map((item) => {
         const active = isActive(pathname, item.href);
         return (
@@ -59,14 +59,13 @@ function NavLinks({
             onClick={onNavigate}
             aria-current={active ? "page" : undefined}
             className={
-              // Active: teal tint, teal text and a teal bar on the left
-              "relative flex min-h-11 items-center gap-3 rounded-lg px-3.5 py-2.5 text-sm font-medium transition-colors " +
+              "flex min-h-11 items-center gap-3 rounded-full px-4 py-2.5 text-sm font-medium transition-colors " +
               (active
-                ? "bg-accent-soft font-semibold text-pill-ink before:absolute before:inset-y-2 before:left-0 before:w-1 before:rounded-full before:bg-accent"
+                ? "bg-pill font-semibold text-pill-ink"
                 : "text-ink-muted hover:bg-surface-muted hover:text-ink")
             }
           >
-            <item.icon className={"h-5 w-5 shrink-0 " + (active ? "text-accent" : "")} />
+            <item.icon className="h-5 w-5 shrink-0" />
             <span>{item.label}</span>
           </Link>
         );
@@ -103,14 +102,14 @@ export default function AppShell({
   return (
     <div className="min-h-screen bg-canvas print:min-h-0 print:bg-white">
       {/* Desktop sidebar */}
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-line bg-surface lg:flex print:hidden!">
-        <div className="flex h-16 items-center border-b border-line px-5">
+      <aside className="fixed inset-y-3 left-3 z-30 hidden w-64 flex-col rounded-card border border-line bg-surface shadow-soft lg:flex print:hidden!">
+        <div className="px-5 pb-4 pt-5">
           <Brand name={workspaceName} />
         </div>
-        <div className="flex-1 overflow-y-auto px-3 py-3">
+        <div className="flex-1 overflow-y-auto px-3 pb-3">
           <NavLinks items={visibleItems} pathname={pathname} />
         </div>
-        <div className="m-3 rounded-xl border border-line bg-surface-muted px-4 py-3">
+        <div className="m-3 rounded-2xl bg-surface-muted px-4 py-3">
           <p className="truncate text-xs font-semibold text-ink">{workspaceName}</p>
           <p className="text-xs text-ink-muted">Signed in as {userRole}</p>
         </div>
@@ -120,11 +119,11 @@ export default function AppShell({
       {drawerOpen && (
         <div className="fixed inset-0 z-50 lg:hidden">
           <div
-            className="absolute inset-0 bg-black/50"
+            className="absolute inset-0 bg-black/40"
             onClick={() => setDrawerOpen(false)}
           />
-          <div className="absolute inset-y-0 left-0 flex w-72 max-w-[85%] flex-col border-r border-line bg-surface shadow-soft">
-            <div className="flex h-16 items-center justify-between gap-2 border-b border-line px-4">
+          <div className="absolute inset-y-0 left-0 flex w-72 max-w-[85%] flex-col rounded-r-card bg-surface shadow-soft">
+            <div className="flex items-center justify-between gap-2 px-4 pb-3 pt-5">
               <Brand name={workspaceName} />
               <button
                 type="button"
@@ -135,7 +134,7 @@ export default function AppShell({
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <div className="flex-1 overflow-y-auto px-3 py-3">
+            <div className="flex-1 overflow-y-auto px-3 pb-4">
               <NavLinks
                 items={visibleItems}
                 pathname={pathname}
@@ -145,7 +144,7 @@ export default function AppShell({
             <Link
               href="/settings/account"
               onClick={() => setDrawerOpen(false)}
-              className="m-3 block rounded-xl border border-line bg-surface-muted px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
+              className="m-3 block rounded-2xl bg-surface-muted px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
             >
               <p className="text-sm font-semibold text-ink">{userName}</p>
               <p className="text-xs text-ink-muted">{userRole} · My account</p>
@@ -155,9 +154,9 @@ export default function AppShell({
       )}
 
       {/* Right side: top bar + page content */}
-      <div className="lg:pl-64 print:pl-0!">
-        <header className="sticky top-0 z-20 border-b border-line bg-surface/90 backdrop-blur print:hidden">
-          <div className="flex h-16 items-center justify-between gap-3 px-3 sm:px-6 lg:px-8">
+      <div className="lg:pl-[17.5rem] print:pl-0!">
+        <header className="sticky top-0 z-20 bg-canvas/85 px-4 pt-3 backdrop-blur sm:px-6 lg:px-8 print:hidden">
+          <div className="flex h-16 items-center justify-between gap-3 rounded-card border border-line bg-surface px-3 shadow-soft sm:px-4">
             <div className="flex min-w-0 items-center gap-2 lg:hidden">
               <button
                 type="button"
@@ -182,7 +181,7 @@ export default function AppShell({
                 title="My account"
                 className="hidden items-center gap-2 rounded-full pr-2 hover:bg-surface-muted sm:flex"
               >
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-accent-soft text-sm font-bold text-pill-ink">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-lavender text-sm font-bold text-purple">
                   {initials(userName)}
                 </div>
                 <div className="text-left leading-tight">
@@ -196,7 +195,7 @@ export default function AppShell({
                   type="submit"
                   aria-label="Log out"
                   title="Log out"
-                  className="inline-flex h-11 min-w-11 items-center justify-center gap-2 rounded-xl border border-line bg-surface px-3 text-sm font-medium text-ink hover:bg-surface-muted"
+                  className="inline-flex h-10 items-center justify-center gap-2 rounded-full border border-line bg-surface px-3 text-sm font-medium text-ink hover:bg-surface-muted"
                 >
                   <LogOut className="h-5 w-5" />
                   <span className="hidden sm:inline">Log out</span>
@@ -206,17 +205,17 @@ export default function AppShell({
           </div>
         </header>
 
-        <main className="px-4 py-5 pb-28 sm:px-6 sm:py-6 lg:px-8 lg:pb-10 print:p-0!">
+        <main className="px-4 py-6 pb-28 sm:px-6 lg:px-8 lg:pb-10 print:p-0!">
           {children}
         </main>
       </div>
 
       {/* Mobile bottom navigation */}
       <nav
-        className="fixed inset-x-0 bottom-0 z-30 grid border-t border-line bg-surface/95 px-1 pt-1 backdrop-blur lg:hidden print:hidden!"
+        className="fixed inset-x-3 bottom-3 z-30 grid rounded-card border border-line bg-surface p-1.5 shadow-soft lg:hidden print:hidden!"
         style={{
           gridTemplateColumns: `repeat(${bottomItems.length + 1}, minmax(0, 1fr))`,
-          paddingBottom: "max(0.25rem, env(safe-area-inset-bottom))",
+          marginBottom: "env(safe-area-inset-bottom)",
         }}
       >
         {bottomItems.map((item) => {
@@ -227,8 +226,8 @@ export default function AppShell({
               href={item.href}
               aria-current={active ? "page" : undefined}
               className={
-                "flex min-h-14 flex-col items-center justify-center gap-0.5 rounded-xl py-1.5 text-[11px] font-medium transition-colors " +
-                (active ? "font-semibold text-accent" : "text-ink-muted")
+                "flex min-h-12 flex-col items-center justify-center gap-0.5 rounded-2xl py-1.5 text-[11px] font-medium transition-colors " +
+                (active ? "bg-pill font-semibold text-pill-ink" : "text-ink-muted")
               }
             >
               <item.icon className="h-5 w-5" />
@@ -241,7 +240,7 @@ export default function AppShell({
         <button
           type="button"
           onClick={() => setDrawerOpen(true)}
-          className="flex min-h-14 flex-col items-center justify-center gap-0.5 rounded-xl py-1.5 text-[11px] font-medium text-ink-muted"
+          className="flex min-h-12 flex-col items-center justify-center gap-0.5 rounded-2xl py-1.5 text-[11px] font-medium text-ink-muted"
         >
           <Menu className="h-5 w-5" />
           <span>Menu</span>

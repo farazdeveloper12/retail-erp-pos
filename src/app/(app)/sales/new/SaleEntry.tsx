@@ -92,7 +92,7 @@ function lineFromOption(option: SaleItemOption): SaleLine {
     key: newKey(),
     quantity: "1",
     unitPrice: price === null ? "" : centsToPlain(price),
-    discount: "",
+    discount: "0",
     cost,
     sourced: false,
     sourceCost: "",
@@ -118,7 +118,7 @@ function lineFromOption(option: SaleItemOption): SaleLine {
     detail: "",
     imei: null,
     inStock: option.in_stock,
-    warranty: "",
+    warranty: "0",
   };
 }
 
@@ -126,7 +126,7 @@ function lineFromDraft(draft: SourcedDraft): SaleLine {
   const base = {
     key: newKey(),
     unitPrice: draft.salePrice,
-    discount: "",
+    discount: "0",
     cost: null,
     sourced: true,
     sourceCost: draft.cost,
@@ -159,7 +159,7 @@ function lineFromDraft(draft: SourcedDraft): SaleLine {
     imei: null,
     inStock: MAX_SOURCED_QTY,
     quantity: draft.quantity,
-    warranty: "",
+    warranty: "0",
     source: null,
   };
 }
@@ -175,8 +175,8 @@ function newUnstockedLine(): SaleLine {
     inStock: MAX_UNSTOCKED_QTY,
     quantity: "1",
     unitPrice: "",
-    discount: "",
-    warranty: "",
+    discount: "0",
+    warranty: "0",
     cost: null,
     sourced: false,
     sourceCost: "",
@@ -274,9 +274,9 @@ export default function SaleEntry({
 
   const [lines, setLines] = useState<SaleLine[]>([]);
   const [customer, setCustomer] = useState<CustomerValue>(emptyCustomer);
-  const [invoiceDiscount, setInvoiceDiscount] = useState("");
+  const [invoiceDiscount, setInvoiceDiscount] = useState("0");
   const [method, setMethod] = useState<"cash" | "bank">("cash");
-  const [paid, setPaid] = useState("");
+  const [paid, setPaid] = useState("0");
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -289,7 +289,7 @@ export default function SaleEntry({
   const [catalog, setCatalog] = useState<CatalogBrand[] | null>(null);
   const [catalogLoading, setCatalogLoading] = useState(false);
   const [supplier, setSupplier] = useState<PickedSupplier | null>(null);
-  const [supplierPaid, setSupplierPaid] = useState("");
+  const [supplierPaid, setSupplierPaid] = useState("0");
   const [supplierMethod, setSupplierMethod] = useState<"cash" | "bank">("cash");
 
   // The customer's old phone (trade-in): its value pays part of the invoice
@@ -581,16 +581,16 @@ export default function SaleEntry({
   function resetAll() {
     setLines([]);
     setCustomer(emptyCustomer);
-    setInvoiceDiscount("");
+    setInvoiceDiscount("0");
     setMethod("cash");
-    setPaid("");
+    setPaid("0");
     setNotes("");
     setSaveError(null);
     setNotice(null);
     setResult(null);
     setSourcingOpen(false);
     setSupplier(null);
-    setSupplierPaid("");
+    setSupplierPaid("0");
     setSupplierMethod("cash");
     setTradeIn(null);
     setTradeInOpen(false);
@@ -702,7 +702,7 @@ export default function SaleEntry({
   const fieldLabel = "mb-1.5 block text-xs font-semibold text-ink-muted xl:sr-only";
 
   return (
-    <div ref={rootRef} onKeyDown={onKeyDown} className="space-y-6 pb-20 lg:pb-0">
+    <div ref={rootRef} onKeyDown={onKeyDown} className="space-y-6">
       <div className="grid gap-6 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] xl:items-start">
         {/* Items */}
         <section className={cardClass + " space-y-4"}>
@@ -773,7 +773,7 @@ export default function SaleEntry({
                 </span>
                 <span className="min-w-0">
                   <span className="block text-sm font-semibold text-ink">Trade-in: {tradeInLabel}</span>
-                  <span className="block tabular-nums text-xs text-ink-muted">IMEI {cleanImei(tradeIn.imei)}</span>
+                  <span className="block font-mono text-xs text-ink-muted">IMEI {cleanImei(tradeIn.imei)}</span>
                   <span className="block text-xs text-ink-muted">
                     Grade {tradeIn.grade} · from {tradeIn.sellerName.trim()}
                   </span>
@@ -895,7 +895,7 @@ export default function SaleEntry({
                                   value={line.imei ?? ""}
                                   onChange={(e) => updateLine(index, { imei: e.target.value })}
                                   aria-label={`IMEI or serial number, line ${n}`}
-                                  className={inputClass + " tabular-nums"}
+                                  className={inputClass + " font-mono"}
                                 />
                               </span>
                               <span className="inline-flex items-center gap-1 rounded-full bg-lavender px-2 py-0.5 text-xs font-semibold text-ink">
@@ -915,7 +915,7 @@ export default function SaleEntry({
                               <span className="block truncate text-xs text-ink-muted">{line.detail}</span>
                             )}
                             {line.imei && (
-                              <span className="block tabular-nums text-xs text-ink-muted">IMEI {line.imei}</span>
+                              <span className="block font-mono text-xs text-ink-muted">IMEI {line.imei}</span>
                             )}
                             {line.kind === "accessory" && !line.sourced && (
                               <span className="block text-xs text-ink-muted">In stock: {line.inStock}</span>
@@ -1004,7 +1004,6 @@ export default function SaleEntry({
                             type="text"
                             inputMode="decimal"
                             autoComplete="off"
-                            placeholder="0"
                             value={line.discount}
                             onChange={(e) => updateLine(index, { discount: e.target.value })}
                             aria-label={`Discount, line ${n}`}
@@ -1020,7 +1019,6 @@ export default function SaleEntry({
                             type="text"
                             inputMode="numeric"
                             autoComplete="off"
-                            placeholder="0"
                             value={line.warranty}
                             onChange={(e) => updateLine(index, { warranty: e.target.value })}
                             aria-label={`Warranty days, line ${n}`}
@@ -1122,7 +1120,6 @@ export default function SaleEntry({
                 type="text"
                 inputMode="decimal"
                 autoComplete="off"
-                placeholder="0"
                 value={supplierPaid}
                 onChange={(e) => setSupplierPaid(e.target.value)}
                 className={inputClass}
@@ -1154,7 +1151,7 @@ export default function SaleEntry({
       )}
 
       {/* Footer: totals, payment and save */}
-      <section className="rounded-card border border-line bg-surface p-4 shadow-soft sm:p-5 lg:sticky lg:bottom-3 lg:z-30">
+      <section className="sticky bottom-24 z-30 rounded-card border border-line bg-surface p-4 shadow-soft lg:bottom-3 sm:p-5">
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1.6fr)_minmax(0,1.2fr)] lg:items-start">
           <div className="space-y-2">
             <dl className="grid grid-cols-3 gap-2 text-sm lg:grid-cols-1 lg:gap-1">
@@ -1172,7 +1169,6 @@ export default function SaleEntry({
                     type="text"
                     inputMode="decimal"
                     autoComplete="off"
-                    placeholder="0"
                     value={invoiceDiscount}
                     onChange={(e) => setInvoiceDiscount(e.target.value)}
                     className={inputClass + " min-h-11 lg:w-32 lg:text-right"}
@@ -1209,7 +1205,6 @@ export default function SaleEntry({
                 type="text"
                 inputMode="decimal"
                 autoComplete="off"
-                placeholder="0"
                 value={paid}
                 onChange={(e) => setPaid(e.target.value)}
                 className={inputClass}
@@ -1271,34 +1266,6 @@ export default function SaleEntry({
           </div>
         </div>
       </section>
-
-      {/* Phones and tablets: a compact totals bar above the bottom menu, so the
-          total and the Save button are always in reach */}
-      {lines.length > 0 && (
-        <div className="fixed inset-x-0 bottom-[calc(4.25rem+env(safe-area-inset-bottom))] z-30 border-t border-line bg-surface/95 px-4 py-2.5 shadow-soft backdrop-blur lg:hidden print:hidden">
-          <div className="mx-auto flex max-w-3xl items-center gap-3">
-            <div className="min-w-0 flex-1 leading-tight">
-              <p className="text-xs text-ink-muted">
-                Total{tradeIn ? " after trade-in" : ""} ·{" "}
-                <span className={remaining > ZERO ? "font-semibold text-danger" : "font-semibold text-success"}>
-                  {remaining > ZERO ? `${formatMoney(remaining, currency)} remaining` : "paid"}
-                </span>
-              </p>
-              <p className="truncate text-lg font-bold tabular-nums text-ink">
-                {formatMoney(grandTotal - tradeInCents, currency)}
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => void save()}
-              disabled={!canSave}
-              className={primaryButtonClass + " min-h-12 shrink-0 px-6 text-base"}
-            >
-              {saving ? "Saving..." : "Save sale"}
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

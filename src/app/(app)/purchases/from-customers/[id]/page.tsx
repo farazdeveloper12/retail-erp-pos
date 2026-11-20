@@ -36,9 +36,9 @@ type SlipRow = {
 };
 
 // Fixed light colours: the printable area stays white in the dark theme too
-const INK = "text-[#0f172a]";
-const MUTED = "text-[#475569]";
-const LINE = "border-[#e2e8f0]";
+const INK = "text-[#1f2a2a]";
+const MUTED = "text-[#5b6b6b]";
+const LINE = "border-[#ece6d8]";
 
 const METHOD_LABELS: Record<string, string> = { cash: "Cash", bank: "Bank", trade_in: "Trade-in on a sale" };
 
@@ -131,18 +131,18 @@ export default async function CustomerPurchaseSlipPage({
                 إيصال شراء
               </p>
             )}
-            <p className="tabular-nums text-sm font-semibold">{formatCustomerPurchaseNo(slip.purchase_no)}</p>
+            <p className="font-mono text-sm font-semibold">{formatCustomerPurchaseNo(slip.purchase_no)}</p>
             <p className={`text-sm ${MUTED}`}>{formatDateWith(slip.purchase_date, business?.date_format ?? "medium")}</p>
           </div>
         </header>
 
         <p className="mt-4 text-sm">Used phone bought from the customer below.</p>
 
-        <dl className={`mt-4 divide-y divide-[#e2e8f0] rounded-2xl border ${LINE}`}>
+        <dl className={`mt-4 divide-y divide-[#ece6d8] rounded-2xl border ${LINE}`}>
           {rows.map(([label, value]) => (
             <div key={label} className="flex flex-wrap justify-between gap-2 px-4 py-2.5 text-sm">
               <dt className={MUTED}>{label}</dt>
-              <dd className={"text-right font-semibold" + (label === "IMEI" ? " tabular-nums" : "")}>{value}</dd>
+              <dd className={"text-right font-semibold" + (label === "IMEI" ? " font-mono" : "")}>{value}</dd>
             </div>
           ))}
           <div className="flex justify-between gap-2 px-4 py-3 text-base font-bold">

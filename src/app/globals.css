@@ -3,84 +3,77 @@
 /* Dark mode is controlled by the "dark" class on <html> */
 @custom-variant dark (&:where(.dark, .dark *));
 
-/* Design tokens: light theme (default).
-   Cool grey page, pure white cards, one brand colour (teal). Green and red
-   are only used for meaning (profit, expenses, money owed, errors). */
+/* Design tokens: light theme (default) */
 :root {
   color-scheme: light;
 
-  --background: #f5f7fa;
+  --background: #f7f3ea;
   --surface: #ffffff;
-  --surface-muted: #f3f5f8;
-  --border: #e3e8ef;
-  --border-strong: #cdd5df;
+  --surface-muted: #fbf8f1;
+  --border: #ece6d8;
+  --border-strong: #ddd5c3;
 
-  --foreground: #0f172a;
-  --muted-foreground: #526075;
+  --foreground: #1f2a2a;
+  --muted-foreground: #5b6b6b;
 
   --accent: #0f8b8d;
   --accent-strong: #0b7173;
-  --accent-soft: #e2f3f3;
+  --accent-soft: #d8f1ee;
   --accent-foreground: #ffffff;
 
-  /* Selected / active state (menu, toggles): teal tint with teal text */
-  --pill: #e2f3f3;
-  --pill-foreground: #0b6466;
+  --pill: #d9f56a;
+  --pill-foreground: #1f2a2a;
 
-  --coral: #dd5a2c;
-  --amber: #b45309;
-  --purple: #6d4fc2;
+  --coral: #ff8a65;
+  --amber: #f2a93b;
+  --purple: #6b4fb8;
 
-  /* Soft tints for small badges and icon circles only */
-  --peach: #fdeee8;
-  --lavender: #f0edfb;
-  --aqua: #e2f3f3;
-  --mint: #e6f6ec;
+  --peach: #ffe6d6;
+  --lavender: #ebe3fa;
+  --aqua: #d8f1ee;
+  --mint: #e3f5c9;
 
-  --success: #15803d;
-  --success-soft: #e6f6ec;
-  --danger: #c81e1e;
-  --danger-soft: #fdecec;
+  --danger: #c2410c;
+  --danger-soft: #fdebe3;
 
-  --shadow-soft: 0 1px 2px rgb(15 23 42 / 0.05), 0 4px 14px -4px rgb(15 23 42 / 0.08);
+  --shadow-soft: 0 1px 2px rgb(31 42 42 / 0.04),
+    0 8px 24px -8px rgb(31 42 42 / 0.08);
 }
 
-/* Design tokens: dark theme. Near-black page, clearly lighter cards. */
+/* Design tokens: dark theme (warm charcoal, not blue) */
 :root.dark {
   color-scheme: dark;
 
-  --background: #0d1015;
-  --surface: #1a1f27;
-  --surface-muted: #222934;
-  --border: #2d3542;
-  --border-strong: #3d4757;
+  --background: #1b1916;
+  --surface: #25221e;
+  --surface-muted: #2d2a25;
+  --border: #38332c;
+  --border-strong: #4a443b;
 
-  --foreground: #f1f5f9;
-  --muted-foreground: #a6b0bf;
+  --foreground: #f3eee4;
+  --muted-foreground: #b2a898;
 
-  --accent: #2bb3b0;
-  --accent-strong: #4fcac7;
-  --accent-soft: #123534;
-  --accent-foreground: #061615;
+  --accent: #3bb7b4;
+  --accent-strong: #5cc9c6;
+  --accent-soft: #1f3836;
+  --accent-foreground: #102120;
 
-  --pill: #143b3a;
-  --pill-foreground: #7fdedb;
+  --pill: #d9f56a;
+  --pill-foreground: #1f2a2a;
 
-  --coral: #ff8a6b;
+  --coral: #ff9a7a;
   --amber: #f5b950;
-  --purple: #a78bfa;
+  --purple: #a48ae6;
 
-  --peach: #3a2420;
-  --lavender: #2a2542;
-  --aqua: #123534;
-  --mint: #143021;
+  --peach: #3a2c24;
+  --lavender: #2f2a3b;
+  --aqua: #1f3533;
+  --mint: #2b3322;
 
-  --success: #4ade80;
-  --success-soft: #143021;
-  --danger: #f87171;
-  --danger-soft: #3b1d1d;
+  --danger: #ff9a7a;
+  --danger-soft: #3a2420;
 
-  --shadow-soft: 0 1px 2px rgb(0 0 0 / 0.4), 0 6px 18px -6px rgb(0 0 0 / 0.55);
+  --shadow-soft: 0 1px 2px rgb(0 0 0 / 0.3), 0 8px 24px -8px rgb(0 0 0 / 0.45);
 }
 
 /* Expose tokens to Tailwind as utilities (bg-canvas, text-ink, shadow-soft, ...) */
@@ -117,12 +110,10 @@
   --color-aqua: var(--aqua);
   --color-mint: var(--mint);
 
-  --color-success: var(--success);
-  --color-success-soft: var(--success-soft);
   --color-danger: var(--danger);
   --color-danger-soft: var(--danger-soft);
 
-  --radius-card: 16px;
+  --radius-card: 22px;
   --shadow-soft: var(--shadow-soft);
 }
 
@@ -137,6 +128,6 @@ body {
   html,
   body {
     background: #ffffff !important;
-    color: #0f172a !important;
+    color: #1f2a2a !important;
   }
 }

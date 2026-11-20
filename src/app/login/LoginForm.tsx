@@ -61,7 +61,7 @@ export default function LoginForm() {
       <button
         type="submit"
         disabled={pending}
-        className="min-h-12 w-full rounded-xl bg-accent px-4 py-3 text-sm font-semibold text-accent-ink shadow-sm transition hover:bg-accent-strong disabled:opacity-60"
+        className="min-h-12 w-full rounded-full bg-accent px-4 py-3 text-sm font-semibold text-accent-ink shadow-soft transition hover:bg-accent-strong disabled:opacity-60"
       >
         {pending ? "Signing in..." : "Sign in"}
       </button>

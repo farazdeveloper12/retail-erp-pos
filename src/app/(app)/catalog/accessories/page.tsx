@@ -403,7 +403,7 @@ export default async function AccessoriesPage({
                             <span className="text-xs text-ink-muted">No category</span>
                           )}
                         </td>
-                        <td className="px-5 py-3 tabular-nums text-xs text-ink-muted">
+                        <td className="px-5 py-3 font-mono text-xs text-ink-muted">
                           {product.barcode ?? "—"}
                         </td>
                         <td className="px-5 py-3 text-ink-muted">

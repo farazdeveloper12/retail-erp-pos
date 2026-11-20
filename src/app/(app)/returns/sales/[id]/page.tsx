@@ -43,9 +43,9 @@ type ItemRow = {
   restock: boolean;
 };
 
-const INK = "text-[#0f172a]";
-const MUTED = "text-[#475569]";
-const LINE = "border-[#e2e8f0]";
+const INK = "text-[#1f2a2a]";
+const MUTED = "text-[#5b6b6b]";
+const LINE = "border-[#ece6d8]";
 
 export default async function SalesReturnPage({ params }: { params: Promise<{ id: string }> }) {
   const permissions = await getMyPermissions();
@@ -113,7 +113,7 @@ export default async function SalesReturnPage({ params }: { params: Promise<{ id
           </div>
           <div className="text-right">
             <p className="text-xl font-bold tracking-widest">RETURN</p>
-            <p className="tabular-nums text-sm font-semibold">{formatSalesReturnNo(ret.return_no)}</p>
+            <p className="font-mono text-sm font-semibold">{formatSalesReturnNo(ret.return_no)}</p>
             <p className={`text-sm ${MUTED}`}>{formatDateWith(ret.return_date, dateFormat)}</p>
           </div>
         </header>
@@ -193,8 +193,8 @@ export default async function SalesReturnPage({ params }: { params: Promise<{ id
         </dl>
 
         <footer className={`mt-8 grid grid-cols-2 gap-6 border-t pt-6 text-xs ${LINE} ${MUTED}`}>
-          <p className="border-t border-dashed border-[#475569] pt-1">Customer signature</p>
-          <p className="border-t border-dashed border-[#475569] pt-1">Shop signature</p>
+          <p className="border-t border-dashed border-[#5b6b6b] pt-1">Customer signature</p>
+          <p className="border-t border-dashed border-[#5b6b6b] pt-1">Shop signature</p>
         </footer>
       </article>
     </div>

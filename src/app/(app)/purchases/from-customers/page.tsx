@@ -160,14 +160,14 @@ export default async function BoughtFromCustomersPage({
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="tabular-nums text-xs font-semibold text-ink-muted">
+                      <p className="font-mono text-xs font-semibold text-ink-muted">
                         {formatCustomerPurchaseNo(row.purchase_no)} · {formatDateWith(row.purchase_date, dateFormat)}
                       </p>
                       <p className="mt-0.5 truncate font-semibold text-ink">
                         {row.phone?.brand_name ? `${row.phone.brand_name} ` : ""}
                         {row.description}
                       </p>
-                      <p className="tabular-nums text-xs text-ink-muted">IMEI {row.imei}</p>
+                      <p className="font-mono text-xs text-ink-muted">IMEI {row.imei}</p>
                       <p className="text-xs text-ink-muted">{row.seller_name}</p>
                     </div>
                     <p className="text-right text-sm font-bold text-ink">{formatMoney(row.price, currency)}</p>
@@ -197,7 +197,7 @@ export default async function BoughtFromCustomersPage({
                     key={row.id}
                     className="relative border-b border-line last:border-0 hover:bg-surface-muted focus-within:bg-surface-muted"
                   >
-                    <td className="px-5 py-3 tabular-nums text-xs font-semibold text-ink">
+                    <td className="px-5 py-3 font-mono text-xs font-semibold text-ink">
                       <Link
                         href={`/purchases/from-customers/${row.id}`}
                         className="after:absolute after:inset-0 after:content-[''] focus-visible:outline-none"
@@ -217,7 +217,7 @@ export default async function BoughtFromCustomersPage({
                       {row.description}
                       {row.phone?.status === "sold" && <span className="ml-2 text-xs text-ink-muted">(sold)</span>}
                     </td>
-                    <td className="px-5 py-3 tabular-nums text-xs text-ink">{row.imei}</td>
+                    <td className="px-5 py-3 font-mono text-xs text-ink">{row.imei}</td>
                     <td className="whitespace-nowrap px-5 py-3 text-right font-semibold text-ink">
                       {formatMoney(row.price, currency)}
                     </td>

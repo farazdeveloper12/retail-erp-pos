@@ -40,9 +40,9 @@ type ItemRow = {
   line_total: number | string;
 };
 
-const INK = "text-[#0f172a]";
-const MUTED = "text-[#475569]";
-const LINE = "border-[#e2e8f0]";
+const INK = "text-[#1f2a2a]";
+const MUTED = "text-[#5b6b6b]";
+const LINE = "border-[#ece6d8]";
 
 export default async function PurchaseReturnPage({ params }: { params: Promise<{ id: string }> }) {
   const permissions = await getMyPermissions();
@@ -103,7 +103,7 @@ export default async function PurchaseReturnPage({ params }: { params: Promise<{
           </div>
           <div className="text-right">
             <p className="text-xl font-bold tracking-widest">SUPPLIER RETURN</p>
-            <p className="tabular-nums text-sm font-semibold">{formatPurchaseReturnNo(ret.return_no)}</p>
+            <p className="font-mono text-sm font-semibold">{formatPurchaseReturnNo(ret.return_no)}</p>
             <p className={`text-sm ${MUTED}`}>{formatDateWith(ret.return_date, dateFormat)}</p>
           </div>
         </header>
@@ -130,7 +130,7 @@ export default async function PurchaseReturnPage({ params }: { params: Promise<{
               <tr key={item.id} className={`border-b align-top ${LINE}`}>
                 <td className="py-2 pr-3">
                   <p className="font-semibold">{item.description}</p>
-                  {item.imei && <p className={`tabular-nums text-xs ${MUTED}`}>IMEI {item.imei}</p>}
+                  {item.imei && <p className={`font-mono text-xs ${MUTED}`}>IMEI {item.imei}</p>}
                 </td>
                 <td className="px-2 py-2 text-right">{item.quantity}</td>
                 <td className="px-2 py-2 text-right">{formatMoney(item.unit_cost, currency)}</td>

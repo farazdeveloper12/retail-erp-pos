@@ -243,7 +243,7 @@ export default function PurchaseEntry({
   const [date, setDate] = useState(today);
   const [invoiceNo, setInvoiceNo] = useState("");
   const [moreOpen, setMoreOpen] = useState(false);
-  const [extraCost, setExtraCost] = useState("");
+  const [extraCost, setExtraCost] = useState("0");
   const [notes, setNotes] = useState("");
 
   // Lines
@@ -252,7 +252,7 @@ export default function PurchaseEntry({
   const [inStock, setInStock] = useState<Set<string>>(() => new Set());
 
   // Payment and saving
-  const [paid, setPaid] = useState("");
+  const [paid, setPaid] = useState("0");
   const [method, setMethod] = useState<"" | "cash" | "bank">("");
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -557,13 +557,13 @@ export default function PurchaseEntry({
     setSupplier(null);
     setDate(today);
     setInvoiceNo("");
-    setExtraCost("");
+    setExtraCost("0");
     setNotes("");
     setMoreOpen(false);
     setPhones([emptyPhone()]);
     setAccessories([emptyAccessory()]);
     setInStock(new Set());
-    setPaid("");
+    setPaid("0");
     setMethod("");
     setSaveError(null);
     setResult(null);
@@ -724,7 +724,6 @@ export default function PurchaseEntry({
                 id="purchase-extra"
                 type="text"
                 inputMode="decimal"
-                placeholder="0"
                 value={extraCost}
                 onChange={(event) => setExtraCost(event.target.value)}
                 className={inputClass}
@@ -1053,7 +1052,7 @@ export default function PurchaseEntry({
       </section>
 
       {/* Footer: totals, payment and save */}
-      <section className="z-30 rounded-card border border-line bg-surface p-4 shadow-soft md:sticky md:bottom-[calc(4.25rem+env(safe-area-inset-bottom))] lg:bottom-3 sm:p-5">
+      <section className="z-30 rounded-card border border-line bg-surface p-4 shadow-soft md:sticky md:bottom-24 lg:bottom-3 sm:p-5">
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1.6fr)_minmax(0,1.2fr)] lg:items-start">
           <dl className="grid grid-cols-3 gap-2 text-sm lg:grid-cols-1 lg:gap-1">
             <div className="flex flex-col lg:flex-row lg:justify-between">
@@ -1080,7 +1079,6 @@ export default function PurchaseEntry({
                 type="text"
                 inputMode="decimal"
                 autoComplete="off"
-                placeholder="0"
                 value={paid}
                 onChange={(event) => setPaid(event.target.value)}
                 className={inputClass}
@@ -1096,7 +1094,7 @@ export default function PurchaseEntry({
                 <button
                   type="button"
                   onClick={() => {
-                    setPaid("");
+                    setPaid("0");
                     setMethod("");
                   }}
                   className="inline-flex min-h-11 flex-1 items-center justify-center rounded-full border border-line-strong px-3 text-xs font-semibold text-ink"

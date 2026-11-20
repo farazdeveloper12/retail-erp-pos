@@ -76,7 +76,7 @@ export default function ClaimForm({
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="min-w-0">
               <p className="font-semibold text-ink">{sold.description}</p>
-              {sold.imei && <p className="tabular-nums text-xs text-ink-muted">IMEI {sold.imei}</p>}
+              {sold.imei && <p className="font-mono text-xs text-ink-muted">IMEI {sold.imei}</p>}
               <p className="mt-1 text-sm text-ink-muted">
                 {formatInvoiceNo(sold.invoice_no)} · sold {formatDateWith(sold.sold_on, dateFormat)} ·{" "}
                 {sold.customer_name || "Walk-in customer"}

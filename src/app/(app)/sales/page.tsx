@@ -154,7 +154,7 @@ export default async function SalesPage() {
                 >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="flex items-center gap-2 tabular-nums text-xs font-semibold text-ink-muted">
+                    <p className="flex items-center gap-2 font-mono text-xs font-semibold text-ink-muted">
                       {sale.invoice}
                       {sale.cancelled && <Pill tone="neutral">Cancelled</Pill>}
                     </p>
@@ -202,7 +202,7 @@ export default async function SalesPage() {
                     key={sale.id}
                     className="relative border-b border-line last:border-0 hover:bg-surface-muted focus-within:bg-surface-muted"
                   >
-                    <td className="px-5 py-3 tabular-nums text-xs font-semibold text-ink">
+                    <td className="px-5 py-3 font-mono text-xs font-semibold text-ink">
                       {/* The link covers the whole row, so one Tab stop opens it */}
                       <Link
                         href={`/sales/${sale.id}`}

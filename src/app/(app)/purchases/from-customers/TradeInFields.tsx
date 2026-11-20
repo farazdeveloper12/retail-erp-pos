@@ -190,7 +190,7 @@ export default function TradeInFields({
             maxLength={40}
             value={value.sellerIdNumber}
             onChange={(e) => onChange({ sellerIdNumber: e.target.value })}
-            className={inputClass + " tabular-nums"}
+            className={inputClass + " font-mono"}
           />
         </div>
       </div>
@@ -372,7 +372,7 @@ export default function TradeInFields({
             value={value.imei}
             onChange={(e) => onChange({ imei: e.target.value.replace(/[^\d\s]/g, "") })}
             aria-describedby={id("imei-state")}
-            className={inputClass + " tabular-nums"}
+            className={inputClass + " font-mono"}
           />
           <p id={id("imei-state")} className="mt-1 text-xs" aria-live="polite">
             {imeiState === "checking" && <span className="text-ink-muted">Checking stock...</span>}

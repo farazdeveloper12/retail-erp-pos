@@ -157,7 +157,7 @@ export default async function CustomerDetailPage({
                     className="block rounded-card border border-line bg-surface p-4 shadow-soft transition active:scale-[0.99] hover:border-line-strong focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-accent/20"
                   >
                     <div className="flex items-start justify-between gap-3">
-                      <p className="tabular-nums text-xs font-semibold text-ink">
+                      <p className="font-mono text-xs font-semibold text-ink">
                         {sale.invoice}
                         {sale.cancelled && (
                           <span className="ml-2 align-middle font-sans">
@@ -195,7 +195,7 @@ export default async function CustomerDetailPage({
                       key={sale.id}
                       className="relative border-b border-line last:border-0 hover:bg-surface-muted focus-within:bg-surface-muted"
                     >
-                      <td className="px-5 py-3 tabular-nums text-xs font-semibold text-ink">
+                      <td className="px-5 py-3 font-mono text-xs font-semibold text-ink">
                         <Link
                           href={`/sales/${sale.id}`}
                           className="after:absolute after:inset-0 after:content-[''] focus-visible:outline-none"
