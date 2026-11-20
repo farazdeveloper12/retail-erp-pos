@@ -160,7 +160,7 @@ export default function PurchaseReturnForm({
                   />
                   <span className="min-w-0 flex-1">
                     <span className="block font-semibold text-ink">{p.description}</span>
-                    <span className="block font-mono text-xs text-ink-muted">IMEI {p.imei}</span>
+                    <span className="block tabular-nums text-xs text-ink-muted">IMEI {p.imei}</span>
                   </span>
                   <span className="text-sm font-semibold text-ink">{formatMoney(p.unit_cost, currency)}</span>
                 </label>

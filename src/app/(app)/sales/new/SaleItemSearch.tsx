@@ -242,7 +242,7 @@ export default function SaleItemSearch({
                       </span>
                       <span className="block truncate text-xs text-ink-muted">
                         {option.condition ? `${option.condition} · ` : ""}IMEI{" "}
-                        <span className="font-mono">{option.imei}</span>
+                        <span className="tabular-nums">{option.imei}</span>
                       </span>
                     </>
                   ) : (

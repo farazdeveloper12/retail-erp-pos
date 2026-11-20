@@ -19,7 +19,7 @@ export default function ThemeToggle() {
       onClick={toggleTheme}
       aria-label="Switch between light and dark mode"
       title="Switch theme"
-      className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-line bg-surface text-ink hover:bg-surface-muted"
+      className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-line bg-surface text-ink hover:bg-surface-muted"
     >
       <Moon className="h-5 w-5 dark:hidden" />
       <Sun className="hidden h-5 w-5 dark:block" />

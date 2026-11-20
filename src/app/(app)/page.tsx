@@ -38,14 +38,22 @@ export const metadata: Metadata = {
   title: "Dashboard",
 };
 
-type Tone = "peach" | "lavender" | "aqua" | "mint";
+// Colour only carries meaning: green = money in / profit, red = money out /
+// owed / loss, teal = the shop's main figures, grey = counts and stock.
+type Tone = "brand" | "good" | "bad" | "neutral";
 
-const TONES: Record<Tone, { card: string; chip: string }> = {
-  peach: { card: "bg-peach", chip: "bg-surface/70 text-coral" },
-  lavender: { card: "bg-lavender", chip: "bg-surface/70 text-purple" },
-  aqua: { card: "bg-aqua", chip: "bg-surface/70 text-accent" },
-  mint: { card: "bg-mint", chip: "bg-surface/70 text-ink" },
+const TONES: Record<Tone, { chip: string; value: string }> = {
+  brand: { chip: "bg-accent-soft text-accent", value: "text-ink" },
+  good: { chip: "bg-success-soft text-success", value: "text-success" },
+  bad: { chip: "bg-danger-soft text-danger", value: "text-danger" },
+  neutral: { chip: "bg-surface-muted text-ink-muted", value: "text-ink" },
 };
+
+// Profit figures: green when positive, red when negative
+function signTone(value: bigint | null): Tone {
+  if (value === null) return "neutral";
+  return value < BigInt(0) ? "bad" : "good";
+}
 
 function KpiCard({
   label,
@@ -62,14 +70,16 @@ function KpiCard({
 }) {
   const style = TONES[tone];
   return (
-    <div className={"flex flex-col gap-3 rounded-card p-4 sm:p-5 " + style.card}>
-      <span className={"flex h-9 w-9 items-center justify-center rounded-xl " + style.chip}>
-        <Icon className="h-4 w-4" />
-      </span>
+    <div className="flex flex-col gap-3 rounded-card border border-line bg-surface p-4 shadow-soft sm:p-5">
+      <div className="flex items-start justify-between gap-2">
+        <p className="text-sm font-medium text-ink-muted">{label}</p>
+        <span className={"flex h-9 w-9 shrink-0 items-center justify-center rounded-full " + style.chip}>
+          <Icon className="h-4 w-4" />
+        </span>
+      </div>
       <div>
-        <p className="break-words text-xl font-bold leading-tight text-ink sm:text-2xl">{value}</p>
-        <p className="mt-1.5 text-sm font-medium text-ink">{label}</p>
-        {hint && <p className="mt-0.5 text-xs text-ink-muted">{hint}</p>}
+        <p className={"break-words text-xl font-bold leading-tight tabular-nums sm:text-2xl " + style.value}>{value}</p>
+        {hint && <p className="mt-1 text-xs text-ink-muted">{hint}</p>}
       </div>
     </div>
   );
@@ -149,14 +159,14 @@ export default async function DashboardPage({
               value={money(data.salesTotal)}
               hint={`${data.salesCount} ${data.salesCount === 1 ? "invoice" : "invoices"}`}
               icon={ShoppingCart}
-              tone="peach"
+              tone="brand"
             />
-            <KpiCard label="Cash received on sales" value={money(data.salesPaid)} icon={Banknote} tone="mint" />
-            <KpiCard label="Customers owe us" value={money(data.receivable)} hint="All time" icon={Users} tone="lavender" />
+            <KpiCard label="Cash received on sales" value={money(data.salesPaid)} icon={Banknote} tone="good" />
+            <KpiCard label="Customers owe us" value={money(data.receivable)} hint="All time" icon={Users} tone="bad" />
             {data.financial && (
               <>
-                <KpiCard label="Profit" value={money(data.profit)} hint="On sales in this period" icon={TrendingUp} tone="aqua" />
-                <KpiCard label="Expenses" value={money(data.expensesTotal)} icon={Receipt} tone="peach" />
+                <KpiCard label="Profit" value={money(data.profit)} hint="On sales in this period" icon={TrendingUp} tone={signTone(data.profit)} />
+                <KpiCard label="Expenses" value={money(data.expensesTotal)} icon={Receipt} tone="bad" />
                 <KpiCard
                   label="Profit after expenses"
                   value={money(
@@ -166,10 +176,12 @@ export default async function DashboardPage({
                   )}
                   hint="Profit minus expenses"
                   icon={CircleDollarSign}
-                  tone="mint"
+                  tone={signTone(
+                    data.profit !== null && data.expensesTotal !== null ? data.profit - data.expensesTotal : null
+                  )}
                 />
-                <KpiCard label="Purchases" value={money(data.purchasesTotal)} icon={ShoppingBag} tone="lavender" />
-                <KpiCard label="Suppliers we owe" value={money(data.payable)} hint="All time" icon={Truck} tone="aqua" />
+                <KpiCard label="Purchases" value={money(data.purchasesTotal)} icon={ShoppingBag} tone="neutral" />
+                <KpiCard label="Suppliers we owe" value={money(data.payable)} hint="All time" icon={Truck} tone="bad" />
               </>
             )}
           </section>
@@ -177,9 +189,9 @@ export default async function DashboardPage({
           {data.financial && (
             <section aria-label="Cash and stock value" className="space-y-2">
               <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
-                <KpiCard label="Cash in hand" value={money(data.cashBalance)} icon={Wallet} tone="mint" />
-                <KpiCard label="Bank & wallets" value={money(data.bankBalance)} icon={Landmark} tone="aqua" />
-                <KpiCard label="Stock value" value={money(data.stockValue)} hint="At cost" icon={Boxes} tone="peach" />
+                <KpiCard label="Cash in hand" value={money(data.cashBalance)} icon={Wallet} tone="brand" />
+                <KpiCard label="Bank & wallets" value={money(data.bankBalance)} icon={Landmark} tone="brand" />
+                <KpiCard label="Stock value" value={money(data.stockValue)} hint="At cost" icon={Boxes} tone="neutral" />
               </div>
               <p className="text-xs text-ink-muted">
                 Cash and bank balances are calculated from the entries recorded in this app.
@@ -189,18 +201,18 @@ export default async function DashboardPage({
 
           {/* Stock */}
           <section aria-label="Stock" className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3">
-            <KpiCard label="Phones in stock" value={String(data.phonesInStock)} icon={Smartphone} tone="lavender" />
-            <KpiCard label="Accessory units" value={String(data.accessoryUnits)} icon={Headphones} tone="mint" />
+            <KpiCard label="Phones in stock" value={String(data.phonesInStock)} icon={Smartphone} tone="neutral" />
+            <KpiCard label="Accessory units" value={String(data.accessoryUnits)} icon={Headphones} tone="neutral" />
             {(() => {
               const lowStockCard = (
                 <>
-                  <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-peach text-coral">
+                  <span className="flex h-9 w-9 items-center justify-center rounded-full bg-danger-soft text-danger">
                     <TriangleAlert className="h-4 w-4" />
                   </span>
                   <div>
                     {data.lowStockCount > 0 ? (
-                      <span className="inline-flex items-center gap-1.5 rounded-full bg-peach px-3 py-1 text-sm font-bold text-ink">
-                        <span className="h-2 w-2 rounded-full bg-coral" aria-hidden="true" />
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-danger-soft px-3 py-1 text-sm font-bold text-danger">
+                        <span className="h-2 w-2 rounded-full bg-danger" aria-hidden="true" />
                         {data.lowStockCount}
                       </span>
                     ) : (
@@ -266,10 +278,10 @@ export default async function DashboardPage({
                       key={action.href}
                       href={action.href}
                       className={
-                        "group flex min-h-14 items-center gap-3 rounded-2xl px-4 py-3 text-sm font-semibold transition " +
+                        "group flex min-h-14 items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold transition " +
                         (action.primary
                           ? "bg-accent text-accent-ink hover:bg-accent-strong"
-                          : "bg-surface-muted text-ink hover:bg-aqua")
+                          : "border border-line bg-surface text-ink hover:border-accent/50 hover:bg-surface-muted")
                       }
                     >
                       <action.icon className="h-5 w-5" />
@@ -359,7 +371,7 @@ export default async function DashboardPage({
                             className="flex min-h-11 items-center justify-between gap-3 rounded-xl px-2 py-2 text-sm hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-accent/20"
                           >
                             <span className="min-w-0">
-                              <span className="flex items-center gap-2 font-mono text-xs font-semibold text-ink">
+                              <span className="flex items-center gap-2 tabular-nums text-xs font-semibold text-ink">
                                 {formatInvoiceNo(sale.invoice_no)}
                                 {cancelled && (
                                   <span className="font-sans">

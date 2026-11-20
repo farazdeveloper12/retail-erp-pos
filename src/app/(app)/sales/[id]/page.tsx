@@ -77,9 +77,9 @@ const CONDITION_LABELS: Record<string, string> = {
 };
 
 // Fixed light colours: the printable area stays white in the dark theme too
-const INK = "text-[#1f2a2a]";
-const MUTED = "text-[#5b6b6b]";
-const LINE = "border-[#ece6d8]";
+const INK = "text-[#0f172a]";
+const MUTED = "text-[#475569]";
+const LINE = "border-[#e2e8f0]";
 
 // English label, followed by the Arabic one on bilingual invoices
 function Label({ en, ar, bilingual }: { en: string; ar: string; bilingual: boolean }): ReactNode {
@@ -433,7 +433,7 @@ export default async function InvoicePage({
               {isTaxInvoice && sellerTrn && (
                 <p className="text-sm font-semibold group-data-[paper=thermal]:text-[10px]">
                   <Label en="TRN" ar="الرقم الضريبي" bilingual={bilingual} />:{" "}
-                  <span className="font-mono">{sellerTrn}</span>
+                  <span className="tabular-nums">{sellerTrn}</span>
                 </p>
               )}
               </div>
@@ -451,7 +451,7 @@ export default async function InvoicePage({
                 <span className={MUTED}>
                   <Label en="Invoice no." ar="رقم الفاتورة" bilingual={bilingual} />:
                 </span>{" "}
-                <span className="font-mono font-semibold">{invoiceNo}</span>
+                <span className="tabular-nums font-semibold">{invoiceNo}</span>
               </p>
               <p className={`text-sm ${MUTED} group-data-[paper=thermal]:text-[10px]`}>
                 <Label en="Date" ar="التاريخ" bilingual={bilingual} />: {date}
@@ -469,7 +469,7 @@ export default async function InvoicePage({
             {isTaxInvoice && customerTrn && (
               <p className="text-sm">
                 <Label en="Customer TRN" ar="الرقم الضريبي للعميل" bilingual={bilingual} />:{" "}
-                <span className="font-mono">{customerTrn}</span>
+                <span className="tabular-nums">{customerTrn}</span>
               </p>
             )}
           </section>
@@ -494,7 +494,7 @@ export default async function InvoicePage({
                       <p className="font-semibold">{item.description ?? "Item"}</p>
                       {item.item_type === "unstocked" && item.imei && (
                         <p className={`text-xs ${MUTED}`}>
-                          IMEI/Serial <span className="font-mono">{item.imei}</span>
+                          IMEI/Serial <span className="tabular-nums">{item.imei}</span>
                         </p>
                       )}
                       {item.item_type === "phone" && (
@@ -502,7 +502,7 @@ export default async function InvoicePage({
                           {item.condition ? `${CONDITION_LABELS[item.condition] ?? item.condition} · ` : ""}
                           {item.imei ? (
                             <>
-                              IMEI <span className="font-mono">{item.imei}</span>
+                              IMEI <span className="tabular-nums">{item.imei}</span>
                             </>
                           ) : null}
                         </p>
@@ -533,10 +533,10 @@ export default async function InvoicePage({
               <li key={index} className={`border-b border-dashed py-1 last:border-0 ${LINE}`}>
                 <p className="font-semibold">{item.description ?? "Item"}</p>
                 {item.item_type === "phone" && item.imei && (
-                  <p className="font-mono text-[10px]">IMEI {item.imei}</p>
+                  <p className="tabular-nums text-[10px]">IMEI {item.imei}</p>
                 )}
                 {item.item_type === "unstocked" && item.imei && (
-                  <p className="font-mono text-[10px]">IMEI/Serial {item.imei}</p>
+                  <p className="tabular-nums text-[10px]">IMEI/Serial {item.imei}</p>
                 )}
                 <div className="flex justify-between">
                   <span>
@@ -597,7 +597,7 @@ export default async function InvoicePage({
                       {tradeInRow?.imei ? (
                         <>
                           {" · IMEI "}
-                          <span className="font-mono">{tradeInRow.imei}</span>
+                          <span className="tabular-nums">{tradeInRow.imei}</span>
                         </>
                       ) : null}
                     </span>

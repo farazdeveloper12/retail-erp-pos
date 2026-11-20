@@ -360,7 +360,7 @@ export default async function ReturnsPage({
                       <div className="flex flex-wrap items-start justify-between gap-3">
                         <div className="min-w-0">
                           <p className="font-semibold text-ink">{row.description}</p>
-                          {row.imei && <p className="font-mono text-xs text-ink-muted">IMEI {row.imei}</p>}
+                          {row.imei && <p className="tabular-nums text-xs text-ink-muted">IMEI {row.imei}</p>}
                           <p className="mt-1 text-sm text-ink-muted">
                             <Link href={`/sales/${row.sale_id}`} className="font-semibold text-accent">
                               {formatInvoiceNo(row.invoice_no)}

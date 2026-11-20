@@ -81,7 +81,7 @@ export default function ImeiInput({
             <span
               key={imei}
               className={
-                "inline-flex items-center gap-1 rounded-full py-1 pl-2.5 pr-1 font-mono text-xs " +
+                "inline-flex items-center gap-1 rounded-full py-1 pl-2.5 pr-1 tabular-nums text-xs " +
                 (stocked ? "bg-danger-soft text-danger" : "bg-surface-muted text-ink")
               }
               title={
@@ -125,7 +125,7 @@ export default function ImeiInput({
           onBlur={() => {
             if (text.trim()) add(splitImeis(text));
           }}
-          className="min-h-8 min-w-[9rem] flex-1 bg-transparent px-1 font-mono text-sm text-ink outline-none placeholder:font-sans placeholder:text-ink-muted/70"
+          className="min-h-8 min-w-[9rem] flex-1 bg-transparent px-1 tabular-nums text-sm text-ink outline-none placeholder:font-sans placeholder:text-ink-muted/70"
         />
       </div>
       <div className="mt-1 flex flex-wrap items-center justify-between gap-2 text-xs">

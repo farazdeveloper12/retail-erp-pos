@@ -87,7 +87,7 @@ function ImeiList({ units }: { units: PhoneUnitRow[] }) {
           key={unit.imei}
           className="inline-flex items-center gap-2 rounded-full border border-line bg-surface-muted py-1 pl-3 pr-1"
         >
-          <span className="font-mono text-xs text-ink">{unit.imei}</span>
+          <span className="tabular-nums text-xs text-ink">{unit.imei}</span>
           <StatusPill status={unit.status} />
         </li>
       ))}

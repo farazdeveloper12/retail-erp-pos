@@ -4,22 +4,27 @@ import type { ReactNode } from "react";
 
 // Shared look for cards, forms and buttons. Presentational only.
 
+// White (dark: slate) card with a thin border and a soft shadow
 export const cardClass =
-  "rounded-card border border-line bg-surface p-5 shadow-soft sm:p-6";
+  "rounded-card border border-line bg-surface p-4 shadow-soft sm:p-6";
 
+// text-base on phones stops iOS from zooming into the field
 export const inputClass =
-  "min-h-11 w-full rounded-2xl border border-line-strong bg-surface px-4 py-2.5 text-sm text-ink outline-none transition placeholder:text-ink-muted/70 focus:border-accent focus:ring-4 focus:ring-accent/15";
+  "min-h-11 w-full rounded-xl border border-line-strong bg-surface px-3.5 py-2.5 text-base text-ink outline-none transition placeholder:text-ink-muted/55 focus:border-accent focus:ring-4 focus:ring-accent/15 disabled:bg-surface-muted sm:text-sm";
 
 export const labelClass = "mb-1.5 block text-sm font-semibold text-ink";
 
-export const primaryButtonClass =
-  "inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-accent px-5 py-2.5 text-sm font-semibold text-accent-ink shadow-soft transition hover:bg-accent-strong disabled:opacity-60";
+const buttonBase =
+  "inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-accent/25 disabled:cursor-not-allowed disabled:opacity-55";
 
-export const secondaryButtonClass =
-  "inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-line-strong bg-surface px-5 py-2.5 text-sm font-semibold text-ink transition hover:bg-surface-muted disabled:opacity-60";
+// Main action of a screen: solid teal
+export const primaryButtonClass = `${buttonBase} bg-accent text-accent-ink shadow-sm hover:bg-accent-strong`;
 
-export const dangerButtonClass =
-  "inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-coral px-5 py-2.5 text-sm font-semibold text-pill-ink shadow-soft transition hover:brightness-95 disabled:opacity-60";
+// Other actions: white (dark: slate) with a border
+export const secondaryButtonClass = `${buttonBase} border border-line-strong bg-surface text-ink hover:border-accent/50 hover:bg-surface-muted`;
+
+// Destructive actions: solid red
+export const dangerButtonClass = `${buttonBase} bg-danger text-white shadow-sm hover:brightness-95 dark:text-[#1a0b0b]`;
 
 export function PageHeader({
   icon: Icon,
@@ -36,12 +41,12 @@ export function PageHeader({
     <div className="flex flex-wrap items-center justify-between gap-4">
       <div className="flex min-w-0 items-center gap-3">
         {Icon && (
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-accent text-accent-ink shadow-soft">
-            <Icon className="h-6 w-6" />
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-accent-soft text-accent">
+            <Icon className="h-5 w-5" />
           </div>
         )}
         <div className="min-w-0">
-          <h1 className="text-2xl font-bold text-ink sm:text-3xl">{title}</h1>
+          <h1 className="text-xl font-bold tracking-tight text-ink sm:text-2xl">{title}</h1>
           {description && (
             <div className="mt-0.5 text-sm text-ink-muted">{description}</div>
           )}
@@ -66,12 +71,14 @@ export function BackLink({ href, children }: { href: string; children: ReactNode
 
 type PillTone = "purple" | "teal" | "amber" | "mint" | "coral" | "neutral";
 
+// Status badges: soft tint with readable coloured text.
+// mint = good / active, coral = owed / problem, amber = waiting.
 const pillTones: Record<PillTone, { pill: string; dot: string }> = {
-  purple: { pill: "bg-lavender text-ink", dot: "bg-purple" },
-  teal: { pill: "bg-aqua text-ink", dot: "bg-accent" },
-  amber: { pill: "bg-amber/20 text-ink", dot: "bg-amber" },
-  mint: { pill: "bg-mint text-ink", dot: "bg-accent" },
-  coral: { pill: "bg-peach text-ink", dot: "bg-coral" },
+  purple: { pill: "bg-lavender text-purple", dot: "bg-purple" },
+  teal: { pill: "bg-accent-soft text-pill-ink", dot: "bg-accent" },
+  amber: { pill: "bg-amber/15 text-amber", dot: "bg-amber" },
+  mint: { pill: "bg-success-soft text-success", dot: "bg-success" },
+  coral: { pill: "bg-danger-soft text-danger", dot: "bg-danger" },
   neutral: { pill: "bg-surface-muted text-ink-muted border border-line", dot: "bg-ink-muted" },
 };
 
@@ -80,7 +87,7 @@ export function Pill({ tone, children }: { tone: PillTone; children: ReactNode }
   return (
     <span
       className={
-        "inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-semibold " +
+        "inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-semibold " +
         style.pill
       }
     >
@@ -123,8 +130,10 @@ export function Notice({
     <p
       role={kind === "error" ? "alert" : "status"}
       className={
-        "rounded-2xl px-4 py-3 text-sm font-medium " +
-        (kind === "error" ? "bg-danger-soft text-danger" : "bg-mint text-ink")
+        "rounded-xl border px-4 py-3 text-sm font-medium " +
+        (kind === "error"
+          ? "border-danger/25 bg-danger-soft text-danger"
+          : "border-success/25 bg-success-soft text-success")
       }
     >
       {children}
@@ -145,11 +154,8 @@ export function EmptyState({
 }) {
   return (
     <div className="rounded-card border border-dashed border-line-strong bg-surface px-6 py-12 text-center">
-      <div className="relative mx-auto h-20 w-20">
-        <div className="absolute inset-0 rounded-full bg-aqua" />
-        <div className="absolute inset-3 flex items-center justify-center rounded-2xl border-2 border-ink bg-surface">
-          <Icon className="h-6 w-6 text-accent" />
-        </div>
+      <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-accent-soft">
+        <Icon className="h-6 w-6 text-accent" />
       </div>
       <p className="mt-4 text-base font-bold text-ink">{title}</p>
       {text && <p className="mx-auto mt-1 max-w-sm text-sm text-ink-muted">{text}</p>}
@@ -157,3 +163,10 @@ export function EmptyState({
     </div>
   );
 }
+
+// Tables: header row, dividers and hover, the same on every list
+export const tableWrapClass = "overflow-x-auto rounded-card border border-line bg-surface shadow-soft";
+export const tableClass = "w-full text-left text-sm";
+export const tableHeadClass =
+  "border-b border-line bg-surface-muted text-xs font-semibold uppercase tracking-wide text-ink-muted";
+export const tableRowClass = "border-b border-line last:border-0 transition-colors hover:bg-surface-muted";

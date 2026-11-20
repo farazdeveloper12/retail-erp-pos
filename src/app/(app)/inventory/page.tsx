@@ -427,7 +427,7 @@ async function PhonesTab({
                           .filter(Boolean)
                           .join(" · ")}
                       </p>
-                      <p className="mt-1 font-mono text-xs text-ink">IMEI {phone.imei}</p>
+                      <p className="mt-1 tabular-nums text-xs text-ink">IMEI {phone.imei}</p>
                     </div>
                     <StatusPill status={phone.status} />
                   </div>
@@ -473,7 +473,7 @@ async function PhonesTab({
                         {[storageLabel(phone.storage_gb, phone.ram_gb), phone.color_name].filter(Boolean).join(" · ")}
                       </p>
                     </td>
-                    <td className="px-4 py-3 font-mono text-xs text-ink">{phone.imei}</td>
+                    <td className="px-4 py-3 tabular-nums text-xs text-ink">{phone.imei}</td>
                     <td className="px-4 py-3 text-ink-muted">
                       {phone.condition ? CONDITION_LABELS[phone.condition] ?? phone.condition : "—"}
                     </td>
