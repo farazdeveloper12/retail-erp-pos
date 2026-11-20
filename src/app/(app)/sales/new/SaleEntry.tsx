@@ -41,9 +41,8 @@ import CustomerPanel, { type CustomerValue } from "@/app/(app)/sales/new/Custome
 import QuickSourceCard, { type SourcedDraft } from "@/app/(app)/sales/new/QuickSourceCard";
 import TradeInCard from "@/app/(app)/sales/new/TradeInCard";
 import { EMPTY_TRADE_IN, cleanImei, tradeInPayload, type TradeInDraft } from "@/lib/trade-in";
-import { buildPhoneIndex, specLabel, specPayload, type PhoneSpec } from "@/lib/phone-catalog";
-import { showsPta } from "@/lib/pta";
-import { PtaSelect } from "@/components/phone/PhoneOptionPickers";
+import { buildPhoneIndex, parseStorage, specLabel, specPayload, type PhoneSpec } from "@/lib/phone-catalog";
+import UnstockedLineFields, { EMPTY_UNSTOCKED, type UnstockedDetails } from "@/app/(app)/sales/new/UnstockedLineFields";
 
 // ---------- Types and helpers ----------
 
@@ -76,6 +75,8 @@ type SaleLine = {
   source: SourceInfo | null;
   // PTA status of an "Item not in stock" line ("" = not known)
   pta: string;
+  // Details of an "Item not in stock" line (null for other lines)
+  u: UnstockedDetails | null;
 };
 
 const ZERO = BigInt(0);
@@ -102,6 +103,7 @@ function lineFromOption(option: SaleItemOption): SaleLine {
     sourceCost: "",
     source: null,
     pta: "",
+    u: null,
   };
   if (option.kind === "phone") {
     return {
@@ -131,6 +133,7 @@ function lineFromDraft(draft: SourcedDraft): SaleLine {
   const base = {
     key: newKey(),
     pta: "",
+    u: null,
     unitPrice: draft.salePrice,
     discount: "",
     cost: null,
@@ -167,6 +170,7 @@ function lineFromDraft(draft: SourcedDraft): SaleLine {
     warranty: "",
     source: null,
     pta: "",
+    u: null,
   };
 }
 
@@ -188,6 +192,7 @@ function newUnstockedLine(): SaleLine {
     sourceCost: "",
     source: null,
     pta: "",
+    u: EMPTY_UNSTOCKED,
   };
 }
 
@@ -226,6 +231,10 @@ function calculate(line: SaleLine): LineCalc {
     if (name === "") problems.push("enter the item name");
     else if (name.length > 200) problems.push("the item name can have at most 200 characters");
     if ((line.imei ?? "").trim().length > 40) problems.push("the IMEI or serial can have at most 40 characters");
+    if (line.u?.supplier) {
+      const supplierPaid = line.u.supplierPaid.trim() === "" ? ZERO : money(line.u.supplierPaid);
+      if (supplierPaid === null) problems.push("enter a valid amount paid to the supplier");
+    }
   }
 
   const unit = line.unitPrice.trim() === "" ? null : money(line.unitPrice);
@@ -353,6 +362,7 @@ export default function SaleEntry({
   // A free line for an item that is not in stock (no stock, purchase or supplier)
   function addUnstocked() {
     setNotice(null);
+    if (canSource && !catalog && !catalogLoading) void loadCatalog();
     pendingFocus.current = fieldSelector(lines.length, "name");
     setLines((current) => [...current, newUnstockedLine()]);
   }
@@ -533,6 +543,21 @@ export default function SaleEntry({
             imei: line.imei?.trim() || null,
             quantity: Number(line.quantity.trim()),
             unit_cost: plainNumber(line.sourceCost),
+            ...(line.u?.mode === "phone" && line.u.spec.modelId
+              ? {
+                  storage_gb: parseStorage(line.u.spec.storage),
+                  ram_gb: line.u.spec.ram.trim() ? Number(line.u.spec.ram) : null,
+                  color_name: line.u.spec.color.trim() || null,
+                }
+              : {}),
+            note: line.u?.note.trim() || null,
+            ...(line.u?.supplier
+              ? {
+                  supplier_id: line.u.supplier.id,
+                  supplier_paid: plainNumber(line.u.supplierPaid),
+                  supplier_method: line.u.supplierMethod,
+                }
+              : {}),
             ...common,
           };
         }
@@ -852,54 +877,33 @@ export default function SaleEntry({
                           </span>
                           {line.kind === "unstocked" ? (
                             <span className="min-w-0 flex-1 space-y-2">
-                              <input
-                                data-sale-field=""
-                                data-line={index}
-                                data-field="name"
-                                type="text"
-                                autoComplete="off"
-                                maxLength={200}
-                                placeholder="Item name"
-                                value={line.title}
-                                onChange={(e) => updateLine(index, { title: e.target.value })}
-                                aria-label={`Item name, line ${n}`}
-                                className={inputClass}
+                              <UnstockedLineFields
+                                n={n}
+                                title={line.title}
+                                details={line.u ?? EMPTY_UNSTOCKED}
+                                imei={line.imei ?? ""}
+                                pta={line.pta}
+                                cost={line.sourceCost}
+                                onChange={(patch) =>
+                                  updateLine(index, {
+                                    ...(patch.title !== undefined ? { title: patch.title } : {}),
+                                    ...(patch.imei !== undefined ? { imei: patch.imei } : {}),
+                                    ...(patch.pta !== undefined ? { pta: patch.pta } : {}),
+                                    ...(patch.sourceCost !== undefined ? { sourceCost: patch.sourceCost } : {}),
+                                    ...(patch.u ? { u: { ...(line.u ?? EMPTY_UNSTOCKED), ...patch.u } } : {}),
+                                  })
+                                }
+                                index={phoneIndex}
+                                catalogReady={canSource && Boolean(catalog)}
+                                canUseSupplier={canSource}
+                                currency={currency}
+                                owedToSupplier={
+                                  c.cost !== null && c.qty !== null
+                                    ? c.cost * BigInt(c.qty) -
+                                      (line.u?.supplierPaid.trim() ? money(line.u.supplierPaid) ?? ZERO : ZERO)
+                                    : null
+                                }
                               />
-                              <span className="grid gap-2 sm:grid-cols-2">
-                                <input
-                                  data-sale-field=""
-                                  data-line={index}
-                                  data-field="cost"
-                                  type="text"
-                                  inputMode="decimal"
-                                  autoComplete="off"
-                                  placeholder={`Cost price (${currency})`}
-                                  value={line.sourceCost}
-                                  onChange={(e) => updateLine(index, { sourceCost: e.target.value })}
-                                  aria-label={`Cost price, line ${n}`}
-                                  className={inputClass}
-                                />
-                                <input
-                                  data-sale-field=""
-                                  data-line={index}
-                                  data-field="serial"
-                                  type="text"
-                                  autoComplete="off"
-                                  maxLength={40}
-                                  placeholder="IMEI / serial (optional)"
-                                  value={line.imei ?? ""}
-                                  onChange={(e) => updateLine(index, { imei: e.target.value })}
-                                  aria-label={`IMEI or serial number, line ${n}`}
-                                  className={inputClass + " font-mono"}
-                                />
-                                {showsPta(currency) && (
-                                  <PtaSelect
-                                    value={line.pta}
-                                    onChange={(pta) => updateLine(index, { pta })}
-                                    label={`PTA status, line ${n}`}
-                                  />
-                                )}
-                              </span>
                               <span className="inline-flex items-center gap-1 rounded-full bg-lavender px-2 py-0.5 text-xs font-semibold text-ink">
                                 Not in stock · no stock change
                               </span>

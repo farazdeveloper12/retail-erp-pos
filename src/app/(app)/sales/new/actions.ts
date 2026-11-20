@@ -436,6 +436,7 @@ function buildSale(input: unknown, tradeInCredit = 0) {
   if (input.items.length > 200) throw new InputError("A sale can have at most 200 lines.");
 
   const seenPhones = new Set<string>();
+  let unstockedWithSupplier = false;
   const seenImeis = new Set<string>();
   let lineTotal = BigInt(0);
   let sourcedCost = BigInt(0);
@@ -492,15 +493,35 @@ function buildSale(input: unknown, tradeInCredit = 0) {
       const description = optionalText(raw.description, 200, `${line}: item name`);
       if (!description) throw new InputError(`${line}: enter the item name.`);
       const pta = ptaValue(raw.pta_status, line);
+      const unitCost = amount(raw.unit_cost, `${line}: cost price`);
+      const storage = raw.storage_gb === null || raw.storage_gb === undefined ? null : wholeNumber(raw.storage_gb, `${line}: storage`, 1, 4096);
+      const ram = raw.ram_gb === null || raw.ram_gb === undefined ? null : wholeNumber(raw.ram_gb, `${line}: RAM`, 1, 64);
       item = {
         item_type: "unstocked",
         description,
         imei: optionalText(raw.imei, 40, `${line}: IMEI or serial number`),
         quantity,
-        unit_cost: amount(raw.unit_cost, `${line}: cost price`),
+        unit_cost: unitCost,
         pta_status: pta,
+        storage_gb: storage,
+        ram_gb: ram,
+        color_name: optionalText(raw.color_name, 60, `${line}: colour`),
+        note: optionalText(raw.note, 200, `${line}: description`),
         ...common,
       };
+      // Optional supplier: what is not paid now is owed to the supplier
+      if (raw.supplier_id !== null && raw.supplier_id !== undefined && raw.supplier_id !== "") {
+        const supplierPaid = amount(raw.supplier_paid ?? 0, `${line}: paid to supplier`);
+        if (cents(supplierPaid) > cents(unitCost) * BigInt(quantity)) {
+          throw new InputError(`${line}: paid to the supplier cannot be more than the cost.`);
+        }
+        item.supplier_id = uuid(raw.supplier_id, `${line}: the supplier is not valid.`);
+        item.supplier_paid = supplierPaid;
+        if (supplierPaid > 0) {
+          item.supplier_method = paymentMethod(raw.supplier_method, `${line}: choose Cash or Bank for the supplier payment.`);
+        }
+        unstockedWithSupplier = true;
+      }
     } else if (raw.item_type === "accessory") {
       quantity = wholeNumber(raw.quantity, `${line}: quantity`, 1, 100000);
       item = {
@@ -562,7 +583,7 @@ function buildSale(input: unknown, tradeInCredit = 0) {
     );
   }
 
-  return { sale, sourcedCount, sourcedCost, total };
+  return { sale, sourcedCount, sourcedCost, total, unstockedWithSupplier };
 }
 
 export async function createQuickSale(input: unknown): Promise<CreateSaleResult> {
@@ -590,7 +611,13 @@ export async function createQuickSale(input: unknown): Promise<CreateSaleResult>
       }
     }
 
-    const { sale, sourcedCount, sourcedCost, total } = buildSale(input.sale, tradeIn ? (tradeIn.price as number) : 0);
+    const { sale, sourcedCount, sourcedCost, total, unstockedWithSupplier } = buildSale(
+      input.sale,
+      tradeIn ? (tradeIn.price as number) : 0
+    );
+    if (unstockedWithSupplier && !permissions.includes("purchases.manage")) {
+      throw new InputError("You do not have permission to record what is owed to a supplier.");
+    }
     const payload: Row = { sale };
     if (tradeIn) {
       if (cents(sale.paid_amount as number) + cents(tradeIn.price as number) > total) {
@@ -647,7 +674,10 @@ export async function createQuickSale(input: unknown): Promise<CreateSaleResult>
     }
 
     revalidatePath("/sales");
-    if (sourcedCount > 0) revalidatePath("/purchases");
+    if (sourcedCount > 0 || unstockedWithSupplier) {
+      revalidatePath("/purchases");
+      revalidatePath("/suppliers");
+    }
     if (tradeIn) {
       revalidatePath("/purchases/from-customers");
       revalidatePath("/inventory");

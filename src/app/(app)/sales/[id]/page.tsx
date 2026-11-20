@@ -60,7 +60,28 @@ type SaleItemRow = {
   line_total: number | string | null;
   warranty_days: number | null;
   pta_status: string | null;
+  storage_gb: number | null;
+  ram_gb: number | null;
+  color_name: string | null;
+  unstocked_note: string | null;
 };
+
+// "256GB / 8GB RAM · Blue · PTA Approved · IMEI 35… · box pack" for an
+// "Item not in stock" line
+function unstockedDetails(item: SaleItemRow): { text: string; imei: string | null } {
+  const storage = item.storage_gb
+    ? item.storage_gb >= 1024 && item.storage_gb % 1024 === 0
+      ? `${item.storage_gb / 1024}TB`
+      : `${item.storage_gb}GB`
+    : null;
+  const parts = [
+    storage ? (item.ram_gb ? `${storage} / ${item.ram_gb}GB RAM` : storage) : null,
+    item.color_name,
+    ptaLabel(item.pta_status),
+    item.unstocked_note,
+  ].filter(Boolean);
+  return { text: parts.join(" · "), imei: item.imei };
+}
 
 type PaymentRow = {
   amount: number | string | null;
@@ -172,7 +193,7 @@ export default async function InvoicePage({
     supabase
       .from("sale_items")
       .select(
-        "id, item_type, description, condition, imei, quantity, unit_price, discount, line_total, warranty_days, pta_status"
+        "id, item_type, description, condition, imei, quantity, unit_price, discount, line_total, warranty_days, pta_status, storage_gb, ram_gb, color_name, unstocked_note"
       )
       .eq("sale_id", id),
     supabase
@@ -494,14 +515,15 @@ export default async function InvoicePage({
                   <tr key={index} className={`border-b align-top ${LINE}`}>
                     <td className="py-2.5 pr-3">
                       <p className="font-semibold">{item.description ?? "Item"}</p>
-                      {item.item_type === "unstocked" && (item.imei || item.pta_status) && (
+                      {item.item_type === "unstocked" && (item.imei || unstockedDetails(item).text) && (
                         <p className={`text-xs ${MUTED}`}>
+                          {unstockedDetails(item).text}
                           {item.imei ? (
                             <>
-                              IMEI/Serial <span className="font-mono">{item.imei}</span>
+                              {unstockedDetails(item).text ? " · " : ""}IMEI/Serial{" "}
+                              <span className="font-mono">{item.imei}</span>
                             </>
                           ) : null}
-                          {ptaLabel(item.pta_status) ? `${item.imei ? " · " : ""}${ptaLabel(item.pta_status)}` : ""}
                         </p>
                       )}
                       {item.item_type === "phone" && (
@@ -543,10 +565,15 @@ export default async function InvoicePage({
                 {item.item_type === "phone" && item.imei && (
                   <p className="font-mono text-[10px]">IMEI {item.imei}</p>
                 )}
+                {item.item_type === "unstocked" && unstockedDetails(item).text && (
+                  <p className="text-[10px]">{unstockedDetails(item).text}</p>
+                )}
                 {item.item_type === "unstocked" && item.imei && (
                   <p className="font-mono text-[10px]">IMEI/Serial {item.imei}</p>
                 )}
-                {ptaLabel(item.pta_status) && <p className="text-[10px]">{ptaLabel(item.pta_status)}</p>}
+                {item.item_type === "phone" && ptaLabel(item.pta_status) && (
+                  <p className="text-[10px]">{ptaLabel(item.pta_status)}</p>
+                )}
                 <div className="flex justify-between">
                   <span>
                     {item.quantity ?? 1} x {formatMoney(item.unit_price, currency)}
