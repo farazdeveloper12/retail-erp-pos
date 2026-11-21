@@ -70,3 +70,15 @@ migration). That migration replaces only `create_sale`.
 
 On the real project this matches only after the Part 2 migration has been
 run there too.
+
+## Before Part 4 (edit and delete entries)
+
+Read from **gwadar-test** on 21 Nov 2026, **before**
+`migrations/20261124000000_edit_delete_entries.sql` was run. That migration
+changes no existing function, but `delete_entry` calls these two, so they
+must be the same on the real project.
+
+| Function | Arguments | Fingerprint |
+| --- | --- | --- |
+| `cancel_purchase` | `p_payload jsonb` | `da99c22e818532a695d7fda461f51490` |
+| `void_expense` | `p_payload jsonb` | `6390fe5969cecaae8eaf7e82cea2caea` |
