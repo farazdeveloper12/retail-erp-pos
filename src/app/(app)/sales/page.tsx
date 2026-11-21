@@ -83,6 +83,7 @@ export default async function SalesPage() {
   const { data, error } = await supabase
     .from("sales")
     .select("id, invoice_no, created_at, customer_id, customer_name, total, paid_amount, status")
+    .is("deleted_at", null)
     .order("created_at", { ascending: false })
     .limit(LIMIT);
   const rows = (data ?? []) as SaleRow[];

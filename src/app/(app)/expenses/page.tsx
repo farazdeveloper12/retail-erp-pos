@@ -15,10 +15,11 @@ import {
 import { createClient } from "@/lib/supabase/server";
 import { getMyBusiness } from "@/lib/business";
 import { canViewPage, getMyPermissions } from "@/lib/permissions";
-import { formatMoney, toCents } from "@/lib/money";
+import { centsToPlain, formatMoney, toCents } from "@/lib/money";
 import { paymentMethodLabel } from "@/lib/format";
 import ExpenseForm from "@/app/(app)/expenses/ExpenseForm";
 import CancelExpenseButton from "@/app/(app)/expenses/CancelExpenseButton";
+import ExpenseActions from "@/app/(app)/expenses/ExpenseActions";
 
 export const metadata: Metadata = {
   title: "Expenses",
@@ -97,6 +98,9 @@ export default async function ExpensesPage({
     return <AccessDenied />;
   }
   const canManage = permissions.includes("expenses.manage");
+  const canEditEntries = permissions.includes("entries.edit");
+  const canDeleteEntries = permissions.includes("entries.delete");
+  const showActions = canManage || canEditEntries || canDeleteEntries;
 
   const today = todayInKarachi();
   const { month: monthParam, cancelled } = await searchParams;
@@ -112,6 +116,7 @@ export default async function ExpensesPage({
       .from("expenses")
       .select("id, expense_date, category, description, amount, account")
       .is("voided_at", null)
+      .is("deleted_at", null)
       .gte("expense_date", monthStart)
       .lt("expense_date", monthEnd)
       .order("expense_date", { ascending: false })
@@ -130,6 +135,7 @@ export default async function ExpensesPage({
           .from("expenses")
           .select("id, expense_date, category, description, amount, account")
           .not("voided_at", "is", null)
+          .is("deleted_at", null)
           .gte("expense_date", monthStart)
           .lt("expense_date", monthEnd)
           .order("expense_date", { ascending: false })
@@ -258,9 +264,21 @@ export default async function ExpensesPage({
                   </div>
                   <p className="text-sm font-bold text-ink">{formatMoney(expense.amount, currency)}</p>
                 </div>
-                {canManage && (
-                  <div className="mt-3 flex justify-end">
-                    <CancelExpenseButton expenseId={expense.id} />
+                {showActions && (
+                  <div className="mt-3 flex flex-wrap justify-end gap-1">
+                    {canManage && !canDeleteEntries && <CancelExpenseButton expenseId={expense.id} />}
+                    <ExpenseActions
+                      expense={{
+                        id: expense.id,
+                        amount: centsToPlain(toCents(expense.amount) ?? BigInt(0)),
+                        expense_date: expense.expense_date,
+                        category: expense.category,
+                        description: expense.description ?? "",
+                      }}
+                      currency={currency}
+                      canEdit={canEditEntries}
+                      canDelete={canDeleteEntries}
+                    />
                   </div>
                 )}
               </li>
@@ -276,7 +294,7 @@ export default async function ExpensesPage({
                   <th className="px-5 py-3">Description</th>
                   <th className="px-5 py-3">Paid from</th>
                   <th className="px-5 py-3 text-right">Amount</th>
-                  {canManage && (
+                  {showActions && (
                     <th className="px-5 py-3">
                       <span className="sr-only">Actions</span>
                     </th>
@@ -297,9 +315,23 @@ export default async function ExpensesPage({
                     <td className="px-5 py-3 text-right font-semibold text-ink">
                       {formatMoney(expense.amount, currency)}
                     </td>
-                    {canManage && (
+                    {showActions && (
                       <td className="px-5 py-2">
-                        <CancelExpenseButton expenseId={expense.id} />
+                        <span className="flex flex-wrap justify-end gap-1">
+                          {canManage && !canDeleteEntries && <CancelExpenseButton expenseId={expense.id} />}
+                          <ExpenseActions
+                      expense={{
+                        id: expense.id,
+                        amount: centsToPlain(toCents(expense.amount) ?? BigInt(0)),
+                        expense_date: expense.expense_date,
+                        category: expense.category,
+                        description: expense.description ?? "",
+                      }}
+                      currency={currency}
+                      canEdit={canEditEntries}
+                      canDelete={canDeleteEntries}
+                    />
+                        </span>
                       </td>
                     )}
                   </tr>

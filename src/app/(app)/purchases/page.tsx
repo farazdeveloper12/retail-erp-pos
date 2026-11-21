@@ -62,6 +62,7 @@ export default async function PurchasesPage() {
   const { data, error } = await supabase
     .from("purchases")
     .select("id, purchase_no, supplier_id, purchase_date, total, paid_amount, status")
+    .is("deleted_at", null)
     .order("purchase_date", { ascending: false })
     .order("purchase_no", { ascending: false })
     .limit(LIMIT);

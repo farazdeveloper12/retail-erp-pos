@@ -22,6 +22,10 @@ import InvoiceActions from "@/app/(app)/sales/[id]/InvoiceActions";
 import ReceivePayment from "@/app/(app)/sales/[id]/ReceivePayment";
 import { cancelSale } from "@/app/(app)/sales/[id]/actions";
 import CancelDocument from "@/components/CancelDocument";
+import { DeleteEntryButton } from "@/components/entries/EntryDialog";
+import EntryHistory from "@/components/entries/EntryHistory";
+import PaymentActions from "@/components/entries/PaymentActions";
+import EditSaleForm from "@/app/(app)/sales/[id]/EditSaleForm";
 import { COST_PERMISSION, getSaleProfits } from "@/lib/profit";
 import { ptaLabel } from "@/lib/pta";
 
@@ -84,6 +88,7 @@ function unstockedDetails(item: SaleItemRow): { text: string; imei: string | nul
 }
 
 type PaymentRow = {
+  id: string;
   amount: number | string | null;
   method: string | null;
   kind: string | null;
@@ -198,8 +203,9 @@ export default async function InvoicePage({
       .eq("sale_id", id),
     supabase
       .from("sale_payments")
-      .select("amount, method, kind, created_at")
+      .select("id, amount, method, kind, created_at")
       .eq("sale_id", id)
+      .is("deleted_at", null)
       .order("created_at"),
     getMyBusiness(),
     canReturn || permissions.includes("sales.view_all")
@@ -283,6 +289,9 @@ export default async function InvoicePage({
   const canCancel =
     !cancelled && returned === ZERO && tradeInCredit === ZERO && permissions.includes("returns.manage");
   const fullyReturned = returned >= total && total > ZERO;
+  // Edit and delete (with a reason; logged). Tax invoices: use a return.
+  const canEditEntries = permissions.includes("entries.edit");
+  const canDeleteEntries = permissions.includes("entries.delete");
 
   // VAT is inclusive: the total already contains it. The rate is the one
   // saved with the sale, so older invoices stay plain invoices.
@@ -375,6 +384,38 @@ export default async function InvoicePage({
                 <ShieldCheck className="h-4 w-4" />
                 Warranty
               </Link>
+            )}
+            {canEditEntries && !cancelled && returned === ZERO && Number(sale.vat_rate ?? 0) === 0 && (
+              <EditSaleForm
+                saleId={sale.id}
+                currency={currency}
+                discount={centsToPlain(toCents(sale.discount) ?? ZERO)}
+                notes={sale.notes ?? ""}
+                lines={items.map((item) => ({
+                  id: item.id,
+                  item_type: item.item_type,
+                  description: item.description ?? "Item",
+                  quantity: item.quantity ?? 1,
+                  unit_price: centsToPlain(toCents(item.unit_price) ?? ZERO),
+                  discount: toCents(item.discount) ? centsToPlain(toCents(item.discount) ?? ZERO) : "",
+                  unit_cost:
+                    item.item_type === "unstocked" && lineCosts.has(item.id)
+                      ? centsToPlain(lineCosts.get(item.id)!.unitCost)
+                      : null,
+                }))}
+              />
+            )}
+            {canDeleteEntries && Number(sale.vat_rate ?? 0) === 0 && returned === ZERO && tradeInCredit === ZERO && (
+              <DeleteEntryButton
+                type="sale"
+                id={sale.id}
+                label={`invoice ${invoiceNo}`}
+                explanation="The invoice is removed from lists and totals. Phones and accessories go back into stock and the customer's payments are refunded in Cash/Bank."
+                afterHref="/sales"
+              />
+            )}
+            {(canEditEntries || canDeleteEntries) && Number(sale.vat_rate ?? 0) > 0 && !cancelled && (
+              <span className="self-center text-xs text-ink-muted">Tax invoice: use a return instead of edit or delete.</span>
             )}
             {canCancel ? (
               <CancelDocument
@@ -861,8 +902,8 @@ export default async function InvoicePage({
           </p>
         ) : (
           <ul className="divide-y divide-line overflow-hidden rounded-2xl border border-line">
-            {payments.map((payment, index) => (
-              <li key={index} className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-sm">
+            {payments.map((payment) => (
+              <li key={payment.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-sm">
                 <span className="text-ink-muted">{formatDateTime(payment.created_at)}</span>
                 <span className="flex items-center gap-2">
                   <span className="rounded-full bg-surface-muted px-2.5 py-0.5 text-xs font-medium text-ink">
@@ -870,12 +911,25 @@ export default async function InvoicePage({
                     {payment.kind === "later" ? " · later" : ""}
                   </span>
                   <span className="font-semibold text-ink">{formatMoney(payment.amount, currency)}</span>
+                  {!cancelled && (canEditEntries || canDeleteEntries) && (
+                    <PaymentActions
+                      kind="customer"
+                      paymentId={payment.id}
+                      amount={centsToPlain(toCents(payment.amount) ?? ZERO)}
+                      method={payment.method ?? "cash"}
+                      currency={currency}
+                      canEdit={canEditEntries}
+                      canDelete={canDeleteEntries}
+                    />
+                  )}
                 </span>
               </li>
             ))}
           </ul>
         )}
       </section>
+
+      <EntryHistory types={["sale"]} id={sale.id} />
     </div>
   );
 }

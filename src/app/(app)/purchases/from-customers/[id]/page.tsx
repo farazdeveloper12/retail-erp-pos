@@ -8,11 +8,13 @@ import { createClient } from "@/lib/supabase/server";
 import { getMyBusiness } from "@/lib/business";
 import { getMyPermissions, hasAny } from "@/lib/permissions";
 import { UUID_PATTERN } from "@/lib/catalog";
-import { formatMoney } from "@/lib/money";
+import { centsToPlain, formatMoney, toCents } from "@/lib/money";
 import { formatDateWith, formatInvoiceNo } from "@/lib/format";
 import { formatCustomerPurchaseNo, gradeLabel } from "@/lib/trade-in";
 import { ptaLabel } from "@/lib/pta";
 import AutoPrint from "@/app/(app)/purchases/from-customers/AutoPrint";
+import CustomerPurchaseActions from "@/app/(app)/purchases/from-customers/[id]/CustomerPurchaseActions";
+import EntryHistory from "@/components/entries/EntryHistory";
 
 export const metadata: Metadata = {
   title: "Purchase slip",
@@ -32,6 +34,7 @@ type SlipRow = {
   price: number | string;
   payment_method: string;
   sale_id: string | null;
+  deleted_at: string | null;
   phone: {
     brand_name: string;
     model_name: string;
@@ -74,7 +77,7 @@ export default async function CustomerPurchaseSlipPage({
     supabase
       .from("customer_purchases")
       .select(
-        "id, purchase_no, purchase_date, seller_name, seller_phone, seller_id_number, imei, description, grade, condition_notes, price, payment_method, sale_id, phone:phone_units(brand_name, model_name, storage_gb, color_name, pta_status), sale:sales(invoice_no)"
+        "id, purchase_no, purchase_date, seller_name, seller_phone, seller_id_number, imei, description, grade, condition_notes, price, payment_method, sale_id, deleted_at, phone:phone_units(brand_name, model_name, storage_gb, color_name, pta_status), sale:sales(invoice_no)"
       )
       .eq("id", id)
       .maybeSingle(),
@@ -112,6 +115,23 @@ export default async function CustomerPurchaseSlipPage({
             </Link>
           )}
           <PrintButton label="Print slip" />
+          {!slip.deleted_at && (permissions.includes("entries.edit") || permissions.includes("entries.delete")) && (
+            <CustomerPurchaseActions
+              currency={currency}
+              canEdit={permissions.includes("entries.edit")}
+              canDelete={permissions.includes("entries.delete")}
+              entry={{
+                id: slip.id,
+                price: centsToPlain(toCents(slip.price) ?? BigInt(0)),
+                grade: slip.grade,
+                condition_notes: slip.condition_notes ?? "",
+                seller_name: slip.seller_name,
+                seller_phone: slip.seller_phone,
+                seller_id_number: slip.seller_id_number ?? "",
+                trade_in: slip.payment_method === "trade_in",
+              }}
+            />
+          )}
         </div>
       </div>
 
@@ -169,6 +189,8 @@ export default async function CustomerPurchaseSlipPage({
           <div className={`border-t pt-2 ${LINE}`}>For {shopName}</div>
         </div>
       </article>
+
+      <EntryHistory types={["customer_purchase"]} id={slip.id} />
     </div>
   );
 }

@@ -74,7 +74,12 @@ export default async function CustomersPage({
 
   const supabase = await createClient();
 
-  let query = supabase.from("customers").select(CUSTOMER_COLUMNS).order("name").limit(PAGE_SIZE);
+  let query = supabase
+    .from("customers")
+    .select(CUSTOMER_COLUMNS)
+    .is("deleted_at", null)
+    .order("name")
+    .limit(PAGE_SIZE);
   const cleaned = q.replace(/[%_,()\\*]/g, " ").replace(/\s+/g, " ").trim();
   if (cleaned) query = query.or(`name.ilike.%${cleaned}%,phone.ilike.%${cleaned}%`);
   if (status === "active") query = query.eq("is_active", true);

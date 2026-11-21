@@ -12,6 +12,10 @@ import { formatDateTime, paymentMethodLabel } from "@/lib/format";
 import PaySupplier from "@/app/(app)/purchases/[id]/PaySupplier";
 import { cancelPurchase } from "@/app/(app)/purchases/[id]/actions";
 import CancelDocument from "@/components/CancelDocument";
+import { DeleteEntryButton } from "@/components/entries/EntryDialog";
+import EntryHistory from "@/components/entries/EntryHistory";
+import PaymentActions from "@/components/entries/PaymentActions";
+import EditPurchaseForm from "@/app/(app)/purchases/[id]/EditPurchaseForm";
 
 export const metadata: Metadata = {
   title: "Purchase details",
@@ -35,6 +39,7 @@ type PurchaseRow = {
 };
 
 type PurchaseItemRow = {
+  id: string;
   item_type: string;
   description: string | null;
   condition: string | null;
@@ -143,7 +148,7 @@ export default async function PurchaseDetailPage({
   ] = await Promise.all([
     supabase
       .from("purchase_items")
-      .select("item_type, description, condition, quantity, unit_cost, sale_price, line_total")
+      .select("id, item_type, description, condition, quantity, unit_cost, sale_price, line_total")
       .eq("purchase_id", id),
     supabase
       .from("phone_units")
@@ -157,11 +162,13 @@ export default async function PurchaseDetailPage({
     // History of later payments; they are already included in paid_amount
     supabase
       .from("purchase_payments")
-      .select("amount, method, created_at")
+      .select("id, amount, method, created_at")
       .eq("purchase_id", id)
+      .is("deleted_at", null)
       .order("created_at"),
   ]);
   const payments = (paymentData ?? []) as {
+    id: string;
     amount: number | string | null;
     method: string | null;
     created_at: string;
@@ -214,6 +221,8 @@ export default async function PurchaseDetailPage({
   const balance = cancelled ? BigInt(0) : total !== null ? total - totalPaid - returnCredit : null;
   // A purchase with returns cannot be cancelled as a whole
   const canCancel = !cancelled && returnedTotal === BigInt(0) && permissions.includes("purchases.manage");
+  const canEditEntries = permissions.includes("entries.edit");
+  const canDeleteEntries = permissions.includes("entries.delete");
   const canReturn = !cancelled && permissions.includes("purchases.manage");
   const canPay =
     !cancelled &&
@@ -246,8 +255,32 @@ export default async function PurchaseDetailPage({
         </div>
       )}
 
-      {(canCancel || canReturn) && (
+      {(canCancel || canReturn || canEditEntries || canDeleteEntries) && (
         <div className="flex flex-wrap gap-2 print:hidden">
+          {canEditEntries && !cancelled && returnedTotal === BigInt(0) && (
+            <EditPurchaseForm
+              purchaseId={purchase.id}
+              currency={currency}
+              purchaseDate={purchase.purchase_date ?? ""}
+              invoiceNo={purchase.supplier_invoice_no ?? ""}
+              notes={purchase.notes ?? ""}
+              lines={items.map((item) => ({
+                id: item.id,
+                description: item.description ?? "Item",
+                quantity: item.quantity ?? 1,
+                unit_cost: centsToPlain(toCents(item.unit_cost) ?? BigInt(0)),
+              }))}
+            />
+          )}
+          {canDeleteEntries && returnedTotal === BigInt(0) && (
+            <DeleteEntryButton
+              type="purchase"
+              id={purchase.id}
+              label="this purchase"
+              explanation="The purchase is removed from lists and totals: its phones and accessories leave stock and the money paid with it comes back to Cash/Bank. Not possible when a phone of it is already sold or a later payment exists (delete those first)."
+              afterHref="/purchases"
+            />
+          )}
           {canReturn && (
             <Link href={`/returns/purchases/new?purchase=${purchase.id}`} className={secondaryButtonClass}>
               <PackageMinus className="h-4 w-4" />
@@ -404,20 +437,33 @@ export default async function PurchaseDetailPage({
           </p>
         ) : (
           <ul className="divide-y divide-line overflow-hidden rounded-2xl border border-line">
-            {payments.map((payment, index) => (
-              <li key={index} className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-sm">
+            {payments.map((payment) => (
+              <li key={payment.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-sm">
                 <span className="text-ink-muted">{formatDateTime(payment.created_at)}</span>
                 <span className="flex items-center gap-2">
                   <span className="rounded-full bg-surface-muted px-2.5 py-0.5 text-xs font-medium text-ink">
                     {paymentMethodLabel(payment.method)} · Paid later
                   </span>
                   <span className="font-semibold text-ink">{formatMoney(payment.amount, currency)}</span>
+                  {!cancelled && (canEditEntries || canDeleteEntries) && (
+                    <PaymentActions
+                      kind="supplier"
+                      paymentId={payment.id}
+                      amount={centsToPlain(toCents(payment.amount) ?? BigInt(0))}
+                      method={payment.method ?? "cash"}
+                      currency={currency}
+                      canEdit={canEditEntries}
+                      canDelete={canDeleteEntries}
+                    />
+                  )}
                 </span>
               </li>
             ))}
           </ul>
         )}
       </section>
+
+      <EntryHistory types={["purchase"]} id={purchase.id} />
     </div>
   );
 }

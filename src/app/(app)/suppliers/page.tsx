@@ -92,6 +92,7 @@ export default async function SuppliersPage({
   let query = supabase
     .from("suppliers")
     .select(SUPPLIER_COLUMNS)
+    .is("deleted_at", null)
     .order("name")
     .limit(PAGE_SIZE);
 

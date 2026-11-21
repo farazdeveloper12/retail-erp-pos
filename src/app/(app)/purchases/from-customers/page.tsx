@@ -77,6 +77,7 @@ export default async function BoughtFromCustomersPage({
     .select(
       "id, purchase_no, purchase_date, seller_name, seller_phone, imei, description, price, payment_method, sale_id, phone:phone_units(brand_name, status), sale:sales(invoice_no)"
     )
+    .is("deleted_at", null)
     .order("purchase_date", { ascending: false })
     .order("purchase_no", { ascending: false })
     .limit(LIMIT);

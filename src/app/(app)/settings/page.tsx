@@ -6,6 +6,7 @@ import {
   Download,
   ImageIcon,
   Globe,
+  History,
   Landmark,
   Receipt,
   Settings,
@@ -104,10 +105,16 @@ export default async function SettingsPage() {
           title="Settings"
           description="Business details, invoices, stock and data used across the app."
         />
-        <Link href="/settings/account" className={secondaryButtonClass}>
-          <UserCog className="h-4 w-4" />
-          My account
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <Link href="/settings/history" className={secondaryButtonClass}>
+            <History className="h-4 w-4" />
+            Edit &amp; delete history
+          </Link>
+          <Link href="/settings/account" className={secondaryButtonClass}>
+            <UserCog className="h-4 w-4" />
+            My account
+          </Link>
+        </div>
       </div>
 
       <nav aria-label="Settings sections" className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">

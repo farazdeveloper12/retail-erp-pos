@@ -107,6 +107,7 @@ export default async function DashboardPage({
       ? supabase
           .from("sales")
           .select("id, invoice_no, customer_name, customer_id, total, paid_amount, status")
+          .is("deleted_at", null)
           .order("created_at", { ascending: false })
           .limit(5)
       : Promise.resolve({ data: null, error: null }),

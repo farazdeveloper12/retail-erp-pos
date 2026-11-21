@@ -4,6 +4,7 @@ import { FileX, ReceiptText, Truck } from "lucide-react";
 import AccessDenied from "@/components/AccessDenied";
 import BalancePill from "@/components/BalancePill";
 import { BackLink, EmptyState, PageHeader, Pill, StatusPill, cardClass } from "@/components/ui";
+import { DeleteEntryButton } from "@/components/entries/EntryDialog";
 import { createClient } from "@/lib/supabase/server";
 import { getMyBusiness } from "@/lib/business";
 import { canViewPage, getMyPermissions } from "@/lib/permissions";
@@ -120,6 +121,17 @@ export default async function SupplierDetailPage({
       <div className="space-y-3">
         <BackLink href="/suppliers">Back to suppliers</BackLink>
         <PageHeader icon={Truck} title={supplier.name} description="Supplier details and purchases." />
+        {permissions.includes("entries.delete") && (
+          <div className="flex flex-wrap gap-2">
+            <DeleteEntryButton
+              type="supplier"
+              id={supplier.id}
+              label={`supplier ${supplier.name}`}
+              explanation="The supplier is hidden from lists and pickers; their purchases stay. Not possible while we still owe them money."
+              afterHref="/suppliers"
+            />
+          </div>
+        )}
       </div>
 
       <section className="grid gap-4 md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
