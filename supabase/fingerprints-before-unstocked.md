@@ -57,3 +57,16 @@ been run there too: `create_sale` is changed by the unstocked migration and
 `customer_purchase_add_unit` is created by the trade-in migration.
 `create_quick_sale` was not changed by any earlier migration, so its
 fingerprint is the same as in the first table.
+
+## Before Part 3 ("Item not in stock" with supplier)
+
+Read from **gwadar-test** on 21 Nov 2026, **before**
+`migrations/20261123000000_unstocked_supplier.sql` was run (after the Part 2
+migration). That migration replaces only `create_sale`.
+
+| Function | Arguments | Fingerprint |
+| --- | --- | --- |
+| `create_sale` | `p_payload jsonb` | `e2e1c4aaaa8017fed3c3182761090a49` |
+
+On the real project this matches only after the Part 2 migration has been
+run there too.
