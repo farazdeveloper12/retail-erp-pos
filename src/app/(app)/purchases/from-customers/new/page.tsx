@@ -3,6 +3,8 @@ import { HandCoins } from "lucide-react";
 import AccessDenied from "@/components/AccessDenied";
 import { BackLink, PageHeader } from "@/components/ui";
 import { getMyBusiness } from "@/lib/business";
+import { todayIn } from "@/lib/dashboard";
+import { timeZoneOf } from "@/lib/region";
 import { getMyPermissions } from "@/lib/permissions";
 import { PERMISSION_TRADE_IN } from "@/lib/trade-in";
 import BuyFromCustomerForm from "@/app/(app)/purchases/from-customers/new/BuyFromCustomerForm";
@@ -17,7 +19,7 @@ export default async function BuyFromCustomerPage() {
   if (!permissions.includes(PERMISSION_TRADE_IN)) return <AccessDenied />;
   const [business, catalog] = await Promise.all([getMyBusiness(), loadPurchaseCatalog()]);
   // Today in Pakistan time, like every other date in the app
-  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Karachi" }).format(new Date());
+  const today = todayIn(timeZoneOf(business));
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
@@ -31,6 +33,7 @@ export default async function BuyFromCustomerPage() {
       </div>
       <BuyFromCustomerForm
         currency={business?.currency_code || "PKR"}
+        region={business?.region ?? "PK"}
         today={today}
         initialBrands={catalog.ok ? catalog.brands : null}
       />

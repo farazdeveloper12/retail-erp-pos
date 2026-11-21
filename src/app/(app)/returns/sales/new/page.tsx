@@ -3,11 +3,11 @@ import { RotateCcw, Search } from "lucide-react";
 import AccessDenied from "@/components/AccessDenied";
 import { BackLink, Notice, PageHeader, cardClass, inputClass, labelClass, primaryButtonClass } from "@/components/ui";
 import { createClient } from "@/lib/supabase/server";
-import { getMyBusiness } from "@/lib/business";
+import { getMyBusiness, getBusinessTimeZone } from "@/lib/business";
 import { getMyPermissions } from "@/lib/permissions";
 import { UUID_PATTERN } from "@/lib/catalog";
-import { todayInKarachi } from "@/lib/dashboard";
 import SalesReturnForm, { type ReturnableSale } from "@/app/(app)/returns/sales/new/SalesReturnForm";
+import { todayIn } from "@/lib/dashboard";
 
 export const metadata: Metadata = {
   title: "New sales return",
@@ -40,6 +40,7 @@ export default async function NewSalesReturnPage({
   }
   const business = await getMyBusiness();
 
+  const timeZone = await getBusinessTimeZone();
   return (
     <div className="mx-auto max-w-4xl space-y-6">
       <BackLink href="/returns?tab=sales">Returns</BackLink>
@@ -78,7 +79,7 @@ export default async function NewSalesReturnPage({
         <SalesReturnForm
           key={found.sale.id}
           data={found}
-          today={todayInKarachi()}
+          today={todayIn(timeZone)}
           currency={business?.currency_code || "PKR"}
           dateFormat={business?.date_format ?? "medium"}
         />

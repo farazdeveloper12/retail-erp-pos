@@ -5,13 +5,13 @@ import AccessDenied from "@/components/AccessDenied";
 import PrintButton from "@/components/PrintButton";
 import { BackLink, EmptyState, Pill, cardClass } from "@/components/ui";
 import { createClient } from "@/lib/supabase/server";
-import { getMyBusiness } from "@/lib/business";
+import { getMyBusiness, getBusinessTimeZone } from "@/lib/business";
 import { getMyPermissions } from "@/lib/permissions";
 import { UUID_PATTERN } from "@/lib/catalog";
 import { formatDateTime, formatDateWith, type DateFormat } from "@/lib/format";
-import { todayInKarachi } from "@/lib/dashboard";
 import { CLAIM_NEXT, claimStatusLabel, claimTone, formatClaimNo, type ClaimStatus } from "@/lib/returns";
 import ClaimStatusForm from "@/app/(app)/returns/warranty/[id]/ClaimStatusForm";
+import { todayIn } from "@/lib/dashboard";
 
 export const metadata: Metadata = {
   title: "Warranty claim",
@@ -104,6 +104,7 @@ export default async function ClaimPage({ params }: { params: Promise<{ id: stri
   }
   if (claim.returned_on) rows.push(["Handed back", formatDateWith(claim.returned_on, dateFormat)]);
 
+  const timeZone = await getBusinessTimeZone();
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-2 print:hidden">
@@ -172,7 +173,7 @@ export default async function ClaimPage({ params }: { params: Promise<{ id: stri
           claimId={claim.id}
           next={next}
           suppliers={(supplierData ?? []) as { id: string; name: string }[]}
-          today={todayInKarachi()}
+          today={todayIn(timeZone)}
         />
       )}
 
@@ -187,7 +188,7 @@ export default async function ClaimPage({ params }: { params: Promise<{ id: stri
                 <Pill tone={claimTone(e.status)}>{claimStatusLabel(e.status)}</Pill>
                 {e.note && <span className="text-ink-muted">{e.note}</span>}
               </span>
-              <span className="text-xs text-ink-muted">{formatDateTime(e.created_at)}</span>
+              <span className="text-xs text-ink-muted">{formatDateTime(e.created_at, timeZone)}</span>
             </li>
           ))}
         </ol>

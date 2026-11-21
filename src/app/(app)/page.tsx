@@ -28,11 +28,11 @@ import DailyChart from "@/components/charts/DailyChart";
 import EmptyLineChart from "@/components/charts/EmptyLineChart";
 import { Notice, Pill, cardClass } from "@/components/ui";
 import { createClient } from "@/lib/supabase/server";
-import { DEFAULT_LOW_STOCK_THRESHOLD, getMyBusiness } from "@/lib/business";
+import { DEFAULT_LOW_STOCK_THRESHOLD, getMyBusiness, getBusinessTimeZone } from "@/lib/business";
 import { canViewPage, getMyPermissions } from "@/lib/permissions";
 import { formatMoney, toCents } from "@/lib/money";
 import { formatInvoiceNo } from "@/lib/format";
-import { fetchDashboard, fillDays, resolvePeriod, todayInKarachi } from "@/lib/dashboard";
+import { fetchDashboard, fillDays, resolvePeriod, todayIn } from "@/lib/dashboard";
 
 export const metadata: Metadata = {
   title: "Dashboard",
@@ -95,8 +95,9 @@ export default async function DashboardPage({
     return <AccessDenied />;
   }
 
-  const period = resolvePeriod(await searchParams);
-  const today = todayInKarachi();
+  const timeZone = await getBusinessTimeZone();
+  const period = resolvePeriod(await searchParams, timeZone);
+  const today = todayIn(timeZone);
   const supabase = await createClient();
   const canSeeSales = canViewPage(permissions, "sales");
 

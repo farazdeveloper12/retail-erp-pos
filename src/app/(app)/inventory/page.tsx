@@ -199,18 +199,20 @@ async function PhonesTab({
   canOpenPurchases,
   canOpenSales,
   currency,
+  region,
 }: {
   params: Params;
   seesCost: boolean;
   canOpenPurchases: boolean;
   canOpenSales: boolean;
   currency: string;
+  region: string;
 }) {
   const supabase = await createClient();
   const status = params.status === "sold" || params.status === "all" ? params.status : "in_stock";
   const condition = CONDITIONS.some((c) => c.value === params.condition) ? params.condition! : "";
-  // PTA filter (PKR shops): approved, non_pta, jv or unknown (not recorded)
-  const ptaShown = showsPta(currency);
+  // PTA filter (Pakistan shops): approved, non_pta, jv or unknown (not recorded)
+  const ptaShown = showsPta(region);
   const pta = ptaShown && (isPtaStatus(params.pta) || params.pta === "unknown") ? params.pta! : "";
   const q = cleanSearch(params.q ?? "");
   const page = Math.max(1, Number.parseInt(params.page ?? "1", 10) || 1);
@@ -834,6 +836,7 @@ export default async function InventoryPage({
           canOpenPurchases={canViewPage(permissions, "purchases")}
           canOpenSales={canViewPage(permissions, "sales")}
           currency={currency}
+          region={business?.region ?? "PK"}
         />
       ) : (
         <AccessoriesTab

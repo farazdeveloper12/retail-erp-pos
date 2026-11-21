@@ -42,6 +42,7 @@ export default function UnstockedLineFields({
   catalogReady,
   canUseSupplier,
   currency,
+  region = "PK",
   owedToSupplier,
 }: {
   n: number;
@@ -61,6 +62,8 @@ export default function UnstockedLineFields({
   catalogReady: boolean;
   canUseSupplier: boolean;
   currency: string;
+  // "PK" (Pakistan) or "AE" (UAE): decides PTA, phone and ID formats
+  region?: string;
   owedToSupplier: bigint | null;
 }) {
   const phoneMode = details.mode === "phone" && catalogReady;
@@ -192,7 +195,7 @@ export default function UnstockedLineFields({
           aria-label={`Description, line ${n}`}
           className={smallInput}
         />
-        {showsPta(currency) && (
+        {showsPta(region) && (
           <PtaSelect value={pta} onChange={(value) => onChange({ pta: value })} label={`PTA status, line ${n}`} />
         )}
       </span>

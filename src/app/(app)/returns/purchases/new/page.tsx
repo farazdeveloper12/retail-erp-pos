@@ -3,13 +3,13 @@ import { PackageMinus, Search } from "lucide-react";
 import AccessDenied from "@/components/AccessDenied";
 import { BackLink, Notice, PageHeader, cardClass, inputClass, labelClass, primaryButtonClass } from "@/components/ui";
 import { createClient } from "@/lib/supabase/server";
-import { getMyBusiness } from "@/lib/business";
+import { getMyBusiness, getBusinessTimeZone } from "@/lib/business";
 import { getMyPermissions } from "@/lib/permissions";
 import { UUID_PATTERN } from "@/lib/catalog";
-import { todayInKarachi } from "@/lib/dashboard";
 import PurchaseReturnForm, {
   type ReturnablePurchase,
 } from "@/app/(app)/returns/purchases/new/PurchaseReturnForm";
+import { todayIn } from "@/lib/dashboard";
 
 export const metadata: Metadata = {
   title: "Return to supplier",
@@ -42,6 +42,7 @@ export default async function NewPurchaseReturnPage({
   }
   const business = await getMyBusiness();
 
+  const timeZone = await getBusinessTimeZone();
   return (
     <div className="mx-auto max-w-4xl space-y-6">
       <BackLink href="/returns?tab=purchases">Returns</BackLink>
@@ -80,7 +81,7 @@ export default async function NewPurchaseReturnPage({
         <PurchaseReturnForm
           key={found.purchase.id}
           data={found}
-          today={todayInKarachi()}
+          today={todayIn(timeZone)}
           currency={business?.currency_code || "PKR"}
           dateFormat={business?.date_format ?? "medium"}
         />

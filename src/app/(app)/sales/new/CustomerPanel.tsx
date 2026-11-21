@@ -4,6 +4,7 @@ import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
 import { Loader2, UserRound, X } from "lucide-react";
 import { inputClass, labelClass } from "@/components/ui";
 import { formatMoney, toCents } from "@/lib/money";
+import { phonePlaceholder, regionOf } from "@/lib/region";
 import {
   getCustomerBalance,
   searchCustomers,
@@ -26,11 +27,13 @@ export default function CustomerPanel({
   value,
   onChange,
   currency,
+  region = "PK",
   required,
 }: {
   value: CustomerValue;
   onChange: (value: CustomerValue) => void;
   currency: string;
+  region?: string;
   required: boolean;
 }) {
   const listId = useId();
@@ -245,7 +248,7 @@ export default function CustomerPanel({
           type="tel"
           autoComplete="off"
           maxLength={40}
-          placeholder="03XX XXXXXXX"
+          placeholder={phonePlaceholder(regionOf({ region }))}
           value={value.phone}
           onChange={(event) => onChange({ ...value, phone: event.target.value })}
           className={inputClass}

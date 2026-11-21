@@ -95,13 +95,29 @@ export async function updateTaxRegionSettings(
   const business = await requireSettingsManager();
   if (!business) return fail("You do not have permission to change settings.");
 
+  const plan = String(formData.get("plan") ?? "");
+  if (!isBusinessPlan(plan)) return fail("Choose a plan.");
+  const supabase = await createClient();
+
+  // Pakistan: no VAT, TRN or Arabic invoices. Only the plan is saved.
+  if (business.region !== "AE") {
+    const { data, error } = await supabase
+      .from("businesses")
+      .update({ plan, vat_enabled: false, invoice_language: "en" })
+      .eq("id", business.id)
+      .select("id");
+    if (error) return fail(friendly(error, "The plan could not be saved."));
+    if (!data?.length) return fail("The plan could not be saved. Please check your permissions.");
+    refreshEverywhere();
+    return ok("Plan saved.");
+  }
+
   const vatEnabled = formData.get("vat_enabled") === "on";
   const vatRate = String(formData.get("tax_rate") ?? "").trim();
   const trn = String(formData.get("trn") ?? "").replace(/[\s-]/g, "");
   const nameAr = String(formData.get("name_ar") ?? "").trim();
   const addressAr = String(formData.get("address_ar") ?? "").trim();
   const language = String(formData.get("invoice_language") ?? "");
-  const plan = String(formData.get("plan") ?? "");
 
   const rateValid = VAT_RATE_PATTERN.test(vatRate) && Number(vatRate) > 0 && Number(vatRate) <= 100;
   // The rate is required when VAT is on; a rate typed while VAT is off must be valid too
@@ -113,9 +129,7 @@ export async function updateTaxRegionSettings(
   if (nameAr.length > 120) return fail("The Arabic name cannot be longer than 120 characters.");
   if (addressAr.length > 300) return fail("The Arabic address cannot be longer than 300 characters.");
   if (language !== "en" && language !== "en_ar") return fail("Choose an invoice language.");
-  if (!isBusinessPlan(plan)) return fail("Choose a plan.");
 
-  const supabase = await createClient();
   const { data, error } = await supabase
     .from("businesses")
     .update({
@@ -136,6 +150,42 @@ export async function updateTaxRegionSettings(
   if (!data?.length) return fail("The tax and region settings could not be saved. Please check your permissions.");
   refreshEverywhere();
   return ok("Tax and region settings saved.");
+}
+
+// ---------- Default warranty ----------
+
+// Empty = no default; otherwise 0 to 3650 days
+function warrantyDays(value: FormDataEntryValue | null): number | null | "invalid" {
+  const raw = String(value ?? "").trim();
+  if (raw === "") return null;
+  if (!/^\d{1,4}$/.test(raw) || Number(raw) > 3650) return "invalid";
+  return Number(raw);
+}
+
+export async function updateWarrantyDefaults(
+  _prev: PreferencesState,
+  formData: FormData
+): Promise<PreferencesState> {
+  const business = await requireSettingsManager();
+  if (!business) return fail("You do not have permission to change settings.");
+
+  const phone = warrantyDays(formData.get("default_warranty_phone_days"));
+  const accessory = warrantyDays(formData.get("default_warranty_accessory_days"));
+  if (phone === "invalid" || accessory === "invalid") {
+    return fail("The warranty must be a whole number of days from 0 to 3650, or empty.");
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("businesses")
+    .update({ default_warranty_phone_days: phone, default_warranty_accessory_days: accessory })
+    .eq("id", business.id)
+    .select("id");
+
+  if (error) return fail(friendly(error, "The warranty defaults could not be saved."));
+  if (!data?.length) return fail("The warranty defaults could not be saved. Please check your permissions.");
+  refreshEverywhere();
+  return ok("Warranty defaults saved.");
 }
 
 // ---------- Stock ----------

@@ -10,6 +10,7 @@ import {
   updateProductCategory,
   updateStockSettings,
   updateTaxRegionSettings,
+  updateWarrantyDefaults,
   uploadLogo,
   type PreferencesState,
 } from "@/app/(app)/settings/preferences-actions";
@@ -209,7 +210,10 @@ export function InvoiceSettingsForm({
 
 export function TaxRegionSettingsForm({
   defaults,
+  region,
 }: {
+  // Pakistan shows only the plan: no VAT, TRN or Arabic fields
+  region: "PK" | "AE";
   defaults: {
     vat_enabled: boolean;
     tax_rate: string;
@@ -223,6 +227,8 @@ export function TaxRegionSettingsForm({
   const [state, action, pending] = useActionState(updateTaxRegionSettings, initial);
   return (
     <form action={action} className="space-y-4">
+      {region === "AE" && (
+        <>
       <Toggle
         name="vat_enabled"
         label="Charge VAT (prices include VAT; invoices become tax invoices)"
@@ -311,6 +317,8 @@ export function TaxRegionSettingsForm({
           <p className="mt-1 text-xs text-ink-muted">Shown on English + Arabic invoices.</p>
         </div>
       </div>
+        </>
+      )}
       <fieldset>
         <legend className={labelClass}>Plan</legend>
         <div className="grid gap-2 sm:grid-cols-3">
@@ -338,7 +346,53 @@ export function TaxRegionSettingsForm({
       </fieldset>
       <Messages state={state} />
       <button type="submit" disabled={pending} className={primaryButtonClass + " w-full sm:w-auto"}>
-        {pending ? "Saving..." : "Save tax and region settings"}
+        {pending ? "Saving..." : region === "AE" ? "Save tax and plan settings" : "Save plan"}
+      </button>
+    </form>
+  );
+}
+
+// ---------- Default warranty ----------
+
+export function WarrantyDefaultsForm({
+  phoneDays,
+  accessoryDays,
+}: {
+  phoneDays: number | null;
+  accessoryDays: number | null;
+}) {
+  const [state, action, pending] = useActionState(updateWarrantyDefaults, initial);
+  const field = (name: string, label: string, days: number | null) => (
+    <div>
+      <label htmlFor={`warranty-${name}`} className={labelClass}>
+        {label}
+      </label>
+      <input
+        key={String(days)}
+        id={`warranty-${name}`}
+        name={name}
+        type="text"
+        inputMode="numeric"
+        maxLength={4}
+        placeholder="No default"
+        defaultValue={days === null ? "" : String(days)}
+        className={inputClass}
+      />
+    </div>
+  );
+  return (
+    <form action={action} className="space-y-4">
+      <div className="grid gap-4 sm:grid-cols-2">
+        {field("default_warranty_phone_days", "Phones (days)", phoneDays)}
+        {field("default_warranty_accessory_days", "Accessories (days)", accessoryDays)}
+      </div>
+      <p className="text-xs text-ink-muted">
+        Filled in on every new sale line and &quot;Item not in stock&quot; line. It can still be changed per line. Leave
+        empty for no default.
+      </p>
+      <Messages state={state} />
+      <button type="submit" disabled={pending} className={primaryButtonClass + " w-full sm:w-auto"}>
+        {pending ? "Saving..." : "Save warranty defaults"}
       </button>
     </form>
   );

@@ -3,11 +3,11 @@ import { ShieldCheck } from "lucide-react";
 import AccessDenied from "@/components/AccessDenied";
 import { BackLink, Notice, PageHeader } from "@/components/ui";
 import { createClient } from "@/lib/supabase/server";
-import { getMyBusiness } from "@/lib/business";
+import { getMyBusiness, getBusinessTimeZone } from "@/lib/business";
 import { getMyPermissions } from "@/lib/permissions";
 import { UUID_PATTERN } from "@/lib/catalog";
-import { todayInKarachi } from "@/lib/dashboard";
 import ClaimForm, { type SoldItem } from "@/app/(app)/returns/warranty/new/ClaimForm";
+import { todayIn } from "@/lib/dashboard";
 
 export const metadata: Metadata = {
   title: "New warranty claim",
@@ -29,6 +29,7 @@ export default async function NewClaimPage({ searchParams }: { searchParams: Pro
   }
   const business = await getMyBusiness();
 
+  const timeZone = await getBusinessTimeZone();
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <BackLink href="/returns?tab=warranty">Warranty</BackLink>
@@ -38,7 +39,7 @@ export default async function NewClaimPage({ searchParams }: { searchParams: Pro
         description="Record an item a customer brought in under warranty. Find it first on the Warranty page, or enter it by hand."
       />
       {error && <Notice kind="error">{error}</Notice>}
-      <ClaimForm sold={sold} today={todayInKarachi()} dateFormat={business?.date_format ?? "medium"} />
+      <ClaimForm sold={sold} today={todayIn(timeZone)} dateFormat={business?.date_format ?? "medium"} />
     </div>
   );
 }

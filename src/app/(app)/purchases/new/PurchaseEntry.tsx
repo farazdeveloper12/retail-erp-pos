@@ -222,12 +222,15 @@ export default function PurchaseEntry({
   canAddModels,
   canCreateProducts,
   currency,
+  region = "PK",
   today,
 }: {
   initialBrands: CatalogBrand[];
   canAddModels: boolean;
   canCreateProducts: boolean;
   currency: string;
+  // "PK" (Pakistan) or "AE" (UAE): decides PTA, phone and ID formats
+  region?: string;
   today: string;
 }) {
   const rootRef = useRef<HTMLDivElement>(null);
@@ -632,7 +635,7 @@ export default function PurchaseEntry({
 
   // ---------- Entry screen ----------
 
-  const ptaShown = showsPta(currency);
+  const ptaShown = showsPta(region);
   const phoneGrid =
     "grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-[minmax(0,2.2fr)_minmax(0,1.4fr)_minmax(0,1.1fr)_minmax(0,1.1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.9fr)_auto] xl:items-start xl:gap-2";
   const accessoryGrid =

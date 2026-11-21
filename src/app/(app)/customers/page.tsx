@@ -16,6 +16,7 @@ import {
 } from "@/components/ui";
 import { createClient } from "@/lib/supabase/server";
 import { getMyBusiness } from "@/lib/business";
+import { regionOf } from "@/lib/region";
 import { canViewPage, getMyPermissions, hasAny } from "@/lib/permissions";
 import { UUID_PATTERN } from "@/lib/catalog";
 import { formatMoney, toCents } from "@/lib/money";
@@ -130,13 +131,14 @@ export default async function CustomersPage({
         <p className="text-2xl font-bold text-ink">{formatMoney(totalReceivable, currency)}</p>
       </section>
 
-      {canCreate && <AddCustomerForm />}
+      {canCreate && <AddCustomerForm region={regionOf(business)} />}
 
       {editing && (
         <section className={cardClass}>
           <h2 className="mb-4 text-base font-bold text-ink">Edit &quot;{editing.name}&quot;</h2>
           <EditCustomerForm
             key={editing.id}
+            region={regionOf(business)}
             customer={{
               id: editing.id,
               name: editing.name,

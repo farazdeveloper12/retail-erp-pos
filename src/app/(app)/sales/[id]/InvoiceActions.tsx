@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useSyncExternalStore, type ReactNode } from "react";
-import { ArrowLeft, FileDown, MessageCircle, Printer } from "lucide-react";
+import { ArrowLeft, FileDown, Printer } from "lucide-react";
 import { primaryButtonClass, secondaryButtonClass } from "@/components/ui";
+import ShareOnWhatsApp from "@/components/ShareOnWhatsApp";
 
 type Paper = "a4" | "thermal";
 
@@ -48,14 +49,15 @@ const PAGE_STYLES: Record<Paper, string> = {
 // Action bar (never printed) and the printable invoice area.
 export default function InvoiceActions({
   saleId,
-  whatsappUrl,
+  whatsapp,
   autoPrint,
   defaultPaper = "a4",
   extraActions,
   children,
 }: {
   saleId: string;
-  whatsappUrl: string;
+  // WhatsApp share: customer number (international, or null), short message and PDF name
+  whatsapp: { phone: string | null; message: string; fileName: string };
   autoPrint: boolean;
   // Paper size from Settings, used until someone picks a size on this device
   defaultPaper?: Paper;
@@ -120,15 +122,13 @@ export default function InvoiceActions({
             <FileDown className="h-4 w-4" />
             Download PDF
           </button>
-          <a
-            href={whatsappUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={secondaryButtonClass}
-          >
-            <MessageCircle className="h-4 w-4" />
-            Share on WhatsApp
-          </a>
+          <ShareOnWhatsApp
+            targetId="invoice-document"
+            fileName={whatsapp.fileName}
+            paper={paper}
+            phone={whatsapp.phone}
+            message={whatsapp.message}
+          />
           <Link href="/sales" className={secondaryButtonClass}>
             <ArrowLeft className="h-4 w-4" />
             Back to sales
@@ -137,7 +137,7 @@ export default function InvoiceActions({
         </div>
         <div className="space-y-0.5 text-xs text-ink-muted">
           <p>Download PDF: choose &quot;Save as PDF&quot; as the destination in the print dialog.</p>
-          <p>To send the PDF itself, use Download PDF and attach it in WhatsApp.</p>
+          <p>Share on WhatsApp makes a PDF of this invoice. On a phone, choose WhatsApp in the share menu.</p>
         </div>
       </div>
 

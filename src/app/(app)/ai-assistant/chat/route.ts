@@ -2,10 +2,10 @@ import Anthropic from "@anthropic-ai/sdk";
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getMyPermissions } from "@/lib/permissions";
-import { getMyBusiness } from "@/lib/business";
-import { todayInKarachi } from "@/lib/dashboard";
+import { getMyBusiness, getBusinessTimeZone } from "@/lib/business";
 import { AI_TOOLS, runTool, toolStatusLabel } from "@/lib/ai/tools";
 import { aiModel, isAiConfigured } from "@/lib/ai/config";
+import { todayIn } from "@/lib/dashboard";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
@@ -109,11 +109,12 @@ export async function POST(request: NextRequest) {
         role: m.role,
         content: m.content,
       }));
+      const timeZone = await getBusinessTimeZone();
       const system: Anthropic.Beta.BetaTextBlockParam[] = [
         { type: "text", text: SYSTEM_PROMPT, cache_control: { type: "ephemeral" } },
         {
           type: "text",
-          text: `Today is ${todayInKarachi()} (Asia/Karachi). Shop: ${business?.name ?? "the shop"}. Currency: ${business?.currency_code || "PKR"}.`,
+          text: `Today is ${todayIn(timeZone)} (${timeZone}). Shop: ${business?.name ?? "the shop"}. Currency: ${business?.currency_code || "PKR"}.`,
         },
       ];
       const tools = AI_TOOLS.map((tool, index) => ({

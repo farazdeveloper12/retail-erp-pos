@@ -29,6 +29,9 @@ export default async function NewSalePage() {
       </div>
       <SaleEntry
         currency={business?.currency_code || "PKR"}
+        region={business?.region ?? "PK"}
+        warrantyPhoneDays={business?.default_warranty_phone_days ?? null}
+        warrantyAccessoryDays={business?.default_warranty_accessory_days ?? null}
         seesCost={permissions.includes("inventory.view_cost")}
         // Selling an item that is not in stock also records a purchase
         canSource={permissions.includes("purchases.manage")}

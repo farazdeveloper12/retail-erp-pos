@@ -9,9 +9,11 @@ import { getMyBusiness } from "@/lib/business";
 import { getMyPermissions, hasAny } from "@/lib/permissions";
 import { UUID_PATTERN } from "@/lib/catalog";
 import { centsToPlain, formatMoney, toCents } from "@/lib/money";
-import { formatDateWith, formatInvoiceNo } from "@/lib/format";
+import { formatDateWith, formatInvoiceNo, toWhatsAppNumber } from "@/lib/format";
+import ShareOnWhatsApp from "@/components/ShareOnWhatsApp";
 import { formatCustomerPurchaseNo, gradeLabel } from "@/lib/trade-in";
 import { ptaLabel } from "@/lib/pta";
+import { idNumberLabel, regionOf } from "@/lib/region";
 import AutoPrint from "@/app/(app)/purchases/from-customers/AutoPrint";
 import CustomerPurchaseActions from "@/app/(app)/purchases/from-customers/[id]/CustomerPurchaseActions";
 import EntryHistory from "@/components/entries/EntryHistory";
@@ -88,14 +90,14 @@ export default async function CustomerPurchaseSlipPage({
 
   const currency = business?.currency_code || "PKR";
   const shopName = business?.name || "Retail workspace";
-  const bilingual = business?.invoice_language === "en_ar";
+  const bilingual = regionOf(business) === "AE" && business?.invoice_language === "en_ar";
   const phoneName = slip.phone ? `${slip.phone.brand_name} ${slip.description}` : slip.description;
   const contact = [business?.address, business?.phone].filter((v): v is string => Boolean(v && v.trim()));
 
   const rows: [string, string][] = [
     ["Seller", slip.seller_name],
     ["Phone number", slip.seller_phone],
-    ["CNIC / Emirates ID", slip.seller_id_number || "—"],
+    [idNumberLabel(regionOf(business)), slip.seller_id_number || "—"],
     ["Phone", phoneName],
     ["IMEI", slip.imei],
     ...(ptaLabel(slip.phone?.pta_status) ? ([["PTA status", ptaLabel(slip.phone?.pta_status)!]] as [string, string][]) : []),
@@ -115,9 +117,21 @@ export default async function CustomerPurchaseSlipPage({
             </Link>
           )}
           <PrintButton label="Print slip" />
+          <ShareOnWhatsApp
+            targetId="purchase-slip"
+            fileName={`Purchase slip ${formatCustomerPurchaseNo(slip.purchase_no)}`}
+            paper="a4"
+            phone={toWhatsAppNumber(slip.seller_phone, regionOf(business))}
+            message={[
+              `${shopName}: purchase slip ${formatCustomerPurchaseNo(slip.purchase_no)}`,
+              `Phone: ${phoneName}`,
+              `${slip.payment_method === "trade_in" ? "Trade-in value" : "Amount paid"}: ${formatMoney(slip.price, currency)}`,
+            ].join("\n")}
+          />
           {!slip.deleted_at && (permissions.includes("entries.edit") || permissions.includes("entries.delete")) && (
             <CustomerPurchaseActions
               currency={currency}
+              idLabel={idNumberLabel(regionOf(business))}
               canEdit={permissions.includes("entries.edit")}
               canDelete={permissions.includes("entries.delete")}
               entry={{
@@ -136,6 +150,7 @@ export default async function CustomerPurchaseSlipPage({
       </div>
 
       <article
+        id="purchase-slip"
         className={`rounded-card border bg-white p-6 shadow-soft sm:p-8 print:border-0 print:p-0 print:shadow-none ${LINE} ${INK}`}
       >
         <header className={`flex flex-wrap items-start justify-between gap-4 border-b pb-4 ${LINE}`}>

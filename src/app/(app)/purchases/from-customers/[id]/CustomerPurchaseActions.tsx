@@ -24,11 +24,14 @@ export type EditableCustomerPurchase = {
 export default function CustomerPurchaseActions({
   entry,
   currency,
+  idLabel,
   canEdit,
   canDelete,
 }: {
   entry: EditableCustomerPurchase;
   currency: string;
+  // "CNIC" (Pakistan) or "Emirates ID" (UAE)
+  idLabel: string;
   canEdit: boolean;
   canDelete: boolean;
 }) {
@@ -88,7 +91,7 @@ export default function CustomerPurchaseActions({
               <input type="tel" maxLength={40} value={form.seller_phone} onChange={(e) => set({ seller_phone: e.target.value })} className={inputClass + " mt-1"} />
             </label>
             <label className={labelClass + " mb-0"}>
-              CNIC / Emirates ID
+              {idLabel}
               <input type="text" maxLength={40} value={form.seller_id_number} onChange={(e) => set({ seller_id_number: e.target.value })} className={inputClass + " mt-1"} />
             </label>
           </div>

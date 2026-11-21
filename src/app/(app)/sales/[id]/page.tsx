@@ -6,7 +6,7 @@ import AccessDenied from "@/components/AccessDenied";
 import { BackLink, EmptyState, cardClass, secondaryButtonClass } from "@/components/ui";
 import { formatSalesReturnNo } from "@/lib/returns";
 import { createClient } from "@/lib/supabase/server";
-import { getMyBusiness } from "@/lib/business";
+import { getMyBusiness, getBusinessTimeZone } from "@/lib/business";
 import { canViewPage, getMyPermissions, hasAny } from "@/lib/permissions";
 import { UUID_PATTERN } from "@/lib/catalog";
 import { centsToPlain, formatMoney, toCents } from "@/lib/money";
@@ -28,6 +28,7 @@ import PaymentActions from "@/components/entries/PaymentActions";
 import EditSaleForm from "@/app/(app)/sales/[id]/EditSaleForm";
 import { COST_PERMISSION, getSaleProfits } from "@/lib/profit";
 import { ptaLabel } from "@/lib/pta";
+import { regionOf } from "@/lib/region";
 
 export const metadata: Metadata = {
   title: "Invoice",
@@ -109,18 +110,39 @@ const INK = "text-[#1f2a2a]";
 const MUTED = "text-[#5b6b6b]";
 const LINE = "border-[#ece6d8]";
 
-// English label, followed by the Arabic one on bilingual invoices
+// English label; on bilingual invoices the Arabic label sits on its own
+// line below it and never wraps
 function Label({ en, ar, bilingual }: { en: string; ar: string; bilingual: boolean }): ReactNode {
   if (!bilingual) return en;
   return (
-    <>
-      {en}{" "}
-      <span dir="rtl" lang="ar" className="font-arabic">
+    <span className="inline-flex flex-col leading-tight">
+      <span>{en}</span>
+      <span dir="rtl" lang="ar" className="whitespace-nowrap font-arabic text-[0.9em]">
         {ar}
       </span>
-    </>
+    </span>
   );
 }
+
+// One line under an item: condition, IMEI, PTA or the "Item not in stock" details
+function itemDetail(item: SaleItemRow): string | null {
+  if (item.item_type === "phone") {
+    const parts = [
+      item.condition ? (CONDITION_LABELS[item.condition] ?? item.condition) : null,
+      item.imei ? `IMEI ${item.imei}` : null,
+      ptaLabel(item.pta_status),
+    ].filter(Boolean);
+    return parts.length ? parts.join(" · ") : null;
+  }
+  if (item.item_type === "unstocked") {
+    const { text, imei } = unstockedDetails(item);
+    const parts = [text || null, imei ? `IMEI/Serial ${imei}` : null].filter(Boolean);
+    return parts.length ? parts.join(" · ") : null;
+  }
+  return null;
+}
+
+type TotalRow = { key: string; label: ReactNode; detail?: string; value: string; tone?: "strong" | "grand" };
 
 // The VAT part inside an amount that includes VAT, rounded to the cent
 // (display only; the saved VAT comes from the database)
@@ -261,7 +283,8 @@ export default async function InvoicePage({
   const currency = business?.currency_code || "PKR";
   const shopName = business?.name || "Retail workspace";
   const invoiceNo = formatInvoiceNo(sale.invoice_no);
-  const date = formatDateWith(sale.created_at, business?.date_format ?? "medium", true);
+  const timeZone = await getBusinessTimeZone();
+  const date = formatDateWith(sale.created_at, business?.date_format ?? "medium", true, timeZone);
   const customerName = sale.customer_name?.trim() || "Walk-in customer";
 
   // Invoice options from Settings
@@ -296,7 +319,8 @@ export default async function InvoicePage({
   // VAT is inclusive: the total already contains it. The rate is the one
   // saved with the sale, so older invoices stay plain invoices.
   const isTaxInvoice = Number(sale.vat_rate ?? 0) > 0;
-  const bilingual = business?.invoice_language === "en_ar";
+  // Arabic only for UAE businesses that chose English + Arabic
+  const bilingual = regionOf(business) === "AE" && business?.invoice_language === "en_ar";
   const vatRate = formatRate(sale.vat_rate);
   const vatAmount = toCents(sale.vat_amount) ?? ZERO;
   const amountBeforeVat = total - vatAmount;
@@ -317,38 +341,89 @@ export default async function InvoicePage({
   const canReceive =
     !cancelled && remaining > ZERO && hasAny(permissions, ["sales.create", "customers.manage"]);
 
-  // Plain English WhatsApp message
-  const lines = [
-    shopName,
-    ...(isTaxInvoice && sellerTrn ? [`TRN: ${sellerTrn}`] : []),
-    `${isTaxInvoice ? "Tax invoice" : "Invoice"} ${invoiceNo}${cancelled ? " (CANCELLED)" : ""}`,
+  // Short WhatsApp message; the invoice itself goes as a PDF
+  const whatsappMessage = [
+    `${shopName}: ${isTaxInvoice ? "tax invoice" : "invoice"} ${invoiceNo}${cancelled ? " (CANCELLED)" : ""}`,
     `Date: ${date}`,
-    `Customer: ${customerName}`,
-    "",
-    "Items:",
-    ...items.map(
-      (item) =>
-        `- ${item.description ?? "Item"} x ${item.quantity ?? 1}: ${formatMoney(item.line_total, currency)}`
-    ),
-    "",
+    `Total: ${formatMoney(total, currency)}`,
+    ...(remaining > ZERO ? [`Balance due: ${formatMoney(remaining, currency)}`] : []),
+    footerText.split("\n")[0],
+  ].join("\n");
+  const whatsappNumber = toWhatsAppNumber(sale.customer_phone, regionOf(business));
+
+  const discountTotal = toCents(sale.discount) ?? ZERO;
+  const lineDiscounts = items.some((item) => (toCents(item.discount) ?? ZERO) > ZERO);
+  const status = cancelled
+    ? "Cancelled"
+    : remaining <= ZERO
+      ? "Paid"
+      : paid > ZERO || tradeInCredit > ZERO || returnCredit > ZERO
+        ? "Partly paid"
+        : "Unpaid";
+  const statusTone =
+    status === "Paid"
+      ? "bg-[#dff3e7] text-[#17603a]"
+      : status === "Cancelled"
+        ? "bg-[#fde4d8] text-[#9a3412]"
+        : "bg-[#fdf0cf] text-[#7a5500]";
+
+  const totalRows: TotalRow[] = [
+    { key: "subtotal", label: <Label en="Subtotal" ar="المجموع الفرعي" bilingual={bilingual} />, value: formatMoney(sale.subtotal, currency) },
+    ...(discountTotal > ZERO
+      ? [{ key: "discount", label: <Label en="Discount" ar="الخصم" bilingual={bilingual} />, value: `-${formatMoney(discountTotal, currency)}` }]
+      : []),
     ...(isTaxInvoice
       ? [
-          `Amount before VAT: ${formatMoney(amountBeforeVat, currency)}`,
-          `VAT ${vatRate}%: ${formatMoney(vatAmount, currency)}`,
+          {
+            key: "before-vat",
+            label: <Label en="Amount before VAT" ar="المبلغ قبل الضريبة" bilingual={bilingual} />,
+            value: formatMoney(amountBeforeVat, currency),
+          },
+          {
+            key: "vat",
+            // The rate is shown once, in the English label only
+            label: <Label en={`VAT (${vatRate}%)`} ar="ضريبة القيمة المضافة" bilingual={bilingual} />,
+            value: formatMoney(vatAmount, currency),
+          },
         ]
       : []),
-    `Total${isTaxInvoice ? " (incl. VAT)" : ""}: ${formatMoney(total, currency)}`,
-    ...(tradeInCredit > ZERO ? [`Trade-in (${tradeInLabel}): -${formatMoney(tradeInCredit, currency)}`] : []),
-    ...(returned > ZERO
-      ? [`Returned: ${formatMoney(returned, currency)}`, `Refunded: ${formatMoney(refunded, currency)}`]
+    {
+      key: "total",
+      label: isTaxInvoice ? (
+        <Label en="Total incl. VAT" ar="الإجمالي شامل الضريبة" bilingual={bilingual} />
+      ) : (
+        <Label en="Total" ar="الإجمالي" bilingual={bilingual} />
+      ),
+      value: formatMoney(total, currency),
+      tone: "grand",
+    },
+    ...(tradeInCredit > ZERO
+      ? [
+          {
+            key: "trade-in",
+            label: <Label en="Trade-in" ar="استبدال" bilingual={bilingual} />,
+            detail: `${tradeInLabel}${tradeInRow?.imei ? ` · IMEI ${tradeInRow.imei}` : ""}`,
+            value: `-${formatMoney(tradeInCredit, currency)}`,
+          },
+        ]
       : []),
-    `Paid: ${formatMoney(paid, currency)}`,
-    `Remaining: ${formatMoney(remaining, currency)}`,
+    ...(returned > ZERO
+      ? [
+          { key: "returned", label: <Label en="Returned" ar="المرتجع" bilingual={bilingual} />, value: `-${formatMoney(returned, currency)}` },
+          ...(isTaxInvoice && vatReversed > ZERO
+            ? [{ key: "vat-reversed", label: "VAT reversed on returns", value: `-${formatMoney(vatReversed, currency)}` }]
+            : []),
+          { key: "refunded", label: <Label en="Refunded" ar="المسترد" bilingual={bilingual} />, value: formatMoney(refunded, currency) },
+        ]
+      : []),
+    { key: "paid", label: <Label en="Paid" ar="المدفوع" bilingual={bilingual} />, value: formatMoney(paid, currency) },
+    {
+      key: "remaining",
+      label: <Label en="Balance due" ar="المبلغ المتبقي" bilingual={bilingual} />,
+      value: formatMoney(remaining, currency),
+      tone: "strong",
+    },
   ];
-  if (sale.warranty_terms?.trim()) lines.push("", `Warranty: ${sale.warranty_terms.trim()}`);
-  lines.push("", footerText);
-  const number = toWhatsAppNumber(sale.customer_phone);
-  const whatsappUrl = `https://wa.me/${number ?? ""}?text=${encodeURIComponent(lines.join("\n"))}`;
 
   const contact = [business?.address, business?.phone, business?.email].filter(
     (value): value is string => Boolean(value && value.trim())
@@ -365,7 +440,7 @@ export default async function InvoicePage({
 
       <InvoiceActions
         saleId={sale.id}
-        whatsappUrl={whatsappUrl}
+        whatsapp={{ phone: whatsappNumber, message: whatsappMessage, fileName: `Invoice ${invoiceNo}` }}
         autoPrint={print === "1"}
         defaultPaper={business?.invoice_paper ?? "a4"}
         extraActions={
@@ -430,11 +505,13 @@ export default async function InvoicePage({
         }
       >
         <article
+          id="invoice-document"
           className={
-            "relative mx-auto overflow-hidden rounded-card border bg-white p-5 shadow-soft sm:p-8 " +
+            "relative mx-auto overflow-hidden rounded-card border border-t-8 border-t-[#1f2a2a] bg-white p-6 shadow-soft sm:p-10 " +
             `${LINE} ${INK} ` +
-            "print:rounded-none print:border-0 print:p-0 print:shadow-none " +
-            "group-data-[paper=thermal]:max-w-[80mm] group-data-[paper=thermal]:p-3 group-data-[paper=thermal]:text-[11px]"
+            "print:rounded-none print:border-0 print:border-t-8 print:p-0 print:pt-4 print:shadow-none " +
+            "group-data-[paper=thermal]:max-w-[80mm] group-data-[paper=thermal]:border-t group-data-[paper=thermal]:p-3 " +
+            "group-data-[paper=thermal]:text-[11px] print:group-data-[paper=thermal]:border-t-0"
           }
         >
           {cancelled && (
@@ -446,294 +523,311 @@ export default async function InvoicePage({
               >
                 CANCELLED
               </p>
-              <div className="relative mb-4 rounded-2xl border-2 border-[#c2410c] px-4 py-3 text-center text-[#c2410c]">
+              <div className="relative mb-5 rounded-xl border-2 border-[#c2410c] px-4 py-3 text-center text-[#c2410c]">
                 <p className="text-lg font-black tracking-widest group-data-[paper=thermal]:text-sm">CANCELLED</p>
                 <p className="text-xs">
-                  Cancelled on {formatDateTime(sale.voided_at)}
+                  Cancelled on {formatDateTime(sale.voided_at, timeZone)}
                   {sale.void_reason?.trim() ? ` · Reason: ${sale.void_reason.trim()}` : ""}
                 </p>
               </div>
             </>
           )}
 
-          {/* Header */}
-          <header
-            className={
-              `flex flex-wrap items-start justify-between gap-4 border-b pb-4 ${LINE} ` +
-              "group-data-[paper=thermal]:block group-data-[paper=thermal]:text-center"
-            }
-          >
-            <div className="flex min-w-0 items-start gap-3 group-data-[paper=thermal]:block">
+          {/* ===== A4 layout ===== */}
+          <div className={a4Only}>
+            <header className="flex flex-wrap items-start justify-between gap-6">
+              <div className="flex min-w-0 items-start gap-4">
+                {showLogo && (
+                  // eslint-disable-next-line @next/next/no-img-element -- the logo lives in Supabase Storage
+                  <img src={business!.logo_url!} alt="" className="h-16 w-16 shrink-0 rounded-lg object-contain" />
+                )}
+                <div className="min-w-0 space-y-0.5">
+                  <p className="text-2xl font-extrabold tracking-tight">{shopName}</p>
+                  {business?.legal_name && business.legal_name !== shopName && (
+                    <p className={`text-sm ${MUTED}`}>{business.legal_name}</p>
+                  )}
+                  {nameAr && (
+                    <p dir="rtl" lang="ar" className="font-arabic text-lg font-bold">
+                      {nameAr}
+                    </p>
+                  )}
+                  {contact.map((value) => (
+                    <p key={value} className={`text-sm ${MUTED}`}>
+                      {value}
+                    </p>
+                  ))}
+                  {addressAr && (
+                    <p dir="rtl" lang="ar" className={`font-arabic text-sm ${MUTED}`}>
+                      {addressAr}
+                    </p>
+                  )}
+                  {isTaxInvoice && sellerTrn && (
+                    <p className="pt-1 text-sm">
+                      <span className={MUTED}>TRN </span>
+                      <span className="font-mono font-semibold">{sellerTrn}</span>
+                    </p>
+                  )}
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="text-3xl font-black uppercase tracking-[0.15em]">
+                  {isTaxInvoice ? "Tax invoice" : "Invoice"}
+                </p>
+                {bilingual && (
+                  <p dir="rtl" lang="ar" className="font-arabic text-xl font-bold">
+                    {isTaxInvoice ? "فاتورة ضريبية" : "فاتورة"}
+                  </p>
+                )}
+                <dl className="mt-3 grid grid-cols-[auto_auto] justify-end gap-x-5 gap-y-1.5 text-sm">
+                  <dt className={MUTED}>
+                    <Label en="Invoice no." ar="رقم الفاتورة" bilingual={bilingual} />
+                  </dt>
+                  <dd className="font-mono font-semibold">{invoiceNo}</dd>
+                  <dt className={MUTED}>
+                    <Label en="Date" ar="التاريخ" bilingual={bilingual} />
+                  </dt>
+                  <dd className="whitespace-nowrap font-semibold">{date}</dd>
+                  <dt className={MUTED}>Status</dt>
+                  <dd>
+                    <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-bold ${statusTone}`}>
+                      {status}
+                    </span>
+                  </dd>
+                </dl>
+              </div>
+            </header>
+
+            {/* Customer and payment */}
+            <section className="mt-8 flex flex-wrap gap-4 *:min-w-[220px] *:flex-1">
+              <div className="rounded-xl bg-[#f7f5f0] p-4">
+                <p className={`text-[11px] font-bold uppercase tracking-wider ${MUTED}`}>
+                  <Label en="Bill to" ar="العميل" bilingual={bilingual} />
+                </p>
+                <p className="mt-1 text-base font-bold">{customerName}</p>
+                {showPhone && sale.customer_phone && <p className={`text-sm ${MUTED}`}>{sale.customer_phone}</p>}
+                {isTaxInvoice && customerTrn && (
+                  <p className="text-sm">
+                    <span className={MUTED}>TRN </span>
+                    <span className="font-mono">{customerTrn}</span>
+                  </p>
+                )}
+              </div>
+              <div className="rounded-xl bg-[#f7f5f0] p-4">
+                <p className={`text-[11px] font-bold uppercase tracking-wider ${MUTED}`}>
+                  <Label en="Amount due" ar="المبلغ المستحق" bilingual={bilingual} />
+                </p>
+                <p className="mt-1 text-2xl font-black">{formatMoney(remaining, currency)}</p>
+                <p className={`text-sm ${MUTED}`}>
+                  Total {formatMoney(total, currency)}
+                  {showMethod && paid > ZERO ? ` · Paid by ${methodLabel}` : ""}
+                </p>
+              </div>
+            </section>
+
+            {/* Items */}
+            <table className="mt-8 w-full text-left text-sm">
+              <thead>
+                <tr className={`bg-[#1f2a2a] text-[11px] font-bold uppercase tracking-wider text-white`}>
+                  <th className="rounded-l-lg py-2.5 pl-3 pr-2">#</th>
+                  <th className="px-2 py-2.5">
+                    <Label en="Item" ar="الصنف" bilingual={bilingual} />
+                  </th>
+                  <th className="px-2 py-2.5 text-right">
+                    <Label en="Qty" ar="الكمية" bilingual={bilingual} />
+                  </th>
+                  <th className="px-2 py-2.5 text-right">
+                    <Label en="Price" ar="السعر" bilingual={bilingual} />
+                  </th>
+                  {lineDiscounts && (
+                    <th className="px-2 py-2.5 text-right">
+                      <Label en="Discount" ar="الخصم" bilingual={bilingual} />
+                    </th>
+                  )}
+                  <th className="rounded-r-lg py-2.5 pl-2 pr-3 text-right">
+                    <Label en="Amount" ar="المبلغ" bilingual={bilingual} />
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {items.map((item, index) => {
+                  const detail = itemDetail(item);
+                  return (
+                    <tr key={item.id} className={`break-inside-avoid border-b align-top ${LINE}`}>
+                      <td className={`py-3 pl-3 pr-2 ${MUTED}`}>{index + 1}</td>
+                      <td className="px-2 py-3">
+                        <p className="font-semibold">{item.description ?? "Item"}</p>
+                        {detail && <p className={`text-xs ${MUTED}`}>{detail}</p>}
+                        {showWarranty && (
+                          <p className={`text-xs ${MUTED}`}>Warranty: {formatWarranty(item.warranty_days)}</p>
+                        )}
+                      </td>
+                      <td className="px-2 py-3 text-right">{item.quantity ?? 1}</td>
+                      <td className="whitespace-nowrap px-2 py-3 text-right">{formatMoney(item.unit_price, currency)}</td>
+                      {lineDiscounts && (
+                        <td className="whitespace-nowrap px-2 py-3 text-right">
+                          {(toCents(item.discount) ?? ZERO) > ZERO ? `-${formatMoney(item.discount, currency)}` : "—"}
+                        </td>
+                      )}
+                      <td className="whitespace-nowrap py-3 pl-2 pr-3 text-right font-semibold">
+                        {formatMoney(item.line_total, currency)}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+
+            {/* Notes and totals */}
+            <section className="mt-6 flex flex-wrap items-start justify-between gap-6 break-inside-avoid">
+              <div className="min-w-[220px] flex-1 space-y-3 text-sm">
+                {sale.notes?.trim() && (
+                  <div>
+                    <p className={`text-[11px] font-bold uppercase tracking-wider ${MUTED}`}>Notes</p>
+                    <p className="whitespace-pre-line">{sale.notes}</p>
+                  </div>
+                )}
+                {sale.warranty_terms?.trim() && (
+                  <div>
+                    <p className={`text-[11px] font-bold uppercase tracking-wider ${MUTED}`}>Warranty terms</p>
+                    <p className={`whitespace-pre-line text-xs ${MUTED}`}>{sale.warranty_terms}</p>
+                  </div>
+                )}
+              </div>
+              <dl className="ml-auto w-full max-w-[320px] space-y-1.5 text-sm">
+                {totalRows.map((row) => (
+                  <div
+                    key={row.key}
+                    className={
+                      "flex items-center justify-between gap-4 " +
+                      (row.tone === "grand"
+                        ? "my-2 rounded-lg bg-[#1f2a2a] px-3 py-2.5 text-base font-bold text-white"
+                        : row.tone === "strong"
+                          ? `border-t pt-2 font-bold ${LINE}`
+                          : "")
+                    }
+                  >
+                    <dt className={row.tone ? "" : MUTED}>
+                      {row.label}
+                      {row.detail && <span className="block text-xs">{row.detail}</span>}
+                    </dt>
+                    <dd className="whitespace-nowrap text-right">{row.value}</dd>
+                  </div>
+                ))}
+                {showMethod && (
+                  <div className="flex justify-between gap-4 text-xs">
+                    <dt className={MUTED}>Payment method</dt>
+                    <dd>{methodLabel}</dd>
+                  </div>
+                )}
+              </dl>
+            </section>
+
+            <footer className={`mt-10 border-t pt-4 text-center ${LINE}`}>
+              <p className="whitespace-pre-line text-sm font-semibold">{footerText}</p>
+              <p className={`mt-1 text-xs ${MUTED}`}>
+                {shopName} · {invoiceNo}
+              </p>
+            </footer>
+          </div>
+
+          {/* ===== Small receipt (80 mm) ===== */}
+          <div className={thermalOnly}>
+            <header className="text-center">
               {showLogo && (
                 // eslint-disable-next-line @next/next/no-img-element -- the logo lives in Supabase Storage
-                <img
-                  src={business!.logo_url!}
-                  alt=""
-                  className="h-16 w-16 shrink-0 object-contain group-data-[paper=thermal]:mx-auto group-data-[paper=thermal]:mb-1 group-data-[paper=thermal]:h-10 group-data-[paper=thermal]:w-10"
-                />
+                <img src={business!.logo_url!} alt="" className="mx-auto mb-1 h-10 w-10 object-contain" />
               )}
-              <div className="min-w-0">
-              <p className="text-xl font-bold group-data-[paper=thermal]:text-sm">{shopName}</p>
-              {business?.legal_name && business.legal_name !== shopName && (
-                <p className={`text-sm ${MUTED} group-data-[paper=thermal]:text-[10px]`}>
-                  {business.legal_name}
-                </p>
-              )}
+              <p className="text-sm font-extrabold">{shopName}</p>
               {nameAr && (
-                <p dir="rtl" lang="ar" className="font-arabic text-lg font-bold group-data-[paper=thermal]:text-sm">
+                <p dir="rtl" lang="ar" className="font-arabic text-sm font-bold">
                   {nameAr}
                 </p>
               )}
               {contact.map((value) => (
-                <p key={value} className={`text-sm ${MUTED} group-data-[paper=thermal]:text-[10px]`}>
+                <p key={value} className="text-[10px]">
                   {value}
                 </p>
               ))}
-              {addressAr && (
-                <p dir="rtl" lang="ar" className={`font-arabic text-sm ${MUTED} group-data-[paper=thermal]:text-[10px]`}>
-                  {addressAr}
-                </p>
-              )}
-              {isTaxInvoice && sellerTrn && (
-                <p className="text-sm font-semibold group-data-[paper=thermal]:text-[10px]">
-                  <Label en="TRN" ar="الرقم الضريبي" bilingual={bilingual} />:{" "}
-                  <span className="font-mono">{sellerTrn}</span>
-                </p>
-              )}
-              </div>
-            </div>
-            <div className="text-right group-data-[paper=thermal]:mt-2 group-data-[paper=thermal]:text-center">
-              <p className="text-2xl font-bold tracking-widest group-data-[paper=thermal]:text-sm">
-                {isTaxInvoice ? "TAX INVOICE" : "INVOICE"}
+              {isTaxInvoice && sellerTrn && <p className="text-[10px] font-semibold">TRN {sellerTrn}</p>}
+              <p className="mt-2 text-xs font-black uppercase tracking-[0.2em]">
+                {isTaxInvoice ? "Tax invoice" : "Receipt"}
               </p>
-              {(isTaxInvoice || bilingual) && (
-                <p dir="rtl" lang="ar" className="font-arabic text-xl font-bold group-data-[paper=thermal]:text-sm">
+              {bilingual && (
+                <p dir="rtl" lang="ar" className="font-arabic text-xs font-bold">
                   {isTaxInvoice ? "فاتورة ضريبية" : "فاتورة"}
                 </p>
               )}
-              <p className="text-sm">
-                <span className={MUTED}>
-                  <Label en="Invoice no." ar="رقم الفاتورة" bilingual={bilingual} />:
-                </span>{" "}
-                <span className="font-mono font-semibold">{invoiceNo}</span>
-              </p>
-              <p className={`text-sm ${MUTED} group-data-[paper=thermal]:text-[10px]`}>
-                <Label en="Date" ar="التاريخ" bilingual={bilingual} />: {date}
-              </p>
-            </div>
-          </header>
+            </header>
 
-          {/* Customer */}
-          <section className="py-4 group-data-[paper=thermal]:py-2">
-            <p className={`text-xs font-semibold uppercase tracking-wide ${MUTED}`}>
-              <Label en="Bill to" ar="العميل" bilingual={bilingual} />
-            </p>
-            <p className="font-semibold">{customerName}</p>
-            {showPhone && sale.customer_phone && <p className={`text-sm ${MUTED}`}>{sale.customer_phone}</p>}
-            {isTaxInvoice && customerTrn && (
-              <p className="text-sm">
-                <Label en="Customer TRN" ar="الرقم الضريبي للعميل" bilingual={bilingual} />:{" "}
-                <span className="font-mono">{customerTrn}</span>
-              </p>
-            )}
-          </section>
-
-          {/* Items: A4 table */}
-          <div className={"overflow-x-auto " + a4Only}>
-            <table className="w-full text-left text-sm">
-              <thead className={`border-y text-xs font-semibold uppercase tracking-wide ${LINE} ${MUTED}`}>
-                <tr>
-                  <th className="py-2 pr-3">Item</th>
-                  <th className="px-2 py-2 text-right">Qty</th>
-                  <th className="px-2 py-2 text-right">Unit price</th>
-                  <th className="px-2 py-2 text-right">Discount</th>
-                  <th className="px-2 py-2 text-right">Amount</th>
-                  {showWarranty && <th className="py-2 pl-3">Warranty</th>}
-                </tr>
-              </thead>
-              <tbody>
-                {items.map((item, index) => (
-                  <tr key={index} className={`border-b align-top ${LINE}`}>
-                    <td className="py-2.5 pr-3">
-                      <p className="font-semibold">{item.description ?? "Item"}</p>
-                      {item.item_type === "unstocked" && (item.imei || unstockedDetails(item).text) && (
-                        <p className={`text-xs ${MUTED}`}>
-                          {unstockedDetails(item).text}
-                          {item.imei ? (
-                            <>
-                              {unstockedDetails(item).text ? " · " : ""}IMEI/Serial{" "}
-                              <span className="font-mono">{item.imei}</span>
-                            </>
-                          ) : null}
-                        </p>
-                      )}
-                      {item.item_type === "phone" && (
-                        <p className={`text-xs ${MUTED}`}>
-                          {item.condition ? `${CONDITION_LABELS[item.condition] ?? item.condition} · ` : ""}
-                          {item.imei ? (
-                            <>
-                              IMEI <span className="font-mono">{item.imei}</span>
-                            </>
-                          ) : null}
-                          {ptaLabel(item.pta_status) ? ` · ${ptaLabel(item.pta_status)}` : ""}
-                        </p>
-                      )}
-                    </td>
-                    <td className="px-2 py-2.5 text-right">{item.quantity ?? 1}</td>
-                    <td className="whitespace-nowrap px-2 py-2.5 text-right">
-                      {formatMoney(item.unit_price, currency)}
-                    </td>
-                    <td className="whitespace-nowrap px-2 py-2.5 text-right">
-                      {formatMoney(item.discount ?? 0, currency)}
-                    </td>
-                    <td className="whitespace-nowrap px-2 py-2.5 text-right font-semibold">
-                      {formatMoney(item.line_total, currency)}
-                    </td>
-                    {showWarranty && (
-                      <td className="whitespace-nowrap py-2.5 pl-3">{formatWarranty(item.warranty_days)}</td>
-                    )}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Items: compact thermal list */}
-          <ul className={`border-y border-dashed py-1 ${LINE} ${thermalOnly}`}>
-            {items.map((item, index) => (
-              <li key={index} className={`border-b border-dashed py-1 last:border-0 ${LINE}`}>
-                <p className="font-semibold">{item.description ?? "Item"}</p>
-                {item.item_type === "phone" && item.imei && (
-                  <p className="font-mono text-[10px]">IMEI {item.imei}</p>
-                )}
-                {item.item_type === "unstocked" && unstockedDetails(item).text && (
-                  <p className="text-[10px]">{unstockedDetails(item).text}</p>
-                )}
-                {item.item_type === "unstocked" && item.imei && (
-                  <p className="font-mono text-[10px]">IMEI/Serial {item.imei}</p>
-                )}
-                {item.item_type === "phone" && ptaLabel(item.pta_status) && (
-                  <p className="text-[10px]">{ptaLabel(item.pta_status)}</p>
-                )}
-                <div className="flex justify-between">
-                  <span>
-                    {item.quantity ?? 1} x {formatMoney(item.unit_price, currency)}
-                    {toCents(item.discount) ? ` - ${formatMoney(item.discount, currency)}` : ""}
-                  </span>
-                  <span className="font-semibold">{formatMoney(item.line_total, currency)}</span>
-                </div>
-                {showWarranty && <p className="text-[10px]">Warranty: {formatWarranty(item.warranty_days)}</p>}
-              </li>
-            ))}
-          </ul>
-
-          {/* Totals */}
-          <section className="mt-4 flex justify-end group-data-[paper=thermal]:mt-2 group-data-[paper=thermal]:block">
-            <dl className="w-full max-w-xs space-y-1 text-sm group-data-[paper=thermal]:max-w-none group-data-[paper=thermal]:text-[11px]">
+            <dl className="mt-2 space-y-0.5 border-t border-dashed border-[#1f2a2a]/40 pt-1.5">
               {[
-                ["Subtotal", formatMoney(sale.subtotal, currency)],
-                ["Discount", formatMoney(sale.discount ?? 0, currency)],
+                ["No.", invoiceNo],
+                ["Date", date],
+                ["Customer", customerName],
+                ...(showPhone && sale.customer_phone ? [["Phone", sale.customer_phone]] : []),
+                ...(isTaxInvoice && customerTrn ? [["Customer TRN", customerTrn]] : []),
               ].map(([label, value]) => (
-                <div key={label} className="flex justify-between gap-4">
-                  <dt className={MUTED}>{label}</dt>
-                  <dd>{value}</dd>
+                <div key={label} className="flex justify-between gap-2">
+                  <dt>{label}</dt>
+                  <dd className="text-right font-semibold">{value}</dd>
                 </div>
               ))}
-              {isTaxInvoice && (
-                <>
-                  <div className={`flex justify-between gap-4 border-t pt-1 ${LINE}`}>
-                    <dt className={MUTED}>
-                      <Label en="Amount before VAT" ar="المبلغ قبل الضريبة" bilingual={bilingual} />
-                    </dt>
-                    <dd className="whitespace-nowrap">{formatMoney(amountBeforeVat, currency)}</dd>
-                  </div>
-                  <div className="flex justify-between gap-4">
-                    <dt className={MUTED}>
-                      <Label en={`VAT ${vatRate}%`} ar={`ضريبة القيمة المضافة ${vatRate}%`} bilingual={bilingual} />
-                    </dt>
-                    <dd className="whitespace-nowrap">{formatMoney(vatAmount, currency)}</dd>
-                  </div>
-                </>
-              )}
-              <div className={`flex justify-between gap-4 border-t pt-1 text-base font-bold ${LINE} group-data-[paper=thermal]:text-xs`}>
-                <dt>
-                  {isTaxInvoice ? (
-                    <Label en="Total incl. VAT" ar="الإجمالي شامل الضريبة" bilingual={bilingual} />
-                  ) : (
-                    <Label en="Grand total" ar="الإجمالي" bilingual={bilingual} />
-                  )}
-                </dt>
-                <dd className="whitespace-nowrap">{formatMoney(total, currency)}</dd>
-              </div>
-              {tradeInCredit > ZERO && (
-                <div className="flex justify-between gap-4">
-                  <dt className={MUTED}>
-                    <Label en="Trade-in" ar="استبدال" bilingual={bilingual} />
-                    <span className="block text-xs">
-                      {tradeInLabel}
-                      {tradeInRow?.imei ? (
-                        <>
-                          {" · IMEI "}
-                          <span className="font-mono">{tradeInRow.imei}</span>
-                        </>
-                      ) : null}
-                    </span>
-                  </dt>
-                  <dd className="whitespace-nowrap">-{formatMoney(tradeInCredit, currency)}</dd>
-                </div>
-              )}
-              {returned > ZERO && (
-                <>
-                  <div className="flex justify-between gap-4">
-                    <dt className={MUTED}>Returned</dt>
-                    <dd>-{formatMoney(returned, currency)}</dd>
-                  </div>
-                  {isTaxInvoice && vatReversed > ZERO && (
-                    <div className="flex justify-between gap-4">
-                      <dt className={MUTED}>VAT reversed on returns</dt>
-                      <dd>-{formatMoney(vatReversed, currency)}</dd>
+            </dl>
+
+            <ul className="mt-1.5 border-t border-dashed border-[#1f2a2a]/40">
+              {items.map((item) => {
+                const detail = itemDetail(item);
+                return (
+                  <li key={item.id} className="border-b border-dashed border-[#1f2a2a]/20 py-1">
+                    <p className="font-semibold">{item.description ?? "Item"}</p>
+                    {detail && <p className="text-[10px]">{detail}</p>}
+                    <div className="flex justify-between gap-2">
+                      <span>
+                        {item.quantity ?? 1} x {formatMoney(item.unit_price, currency)}
+                        {(toCents(item.discount) ?? ZERO) > ZERO ? ` - ${formatMoney(item.discount, currency)}` : ""}
+                      </span>
+                      <span className="font-semibold">{formatMoney(item.line_total, currency)}</span>
                     </div>
-                  )}
-                  <div className="flex justify-between gap-4">
-                    <dt className={MUTED}>Refunded</dt>
-                    <dd>{formatMoney(refunded, currency)}</dd>
-                  </div>
-                </>
-              )}
-              <div className="flex justify-between gap-4">
-                <dt className={MUTED}>Paid</dt>
-                <dd>{formatMoney(paid, currency)}</dd>
-              </div>
-              <div className="flex justify-between gap-4 font-semibold">
-                <dt>Remaining</dt>
-                <dd>{formatMoney(remaining, currency)}</dd>
-              </div>
+                    {showWarranty && <p className="text-[10px]">Warranty: {formatWarranty(item.warranty_days)}</p>}
+                  </li>
+                );
+              })}
+            </ul>
+
+            <dl className="mt-1.5 space-y-0.5">
+              {totalRows.map((row) => (
+                <div
+                  key={row.key}
+                  className={
+                    "flex items-center justify-between gap-2 " +
+                    (row.tone === "grand"
+                      ? "my-1 border-y-2 border-double border-[#1f2a2a] py-1 text-xs font-black"
+                      : row.tone === "strong"
+                        ? "font-bold"
+                        : "")
+                  }
+                >
+                  <dt>
+                    {row.label}
+                    {row.detail && <span className="block text-[10px]">{row.detail}</span>}
+                  </dt>
+                  <dd className="whitespace-nowrap text-right">{row.value}</dd>
+                </div>
+              ))}
               {showMethod && (
-                <div className="flex justify-between gap-4">
-                  <dt className={MUTED}>Payment method</dt>
+                <div className="flex justify-between gap-2">
+                  <dt>Payment</dt>
                   <dd>{methodLabel}</dd>
                 </div>
               )}
             </dl>
-          </section>
 
-          {sale.notes?.trim() && (
-            <p className={`mt-4 text-sm ${MUTED} group-data-[paper=thermal]:text-[10px]`}>
-              Notes: {sale.notes}
-            </p>
-          )}
-
-          {/* Warranty terms and thank you */}
-          <footer className={`mt-6 border-t pt-4 text-center ${LINE} group-data-[paper=thermal]:mt-3 group-data-[paper=thermal]:pt-2`}>
-            {sale.warranty_terms?.trim() && (
-              <p className={`whitespace-pre-line text-xs ${MUTED} group-data-[paper=thermal]:text-[10px]`}>
-                {sale.warranty_terms}
-              </p>
-            )}
-            <p className="mt-2 whitespace-pre-line text-sm font-semibold group-data-[paper=thermal]:text-[11px]">
-              {footerText}
-            </p>
-          </footer>
+            {sale.notes?.trim() && <p className="mt-1.5 text-[10px]">Notes: {sale.notes}</p>}
+            <footer className="mt-2 border-t border-dashed border-[#1f2a2a]/40 pt-1.5 text-center">
+              {sale.warranty_terms?.trim() && <p className="whitespace-pre-line text-[10px]">{sale.warranty_terms}</p>}
+              <p className="mt-1 whitespace-pre-line font-semibold">{footerText}</p>
+            </footer>
+          </div>
         </article>
       </InvoiceActions>
 
@@ -904,7 +998,7 @@ export default async function InvoicePage({
           <ul className="divide-y divide-line overflow-hidden rounded-2xl border border-line">
             {payments.map((payment) => (
               <li key={payment.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-sm">
-                <span className="text-ink-muted">{formatDateTime(payment.created_at)}</span>
+                <span className="text-ink-muted">{formatDateTime(payment.created_at, timeZone)}</span>
                 <span className="flex items-center gap-2">
                   <span className="rounded-full bg-surface-muted px-2.5 py-0.5 text-xs font-medium text-ink">
                     {paymentMethodLabel(payment.method)}

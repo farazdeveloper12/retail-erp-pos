@@ -8,15 +8,18 @@ export function formatInvoiceNo(value: unknown): string {
   return text;
 }
 
-// Date and time in Pakistan time, for example "11 Nov 2026, 14:05"
-export function formatDateTime(value: unknown): string {
+// Default time zone when a business has none (Pakistan)
+export const DEFAULT_TIME_ZONE = "Asia/Karachi";
+
+// Date and time in the business time zone, for example "11 Nov 2026, 14:05"
+export function formatDateTime(value: unknown, timeZone: string = DEFAULT_TIME_ZONE): string {
   if (typeof value !== "string" || value === "") return "—";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "—";
   return new Intl.DateTimeFormat("en-GB", {
     dateStyle: "medium",
     timeStyle: "short",
-    timeZone: "Asia/Karachi",
+    timeZone,
   }).format(date);
 }
 
@@ -29,18 +32,23 @@ export const DATE_FORMAT_OPTIONS: { value: DateFormat; label: string }[] = [
   { value: "iso", label: "2026-11-14" },
 ];
 
-// Date (optionally with time) in Pakistan time, in the format chosen in Settings
-export function formatDateWith(value: unknown, format: DateFormat, withTime = false): string {
+// Date (optionally with time) in the business time zone, in the format chosen in Settings
+export function formatDateWith(
+  value: unknown,
+  format: DateFormat,
+  withTime = false,
+  timeZone: string = DEFAULT_TIME_ZONE
+): string {
   if (typeof value !== "string" || value === "") return "—";
-  // A plain YYYY-MM-DD value is a calendar day, not a moment in time
-  const date = /^\d{4}-\d{2}-\d{2}$/.test(value)
-    ? new Date(`${value}T00:00:00+05:00`)
-    : new Date(value);
+  // A plain YYYY-MM-DD value is a calendar day, not a moment in time: show it as is
+  const calendarDay = /^\d{4}-\d{2}-\d{2}$/.test(value);
+  const date = calendarDay ? new Date(`${value}T00:00:00Z`) : new Date(value);
+  const zone = calendarDay ? "UTC" : timeZone;
   if (Number.isNaN(date.getTime())) return "—";
 
   const parts = Object.fromEntries(
     new Intl.DateTimeFormat("en-GB", {
-      timeZone: "Asia/Karachi",
+      timeZone: zone,
       day: "2-digit",
       month: "2-digit",
       year: "numeric",
@@ -58,24 +66,28 @@ export function formatDateWith(value: unknown, format: DateFormat, withTime = fa
   if (format === "iso") return `${parts.year}-${parts.month}-${parts.day}${time}`;
   const medium = new Intl.DateTimeFormat("en-GB", {
     dateStyle: "medium",
-    timeZone: "Asia/Karachi",
+    timeZone: zone,
   }).format(date);
   return `${medium}${time}`;
 }
 
-// Pakistani phone number to the international format WhatsApp expects:
-// "0300 1234567" -> "923001234567"; "+92 300..." and "92300..." are kept.
-// Returns null when there is no usable number.
-export function toWhatsAppNumber(phone: string | null | undefined): string | null {
+// Local phone number to the international format WhatsApp expects.
+// Pakistan: "0300 1234567" -> "923001234567". UAE: "050 123 4567" -> "971501234567".
+// Numbers with "+", "00" or the country code are kept. Returns null when there is no usable number.
+export function toWhatsAppNumber(phone: string | null | undefined, region: string = "PK"): string | null {
   if (!phone) return null;
   const trimmed = phone.trim();
   const digits = trimmed.replace(/\D/g, "");
   if (!digits) return null;
+  const code = region === "AE" ? "971" : "92";
   if (trimmed.startsWith("+")) return digits;
-  if (digits.startsWith("92")) return digits;
   if (digits.startsWith("00")) return digits.slice(2);
-  if (digits.startsWith("0")) return `92${digits.slice(1)}`;
-  if (digits.length === 10 && digits.startsWith("3")) return `92${digits}`;
+  if (digits.startsWith(code)) return digits;
+  if (digits.startsWith("0")) return `${code}${digits.slice(1)}`;
+  // Number typed without the leading 0, for example 300 1234567 or 50 123 4567
+  if (region === "AE" ? digits.length === 9 && digits.startsWith("5") : digits.length === 10 && digits.startsWith("3")) {
+    return `${code}${digits}`;
+  }
   return digits;
 }
 

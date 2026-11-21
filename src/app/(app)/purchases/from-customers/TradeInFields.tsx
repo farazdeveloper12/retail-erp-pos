@@ -6,6 +6,7 @@ import PhoneSpecFields from "@/components/phone/PhoneSpecFields";
 import { checkImeisInStock, type CatalogBrand } from "@/app/(app)/purchases/new/actions";
 import { buildPhoneIndex } from "@/lib/phone-catalog";
 import { showsPta } from "@/lib/pta";
+import { idNumberLabel, phonePlaceholder, regionOf } from "@/lib/region";
 import { GRADE_OPTIONS, cleanImei, type TradeInDraft, type TradeInGrade } from "@/lib/trade-in";
 
 // Seller, phone and price fields of a phone bought from a customer. Used by
@@ -18,6 +19,7 @@ export default function TradeInFields({
   loadingCatalog,
   onReloadCatalog,
   currency,
+  region = "PK",
   priceLabel,
   onImeiChecked,
 }: {
@@ -28,6 +30,8 @@ export default function TradeInFields({
   loadingCatalog: boolean;
   onReloadCatalog: () => Promise<void>;
   currency: string;
+  // "PK" (Pakistan) or "AE" (UAE): decides PTA, phone and ID formats
+  region?: string;
   priceLabel: string;
   // Tells the parent whether an IMEI is already in stock (saving is blocked)
   onImeiChecked: (imei: string, inStock: boolean) => void;
@@ -91,6 +95,7 @@ export default function TradeInFields({
             type="tel"
             autoComplete="off"
             maxLength={40}
+            placeholder={phonePlaceholder(regionOf({ region }))}
             value={value.sellerPhone}
             onChange={(e) => onChange({ sellerPhone: e.target.value })}
             className={inputClass}
@@ -98,7 +103,7 @@ export default function TradeInFields({
         </div>
         <div>
           <label htmlFor={id("seller-id")} className={labelClass}>
-            CNIC / Emirates ID (optional)
+            {idNumberLabel(regionOf({ region }))} (optional)
           </label>
           <input
             id={id("seller-id")}
@@ -122,7 +127,7 @@ export default function TradeInFields({
         onChange={(patch) => onChange({ spec: { ...value.spec, ...patch } })}
         pta={value.pta}
         onPtaChange={(pta) => onChange({ pta })}
-        showPta={showsPta(currency)}
+        showPta={showsPta(region)}
         canQuickAdd
       />
 

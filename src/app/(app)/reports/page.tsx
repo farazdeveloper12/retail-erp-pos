@@ -6,10 +6,10 @@ import BalancePill from "@/components/BalancePill";
 import PeriodSelector from "@/components/PeriodSelector";
 import { Notice, PageHeader, cardClass } from "@/components/ui";
 import { createClient } from "@/lib/supabase/server";
-import { getMyBusiness } from "@/lib/business";
+import { getMyBusiness, getBusinessTimeZone } from "@/lib/business";
 import { canViewPage, getMyPermissions } from "@/lib/permissions";
 import { centsToPlain, formatMoney, toCents } from "@/lib/money";
-import { fetchDashboard, formatDay, resolvePeriod, todayInKarachi } from "@/lib/dashboard";
+import { fetchDashboard, formatDay, resolvePeriod, todayIn } from "@/lib/dashboard";
 import ReportActions from "@/app/(app)/reports/ReportActions";
 
 export const metadata: Metadata = {
@@ -41,8 +41,9 @@ export default async function ReportsPage({
     return <AccessDenied />;
   }
 
-  const period = resolvePeriod(await searchParams);
-  const today = todayInKarachi();
+  const timeZone = await getBusinessTimeZone();
+  const period = resolvePeriod(await searchParams, timeZone);
+  const today = todayIn(timeZone);
   const supabase = await createClient();
 
   const [{ data, error }, business, { data: customerBalances }] = await Promise.all([

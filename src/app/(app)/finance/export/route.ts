@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { canViewPage, getMyPermissions } from "@/lib/permissions";
 import { toCsv } from "@/lib/csv";
 import { categoryLabel, entryDescription, fetchLedger, parseLedgerFilters } from "@/lib/finance";
+import { getBusinessTimeZone } from "@/lib/business";
 
 const PAGE = 1000;
 const MAX_ROWS = 50000;
@@ -14,7 +15,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "You do not have permission to export the ledger." }, { status: 403 });
   }
 
-  const filters = parseLedgerFilters(Object.fromEntries(request.nextUrl.searchParams.entries()));
+  const timeZone = await getBusinessTimeZone();
+  const filters = parseLedgerFilters(Object.fromEntries(request.nextUrl.searchParams.entries()), timeZone);
   const supabase = await createClient();
 
   const rows: Record<string, unknown>[] = [];

@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { REGION_OPTIONS } from "@/lib/region";
 import {
   updateBusinessSettings,
   type SettingsState,
@@ -59,21 +60,28 @@ export default function SettingsForm({
         </div>
 
         <div>
-          <label htmlFor="settings-currency_code" className={labelClass}>
-            Currency
+          <label htmlFor="settings-region" className={labelClass}>
+            Region
           </label>
           {/* key: React applies a select's defaultValue only on mount */}
           <select
-            key={value("currency_code")}
-            id="settings-currency_code"
-            name="currency_code"
+            key={value("region")}
+            id="settings-region"
+            name="region"
             required
-            defaultValue={value("currency_code") || "PKR"}
+            defaultValue={value("region") || "PK"}
+            aria-describedby="settings-region-help"
             className={inputClass}
           >
-            <option value="PKR">PKR – Pakistani rupee</option>
-            <option value="AED">AED – UAE dirham</option>
+            {REGION_OPTIONS.map((r) => (
+              <option key={r.value} value={r.value}>
+                {r.label} – {r.currency}
+              </option>
+            ))}
           </select>
+          <p id="settings-region-help" className="mt-1 text-xs text-ink-muted">
+            Sets the currency and time zone. Pakistan: PKR, PTA status, CNIC. UAE: AED, VAT, Arabic invoices, Emirates ID.
+          </p>
         </div>
 
         <div>

@@ -3,13 +3,13 @@ import { Landmark } from "lucide-react";
 import AccessDenied from "@/components/AccessDenied";
 import { BackLink, EmptyState, Notice, PageHeader, Pill, StatusPill, cardClass } from "@/components/ui";
 import { createClient } from "@/lib/supabase/server";
-import { getMyBusiness } from "@/lib/business";
+import { getMyBusiness, getBusinessTimeZone } from "@/lib/business";
 import { canViewPage, getMyPermissions } from "@/lib/permissions";
 import { formatMoney } from "@/lib/money";
 import { formatDateWith, type DateFormat } from "@/lib/format";
-import { todayInKarachi } from "@/lib/dashboard";
 import { accountKindLabel, fetchAccounts } from "@/lib/finance";
 import { AccountActions, NewAccountForm } from "@/app/(app)/finance/accounts/AccountForms";
+import { todayIn } from "@/lib/dashboard";
 
 export const metadata: Metadata = {
   title: "Accounts",
@@ -26,7 +26,8 @@ export default async function FinanceAccountsPage() {
   const [business, { accounts, error }] = await Promise.all([getMyBusiness(), fetchAccounts(supabase)]);
   const currency = business?.currency_code || "PKR";
   const dateFormat = (business?.date_format ?? "medium") as DateFormat;
-  const today = todayInKarachi();
+  const timeZone = await getBusinessTimeZone();
+  const today = todayIn(timeZone);
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">

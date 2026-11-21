@@ -13,13 +13,14 @@ import {
   primaryButtonClass,
 } from "@/components/ui";
 import { createClient } from "@/lib/supabase/server";
-import { getMyBusiness } from "@/lib/business";
+import { getMyBusiness, getBusinessTimeZone } from "@/lib/business";
 import { canViewPage, getMyPermissions } from "@/lib/permissions";
 import { centsToPlain, formatMoney, toCents } from "@/lib/money";
 import { paymentMethodLabel } from "@/lib/format";
 import ExpenseForm from "@/app/(app)/expenses/ExpenseForm";
 import CancelExpenseButton from "@/app/(app)/expenses/CancelExpenseButton";
 import ExpenseActions from "@/app/(app)/expenses/ExpenseActions";
+import { todayIn } from "@/lib/dashboard";
 
 export const metadata: Metadata = {
   title: "Expenses",
@@ -52,16 +53,6 @@ const COMMON_CATEGORIES = [
 const LIST_SIZE = 50;
 const MONTH_LIMIT = 2000;
 const MONTH_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/;
-
-// Today's date in Pakistan time, as YYYY-MM-DD
-function todayInKarachi() {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Karachi",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(new Date());
-}
 
 function nextMonth(month: string) {
   const [year, m] = month.split("-").map(Number);
@@ -102,7 +93,8 @@ export default async function ExpensesPage({
   const canDeleteEntries = permissions.includes("entries.delete");
   const showActions = canManage || canEditEntries || canDeleteEntries;
 
-  const today = todayInKarachi();
+  const timeZone = await getBusinessTimeZone();
+  const today = todayIn(timeZone);
   const { month: monthParam, cancelled } = await searchParams;
   const month = monthParam && MONTH_PATTERN.test(monthParam) ? monthParam : today.slice(0, 7);
   const showCancelled = cancelled === "1";

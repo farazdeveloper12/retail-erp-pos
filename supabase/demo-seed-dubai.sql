@@ -16,7 +16,11 @@
 -- Everything runs in one transaction: on any error nothing is changed.
 --
 -- Needs these migrations first: 20261118100000 (VAT), 20261119000000
--- (Item not in stock) and 20261120000000 (profit before VAT).
+-- (Item not in stock), 20261120000000 (profit before VAT) and
+-- 20261125000000 (region, time zone and default warranty).
+--
+-- Cash in hand stays realistic for a small shop: every evening the cash above
+-- a float of about AED 2,000 is deposited in the bank (a Cash -> Bank transfer).
 --
 -- All data is created through the app's own database functions while acting
 -- as the test owner, so stock, IMEIs, VAT, cost and profit are calculated
@@ -79,7 +83,7 @@ declare
   v_pair text[];
 begin
   update public.cash_ledger
-     set entry_date = (p_ts at time zone 'Asia/Karachi')::date, created_at = p_ts
+     set entry_date = (p_ts at time zone 'Asia/Dubai')::date, created_at = p_ts
    where business_id = p_biz and created_at = now();
 
   foreach v_pair slice 1 in array array[
@@ -106,7 +110,7 @@ do $$
 declare
   v_biz uuid;
   v_owner uuid;
-  v_today date := (now() at time zone 'Asia/Karachi')::date;
+  v_today date := (now() at time zone 'Asia/Dubai')::date;
   v_day date;
   v_cash uuid;
   v_bank uuid;
@@ -133,6 +137,7 @@ declare
   v_day_total numeric;
   v_total numeric;
   v_paid numeric;
+  v_deposit numeric;
   v_price numeric;
   v_cost numeric;
   v_disc numeric;
@@ -235,6 +240,11 @@ begin
          phone = '04 222 5147',
          email = 'sales@alnoor-mobiles.test',
          currency_code = 'AED',
+         region = 'AE',
+         time_zone = 'Asia/Dubai',
+         -- No default warranty: staff type it per line
+         default_warranty_phone_days = null,
+         default_warranty_accessory_days = null,
          tax_label = 'VAT',
          tax_rate = 5,
          vat_enabled = true,
@@ -672,6 +682,19 @@ begin
           'sale_item_id', v_line, 'quantity', 1, 'restock', true))));
       perform pg_temp.demo_backdate(v_biz, pg_temp.demo_ts(v_day, 200));
     end if;
+
+    -- Evening cash deposit: keep a float of about AED 2,000 in the drawer.
+    -- The evening before a return day keeps all cash for the refund.
+    if v_n not in (13, 7) then
+      v_deposit := floor((public.finance_balance(v_cash) - 2000) / 100) * 100;
+      if v_deposit >= 500 then
+        perform public.record_finance_entry(jsonb_build_object(
+          'type', 'transfer', 'account_id', v_cash, 'to_account_id', v_bank,
+          'amount', v_deposit::text, 'entry_date', v_day::text,
+          'notes', 'Daily cash deposit at the bank'));
+        perform pg_temp.demo_backdate(v_biz, pg_temp.demo_ts(v_day, 655));
+      end if;
+    end if;
   end loop;
 
   raise notice 'Demo seed done for Al Noor Mobiles.';
@@ -681,8 +704,13 @@ $$;
 commit;
 
 -- What was created ---------------------------------------------------------------
-select 'business' as what, name || ' (' || currency_code || ', VAT ' || tax_rate || '%)' as detail
+select 'business' as what, name || ' (' || region || ', ' || currency_code || ', ' || time_zone
+       || ', VAT ' || tax_rate || '%)' as detail
 from public.businesses
+union all
+select 'cash in hand / bank', 'AED ' || public.finance_balance(public.default_finance_account(b.id, 'cash'))::text
+       || ' / AED ' || public.finance_balance(public.default_finance_account(b.id, 'bank'))::text
+from public.businesses b
 union all
 select 'sales (completed)', count(*)::text || ', total AED ' || coalesce(sum(total), 0)::text
        || ', VAT AED ' || coalesce(sum(vat_amount), 0)::text

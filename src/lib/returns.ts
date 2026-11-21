@@ -60,4 +60,4 @@ export function warrantyStatusLabel(status: string, daysLeft: number) {
 }
 
 // Today's date in Pakistan time, as YYYY-MM-DD
-export { todayInKarachi } from "@/lib/dashboard";
+export { todayIn } from "@/lib/dashboard";

@@ -4,7 +4,7 @@ import { ReceiptText, ShoppingCart } from "lucide-react";
 import AccessDenied from "@/components/AccessDenied";
 import { EmptyState, Notice, PageHeader, Pill, primaryButtonClass } from "@/components/ui";
 import { createClient } from "@/lib/supabase/server";
-import { getMyBusiness } from "@/lib/business";
+import { getMyBusiness, getBusinessTimeZone } from "@/lib/business";
 import { canViewPage, getMyPermissions } from "@/lib/permissions";
 import { formatMoney, toCents } from "@/lib/money";
 import { formatDateTime, formatInvoiceNo } from "@/lib/format";
@@ -90,13 +90,14 @@ export default async function SalesPage() {
   // Profit (before VAT) is calculated by the database, only for users who may see cost
   const profits = seesProfit ? await getSaleProfits(rows.map((row) => row.id)) : new Map<string, SaleProfit>();
 
+  const timeZone = await getBusinessTimeZone();
   const sales: SaleItem[] = rows.map((row) => {
     const total = toCents(row.total);
     const paid = toCents(row.paid_amount);
     return {
       id: row.id,
       invoice: formatInvoiceNo(row.invoice_no),
-      date: formatDateTime(row.created_at),
+      date: formatDateTime(row.created_at, timeZone),
       // customer_name is a snapshot stored on the sale
       customer: row.customer_name?.trim()
         ? row.customer_name

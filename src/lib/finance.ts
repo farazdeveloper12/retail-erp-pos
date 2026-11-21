@@ -1,5 +1,5 @@
 import type { createClient } from "@/lib/supabase/server";
-import { addDays, todayInKarachi } from "@/lib/dashboard";
+import { addDays, todayIn } from "@/lib/dashboard";
 
 type Db = Awaited<ReturnType<typeof createClient>>;
 
@@ -148,8 +148,8 @@ function validDate(value: string | undefined) {
   return Number.isNaN(d.getTime()) || d.toISOString().slice(0, 10) !== value ? null : value;
 }
 
-export function parseLedgerFilters(params: Record<string, string | undefined>): LedgerFilters {
-  const today = todayInKarachi();
+export function parseLedgerFilters(params: Record<string, string | undefined>, timeZone?: string): LedgerFilters {
+  const today = todayIn(timeZone);
   let from = validDate(params.from) ?? `${today.slice(0, 7)}-01`;
   let to = validDate(params.to) ?? today;
   let error: string | null = null;

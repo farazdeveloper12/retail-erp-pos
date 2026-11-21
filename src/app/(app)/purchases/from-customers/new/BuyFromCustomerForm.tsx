@@ -11,10 +11,13 @@ import { EMPTY_TRADE_IN, cleanImei, tradeInPayload, tradeInProblems, type TradeI
 
 export default function BuyFromCustomerForm({
   currency,
+  region = "PK",
   today,
   initialBrands,
 }: {
   currency: string;
+  // "PK" (Pakistan) or "AE" (UAE): decides PTA, phone and ID formats
+  region?: string;
   today: string;
   initialBrands: CatalogBrand[] | null;
 }) {
@@ -81,6 +84,7 @@ export default function BuyFromCustomerForm({
           loadingCatalog={loading}
           onReloadCatalog={loadCatalog}
           currency={currency}
+          region={region}
           priceLabel="Buy price"
           onImeiChecked={onImeiChecked}
         />

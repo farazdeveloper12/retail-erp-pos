@@ -15,11 +15,10 @@ import {
   secondaryButtonClass,
 } from "@/components/ui";
 import { createClient } from "@/lib/supabase/server";
-import { getMyBusiness } from "@/lib/business";
+import { getMyBusiness, getBusinessTimeZone } from "@/lib/business";
 import { canViewPage, getMyPermissions } from "@/lib/permissions";
 import { formatMoney, toCents } from "@/lib/money";
 import { formatDateWith, type DateFormat } from "@/lib/format";
-import { todayInKarachi } from "@/lib/dashboard";
 import {
   CATEGORY_LABELS,
   accountKindLabel,
@@ -34,6 +33,7 @@ import {
   type FinanceAccount,
 } from "@/lib/finance";
 import { CancelEntryButton, CountForm, EntryForm } from "@/app/(app)/finance/FinanceForms";
+import { todayIn } from "@/lib/dashboard";
 
 export const metadata: Metadata = {
   title: "Cash & Bank",
@@ -121,9 +121,10 @@ export default async function FinancePage({
   const canManage = permissions.includes("finance.manage");
 
   const params = await searchParams;
-  const filters = parseLedgerFilters(params);
+  const timeZone = await getBusinessTimeZone();
+  const filters = parseLedgerFilters(params, timeZone);
   const page = Math.max(1, Math.min(10000, Number.parseInt(params.page ?? "1", 10) || 1));
-  const today = todayInKarachi();
+  const today = todayIn(timeZone);
 
   const supabase = await createClient();
   const [business, { accounts, error: accountsError }, ledger, summaryResult, { data: countData }] =
@@ -559,7 +560,7 @@ export default async function FinancePage({
                   <span className="min-w-0">
                     <span className="font-semibold text-ink">{accountNames.get(c.account_id) ?? "Account"}</span>
                     <span className="block text-xs text-ink-muted">
-                      {formatDateWith(c.created_at, dateFormat, true)} · counted {formatMoney(c.counted_amount, currency)}{" "}
+                      {formatDateWith(c.created_at, dateFormat, true, timeZone)} · counted {formatMoney(c.counted_amount, currency)}{" "}
                       · app {formatMoney(c.system_balance, currency)}
                       {c.notes ? ` · ${c.notes}` : ""}
                     </span>

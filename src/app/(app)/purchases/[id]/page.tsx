@@ -4,7 +4,7 @@ import { FileX, Headphones, PackageMinus, Smartphone } from "lucide-react";
 import AccessDenied from "@/components/AccessDenied";
 import { BackLink, EmptyState, PageHeader, Pill, cardClass, secondaryButtonClass } from "@/components/ui";
 import { createClient } from "@/lib/supabase/server";
-import { getMyBusiness } from "@/lib/business";
+import { getMyBusiness, getBusinessTimeZone } from "@/lib/business";
 import { canViewPage, getMyPermissions, hasAny } from "@/lib/permissions";
 import { UUID_PATTERN } from "@/lib/catalog";
 import { centsToPlain, formatMoney, toCents } from "@/lib/money";
@@ -177,6 +177,7 @@ export default async function PurchaseDetailPage({
   const units = (unitData ?? []) as PhoneUnitRow[];
   const supplier = supplierResult.data as { name: string; phone: string | null } | null;
   const currency = business?.currency_code || "PKR";
+  const timeZone = await getBusinessTimeZone();
 
   // Match IMEIs to phone lines. With one phone line every unit belongs to it;
   // otherwise match by model name and condition. Anything left is listed apart.
@@ -249,7 +250,7 @@ export default async function PurchaseDetailPage({
         <div role="status" className="rounded-card border-2 border-danger bg-danger-soft px-5 py-4 text-danger">
           <p className="text-lg font-black tracking-widest">CANCELLED</p>
           <p className="text-sm">
-            Cancelled on {formatDateTime(purchase.voided_at)}
+            Cancelled on {formatDateTime(purchase.voided_at, timeZone)}
             {purchase.void_reason?.trim() ? ` · Reason: ${purchase.void_reason.trim()}` : ""}
           </p>
         </div>
@@ -439,7 +440,7 @@ export default async function PurchaseDetailPage({
           <ul className="divide-y divide-line overflow-hidden rounded-2xl border border-line">
             {payments.map((payment) => (
               <li key={payment.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-sm">
-                <span className="text-ink-muted">{formatDateTime(payment.created_at)}</span>
+                <span className="text-ink-muted">{formatDateTime(payment.created_at, timeZone)}</span>
                 <span className="flex items-center gap-2">
                   <span className="rounded-full bg-surface-muted px-2.5 py-0.5 text-xs font-medium text-ink">
                     {paymentMethodLabel(payment.method)} · Paid later

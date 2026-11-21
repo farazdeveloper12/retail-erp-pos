@@ -2,24 +2,15 @@ import type { Metadata } from "next";
 import { PackagePlus } from "lucide-react";
 import AccessDenied from "@/components/AccessDenied";
 import { BackLink, Notice, PageHeader } from "@/components/ui";
-import { getMyBusiness } from "@/lib/business";
+import { getMyBusiness, getBusinessTimeZone } from "@/lib/business";
 import { getMyPermissions, hasAny } from "@/lib/permissions";
 import { loadPurchaseCatalog } from "@/app/(app)/purchases/new/actions";
 import PurchaseEntry from "@/app/(app)/purchases/new/PurchaseEntry";
+import { todayIn } from "@/lib/dashboard";
 
 export const metadata: Metadata = {
   title: "New purchase",
 };
-
-// Today's date in Pakistan time, as YYYY-MM-DD
-function todayInKarachi() {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Karachi",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(new Date());
-}
 
 export default async function NewPurchasePage() {
   const permissions = await getMyPermissions();
@@ -32,6 +23,7 @@ export default async function NewPurchasePage() {
     getMyBusiness(),
   ]);
 
+  const timeZone = await getBusinessTimeZone();
   return (
     <div className="mx-auto max-w-7xl space-y-6">
       <div className="space-y-3">
@@ -55,7 +47,8 @@ export default async function NewPurchasePage() {
         canAddModels={permissions.includes("catalog.manage")}
         canCreateProducts={hasAny(permissions, ["catalog.create", "catalog.manage"])}
         currency={business?.currency_code || "PKR"}
-        today={todayInKarachi()}
+        region={business?.region ?? "PK"}
+        today={todayIn(timeZone)}
       />
     </div>
   );

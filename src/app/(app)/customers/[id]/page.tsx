@@ -6,7 +6,7 @@ import BalancePill from "@/components/BalancePill";
 import { BackLink, EmptyState, PageHeader, Pill, StatusPill, cardClass } from "@/components/ui";
 import { DeleteEntryButton } from "@/components/entries/EntryDialog";
 import { createClient } from "@/lib/supabase/server";
-import { getMyBusiness } from "@/lib/business";
+import { getMyBusiness, getBusinessTimeZone } from "@/lib/business";
 import { canViewPage, getMyPermissions } from "@/lib/permissions";
 import { UUID_PATTERN } from "@/lib/catalog";
 import { formatMoney, toCents } from "@/lib/money";
@@ -82,6 +82,7 @@ export default async function CustomerDetailPage({
     getMyBusiness(),
   ]);
   const currency = business?.currency_code || "PKR";
+  const timeZone = await getBusinessTimeZone();
   const balance = toCents((balanceData as { balance?: unknown } | null)?.balance ?? 0);
   const sales = ((saleData ?? []) as SaleRow[]).map((sale) => {
     const total = toCents(sale.total);
@@ -89,7 +90,7 @@ export default async function CustomerDetailPage({
     return {
       id: sale.id,
       invoice: formatInvoiceNo(sale.invoice_no),
-      date: formatDateTime(sale.created_at),
+      date: formatDateTime(sale.created_at, timeZone),
       total,
       paid,
       cancelled: sale.status === "void",

@@ -1,10 +1,11 @@
 import type { createClient } from "@/lib/supabase/server";
 import { toCents } from "@/lib/money";
+import { DEFAULT_TIME_ZONE } from "@/lib/format";
 
 type Db = Awaited<ReturnType<typeof createClient>>;
 type Raw = Record<string, unknown>;
 
-// ---------- Period (Pakistan time) ----------
+// ---------- Period (business time zone) ----------
 
 export type PeriodKey = "today" | "7d" | "month" | "custom";
 
@@ -20,10 +21,10 @@ const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const MAX_RANGE_DAYS = 366;
 
-// Today's date in Asia/Karachi, as YYYY-MM-DD (not UTC)
-export function todayInKarachi(): string {
+// Today's date in the business time zone, as YYYY-MM-DD (not UTC)
+export function todayIn(timeZone: string = DEFAULT_TIME_ZONE): string {
   return new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Asia/Karachi",
+    timeZone,
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
@@ -59,8 +60,11 @@ export function daysBetween(from: string, to: string): string[] {
 }
 
 // Reads ?period=today|7d|month|custom&from=&to= and returns a safe range
-export function resolvePeriod(params: { period?: string; from?: string; to?: string }): Period {
-  const today = todayInKarachi();
+export function resolvePeriod(
+  params: { period?: string; from?: string; to?: string },
+  timeZone: string = DEFAULT_TIME_ZONE
+): Period {
+  const today = todayIn(timeZone);
   const todayPeriod: Period = { key: "today", from: today, to: today, label: "Today", error: null };
 
   switch (params.period) {

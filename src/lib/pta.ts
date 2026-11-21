@@ -17,7 +17,7 @@ export function ptaLabel(value: string | null | undefined): string | null {
   return PTA_OPTIONS.find((o) => o.value === value)?.label ?? null;
 }
 
-// PTA applies to Pakistani shops (currency PKR)
-export function showsPta(currency: string | null | undefined): boolean {
-  return (currency ?? "PKR").toUpperCase() === "PKR";
+// PTA applies to businesses in Pakistan (region setting)
+export function showsPta(region: string | null | undefined): boolean {
+  return region !== "AE";
 }

@@ -1,5 +1,6 @@
 import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
+import { timeZoneOf } from "@/lib/region";
 
 export type DateFormatKey = "medium" | "dmy" | "mdy" | "iso";
 export type InvoicePaper = "a4" | "thermal";
@@ -36,6 +37,11 @@ export type Business = {
   address_ar: string | null;
   invoice_language: InvoiceLanguage;
   plan: BusinessPlan;
+  // Region (PK / AE), its time zone and the default warranty of new sale lines
+  region: "PK" | "AE";
+  time_zone: string;
+  default_warranty_phone_days: number | null;
+  default_warranty_accessory_days: number | null;
 };
 
 const BUSINESS_COLUMNS = [
@@ -66,6 +72,10 @@ const BUSINESS_COLUMNS = [
   "address_ar",
   "invoice_language",
   "plan",
+  "region",
+  "time_zone",
+  "default_warranty_phone_days",
+  "default_warranty_accessory_days",
 ].join(", ");
 
 // Fallback name used when no business can be read (login page, errors).
@@ -110,3 +120,9 @@ export const getMyBusiness = cache(async (): Promise<Business | null> => {
 
   return (data as unknown as Business | null) ?? null;
 });
+
+// Time zone of the current business (Asia/Karachi or Asia/Dubai).
+// Uses the cached business, so it costs no extra query.
+export async function getBusinessTimeZone(): Promise<string> {
+  return timeZoneOf(await getMyBusiness());
+}

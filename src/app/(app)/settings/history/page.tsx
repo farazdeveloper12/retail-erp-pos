@@ -7,6 +7,7 @@ import { describeChange, type ChangeRow } from "@/components/entries/EntryHistor
 import { createClient } from "@/lib/supabase/server";
 import { canViewPage, getMyPermissions } from "@/lib/permissions";
 import { formatDateTime } from "@/lib/format";
+import { getBusinessTimeZone } from "@/lib/business";
 
 export const metadata: Metadata = {
   title: "Edit & delete history",
@@ -55,6 +56,7 @@ export default async function EntryHistoryPage({
   const type = typeParam && TYPE_LABELS[typeParam] ? typeParam : "";
   const action = actionParam === "edit" || actionParam === "delete" ? actionParam : "";
 
+  const timeZone = await getBusinessTimeZone();
   const supabase = await createClient();
   let query = supabase
     .from("entry_changes")
@@ -142,7 +144,7 @@ export default async function EntryHistoryPage({
                     )}
                   </span>
                   <span className="text-xs text-ink-muted">
-                    {formatDateTime(row.changed_at)} · {names.get(row.changed_by) ?? "User"}
+                    {formatDateTime(row.changed_at, timeZone)} · {names.get(row.changed_by) ?? "User"}
                   </span>
                 </div>
                 <p className="text-sm text-ink">{describeChange(row.old_values, row.new_values)}</p>

@@ -15,6 +15,7 @@ export default function TradeInCard({
   loadingCatalog,
   onReloadCatalog,
   currency,
+  region = "PK",
   usedImeis,
   onSave,
   onClose,
@@ -24,6 +25,8 @@ export default function TradeInCard({
   loadingCatalog: boolean;
   onReloadCatalog: () => Promise<void>;
   currency: string;
+  // "PK" (Pakistan) or "AE" (UAE): decides PTA, phone and ID formats
+  region?: string;
   usedImeis: Set<string>;
   onSave: (draft: TradeInDraft) => void;
   onClose: () => void;
@@ -81,6 +84,7 @@ export default function TradeInCard({
           loadingCatalog={loadingCatalog}
           onReloadCatalog={onReloadCatalog}
           currency={currency}
+          region={region}
           priceLabel="Trade-in value"
           onImeiChecked={onImeiChecked}
         />

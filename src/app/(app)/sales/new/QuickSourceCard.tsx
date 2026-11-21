@@ -65,6 +65,7 @@ export default function QuickSourceCard({
   onReloadCatalog,
   canCreateProducts,
   currency,
+  region = "PK",
   usedImeis,
   onAdd,
   onClose,
@@ -74,6 +75,8 @@ export default function QuickSourceCard({
   onReloadCatalog: () => Promise<void>;
   canCreateProducts: boolean;
   currency: string;
+  // "PK" (Pakistan) or "AE" (UAE): decides PTA, phone and ID formats
+  region?: string;
   usedImeis: Set<string>;
   onAdd: (draft: SourcedDraft) => void;
   onClose: () => void;
@@ -291,7 +294,7 @@ export default function QuickSourceCard({
               onChange={(patch) => setSpec((current) => ({ ...current, ...patch }))}
               pta={pta}
               onPtaChange={setPta}
-              showPta={showsPta(currency)}
+              showPta={showsPta(region)}
               canQuickAdd
             />
           </div>

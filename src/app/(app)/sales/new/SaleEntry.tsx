@@ -90,7 +90,14 @@ function newKey() {
   return `line-${keyCounter}`;
 }
 
-function lineFromOption(option: SaleItemOption): SaleLine {
+// Default warranty of new lines (days as text, "" = none), from Settings
+type WarrantyDefaults = { phone: string; accessory: string };
+
+function warrantyText(days: number | null | undefined): string {
+  return typeof days === "number" && days > 0 ? String(days) : "";
+}
+
+function lineFromOption(option: SaleItemOption, warranty: WarrantyDefaults): SaleLine {
   const price = toCents(option.sale_price);
   const cost = "cost" in option ? toCents(option.cost) : null;
   const base = {
@@ -114,7 +121,7 @@ function lineFromOption(option: SaleItemOption): SaleLine {
       detail: [option.storage, option.color, option.condition, option.pta].filter(Boolean).join(" · "),
       imei: option.imei,
       inStock: 1,
-      warranty: "7",
+      warranty: warranty.phone,
     };
   }
   return {
@@ -125,11 +132,11 @@ function lineFromOption(option: SaleItemOption): SaleLine {
     detail: "",
     imei: null,
     inStock: option.in_stock,
-    warranty: "",
+    warranty: warranty.accessory,
   };
 }
 
-function lineFromDraft(draft: SourcedDraft): SaleLine {
+function lineFromDraft(draft: SourcedDraft, warranty: WarrantyDefaults): SaleLine {
   const base = {
     key: newKey(),
     pta: "",
@@ -150,7 +157,7 @@ function lineFromDraft(draft: SourcedDraft): SaleLine {
       imei: draft.imei,
       inStock: 1,
       quantity: "1",
-      warranty: "7",
+      warranty: warranty.phone,
       source: {
         spec: draft.spec,
         pta: draft.pta,
@@ -167,14 +174,15 @@ function lineFromDraft(draft: SourcedDraft): SaleLine {
     imei: null,
     inStock: MAX_SOURCED_QTY,
     quantity: draft.quantity,
-    warranty: "",
+    warranty: warranty.accessory,
     source: null,
     pta: "",
     u: null,
   };
 }
 
-function newUnstockedLine(): SaleLine {
+// A new "Item not in stock" line starts as a phone when the catalog can be used
+function newUnstockedLine(warranty: string): SaleLine {
   return {
     key: newKey(),
     kind: "unstocked",
@@ -186,7 +194,7 @@ function newUnstockedLine(): SaleLine {
     quantity: "1",
     unitPrice: "",
     discount: "",
-    warranty: "",
+    warranty,
     cost: null,
     sourced: false,
     sourceCost: "",
@@ -271,12 +279,20 @@ const emptyCustomer: CustomerValue = { existing: null, name: "", phone: "" };
 
 export default function SaleEntry({
   currency,
+  region = "PK",
+  warrantyPhoneDays = null,
+  warrantyAccessoryDays = null,
   seesCost,
   canSource,
   canCreateProducts,
   canTradeIn,
 }: {
   currency: string;
+  // "PK" (Pakistan) or "AE" (UAE): decides PTA, phone and ID formats
+  region?: string;
+  // Default warranty (days) of new phone and accessory lines; null = none
+  warrantyPhoneDays?: number | null;
+  warrantyAccessoryDays?: number | null;
   seesCost: boolean;
   canSource: boolean;
   canCreateProducts: boolean;
@@ -286,6 +302,10 @@ export default function SaleEntry({
   const addItemRef = useRef<HTMLInputElement>(null);
   const pendingFocus = useRef<string | null>(null);
 
+  const warranty: WarrantyDefaults = {
+    phone: warrantyText(warrantyPhoneDays),
+    accessory: warrantyText(warrantyAccessoryDays),
+  };
   const [lines, setLines] = useState<SaleLine[]>([]);
   const [customer, setCustomer] = useState<CustomerValue>(emptyCustomer);
   const [invoiceDiscount, setInvoiceDiscount] = useState("");
@@ -336,7 +356,7 @@ export default function SaleEntry({
         return;
       }
       pendingFocus.current = fieldSelector(lines.length, "price");
-      setLines((current) => [...current, lineFromOption(option)]);
+      setLines((current) => [...current, lineFromOption(option, warranty)]);
       return;
     }
 
@@ -356,7 +376,7 @@ export default function SaleEntry({
       return;
     }
     pendingFocus.current = fieldSelector(lines.length, "quantity");
-    setLines((current) => [...current, lineFromOption(option)]);
+    setLines((current) => [...current, lineFromOption(option, warranty)]);
   }
 
   // A free line for an item that is not in stock (no stock, purchase or supplier)
@@ -364,7 +384,7 @@ export default function SaleEntry({
     setNotice(null);
     if (canSource && !catalog && !catalogLoading) void loadCatalog();
     pendingFocus.current = fieldSelector(lines.length, "name");
-    setLines((current) => [...current, newUnstockedLine()]);
+    setLines((current) => [...current, newUnstockedLine(canSource ? warranty.phone : warranty.accessory)]);
   }
 
   function updateLine(index: number, patch: Partial<SaleLine>) {
@@ -427,7 +447,7 @@ export default function SaleEntry({
 
   function addSourced(draft: SourcedDraft) {
     pendingFocus.current = fieldSelector(lines.length, "price");
-    setLines((current) => [...current, lineFromDraft(draft)]);
+    setLines((current) => [...current, lineFromDraft(draft, warranty)]);
     setSourcingOpen(false);
   }
 
@@ -765,6 +785,7 @@ export default function SaleEntry({
               onReloadCatalog={loadCatalog}
               canCreateProducts={canCreateProducts}
               currency={currency}
+              region={region}
               usedImeis={usedImeis}
               onAdd={addSourced}
               onClose={closeSourcing}
@@ -779,6 +800,7 @@ export default function SaleEntry({
               loadingCatalog={catalogLoading}
               onReloadCatalog={loadCatalog}
               currency={currency}
+              region={region}
               usedImeis={usedImeis}
               onSave={saveTradeIn}
               onClose={() => setTradeInOpen(false)}
@@ -891,12 +913,18 @@ export default function SaleEntry({
                                     ...(patch.pta !== undefined ? { pta: patch.pta } : {}),
                                     ...(patch.sourceCost !== undefined ? { sourceCost: patch.sourceCost } : {}),
                                     ...(patch.u ? { u: { ...(line.u ?? EMPTY_UNSTOCKED), ...patch.u } } : {}),
+                                    // Switching phone / accessory swaps an untouched default warranty
+                                    ...(patch.u?.mode && patch.u.mode !== (line.u ?? EMPTY_UNSTOCKED).mode &&
+                                    line.warranty === (patch.u.mode === "phone" ? warranty.accessory : warranty.phone)
+                                      ? { warranty: patch.u.mode === "phone" ? warranty.phone : warranty.accessory }
+                                      : {}),
                                   })
                                 }
                                 index={phoneIndex}
                                 catalogReady={canSource && Boolean(catalog)}
                                 canUseSupplier={canSource}
                                 currency={currency}
+                                region={region}
                                 owedToSupplier={
                                   c.cost !== null && c.qty !== null
                                     ? c.cost * BigInt(c.qty) -
@@ -1069,6 +1097,7 @@ export default function SaleEntry({
             value={customer}
             onChange={setCustomer}
             currency={currency}
+            region={region}
             required={needsCustomer}
           />
           <div>

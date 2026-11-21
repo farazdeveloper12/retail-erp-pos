@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getMyBusiness } from "@/lib/business";
+import { isRegion, regionInfo } from "@/lib/region";
 
 export type SettingsState = {
   error: string | null;
@@ -11,12 +12,11 @@ export type SettingsState = {
 };
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const CURRENCIES = new Set(["PKR", "AED"]);
 
 const FIELDS = [
   "name",
   "legal_name",
-  "currency_code",
+  "region",
   "phone",
   "email",
   "address",
@@ -32,7 +32,7 @@ export async function updateBusinessSettings(
 ): Promise<SettingsState> {
   const values: Record<string, string> = {};
   for (const field of FIELDS) values[field] = text(formData, field);
-  values.currency_code = values.currency_code.toUpperCase();
+  values.region = values.region.toUpperCase();
 
   const fail = (error: string): SettingsState => ({
     error,
@@ -58,9 +58,11 @@ export async function updateBusinessSettings(
   if (values.legal_name.length > 160) {
     return fail("Legal name cannot be longer than 160 characters.");
   }
-  if (!CURRENCIES.has(values.currency_code)) {
-    return fail("Choose PKR or AED as the currency.");
+  if (!isRegion(values.region)) {
+    return fail("Choose Pakistan or UAE as the region.");
   }
+  // The region decides the currency and the time zone
+  const region = regionInfo(values.region);
   if (values.phone.length > 40) {
     return fail("Phone cannot be longer than 40 characters.");
   }
@@ -83,7 +85,11 @@ export async function updateBusinessSettings(
     .update({
       name: values.name,
       legal_name: values.legal_name || null,
-      currency_code: values.currency_code,
+      region: region.value,
+      currency_code: region.currency,
+      time_zone: region.timeZone,
+      // Pakistan has no VAT and no Arabic invoices
+      ...(region.value === "PK" ? { vat_enabled: false, invoice_language: "en" } : {}),
       phone: values.phone || null,
       email: values.email || null,
       address: values.address || null,

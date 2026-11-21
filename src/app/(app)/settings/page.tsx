@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import {
+  ShieldCheck,
   Boxes,
   Database,
   Download,
@@ -30,6 +31,7 @@ import {
   ProductCategoriesManager,
   StockSettingsForm,
   TaxRegionSettingsForm,
+  WarrantyDefaultsForm,
 } from "@/app/(app)/settings/PreferencesForms";
 
 export const metadata: Metadata = {
@@ -38,8 +40,9 @@ export const metadata: Metadata = {
 
 const SECTIONS = [
   { id: "shop", label: "Shop profile" },
-  { id: "tax", label: "Tax & region" },
+  { id: "tax", label: "Tax & plan" },
   { id: "invoice", label: "Invoice" },
+  { id: "warranty", label: "Warranty" },
   { id: "stock", label: "Stock" },
   { id: "expenses", label: "Expense categories" },
   { id: "products", label: "Product categories" },
@@ -138,7 +141,7 @@ export default async function SettingsPage() {
               defaults={{
                 name: business.name ?? "",
                 legal_name: business.legal_name ?? "",
-                currency_code: business.currency_code ?? "PKR",
+                region: business.region ?? "PK",
                 phone: business.phone ?? "",
                 email: business.email ?? "",
                 address: business.address ?? "",
@@ -156,10 +159,15 @@ export default async function SettingsPage() {
           <Section
             id="tax"
             icon={Globe}
-            title="Tax & region"
-            description="VAT, Tax Registration Number, invoice language and the plan of this business."
+            title={business.region === "AE" ? "Tax & plan" : "Plan"}
+            description={
+              business.region === "AE"
+                ? "VAT, Tax Registration Number, invoice language and the plan of this business."
+                : "The plan of this business. Pakistan has no VAT fields."
+            }
           >
             <TaxRegionSettingsForm
+              region={business.region === "AE" ? "AE" : "PK"}
               defaults={{
                 vat_enabled: business.vat_enabled ?? false,
                 // A VAT rate of 5% is suggested until a rate is saved
@@ -188,6 +196,18 @@ export default async function SettingsPage() {
                 invoice_show_warranty: business.invoice_show_warranty,
                 invoice_show_payment_method: business.invoice_show_payment_method,
               }}
+            />
+          </Section>
+
+          <Section
+            id="warranty"
+            icon={ShieldCheck}
+            title="Default warranty"
+            description="Days of warranty filled in on new sale lines. Separate for phones and accessories."
+          >
+            <WarrantyDefaultsForm
+              phoneDays={business.default_warranty_phone_days ?? null}
+              accessoryDays={business.default_warranty_accessory_days ?? null}
             />
           </Section>
 

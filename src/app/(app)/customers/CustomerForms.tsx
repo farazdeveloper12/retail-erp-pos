@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useActionState } from "react";
+import { phonePlaceholder, type Region } from "@/lib/region";
 import { UserPlus } from "lucide-react";
 import {
   createCustomer,
@@ -25,9 +26,11 @@ type Defaults = { name: string; phone: string; address: string; notes: string; t
 function CustomerFields({
   prefix,
   defaults,
+  region,
 }: {
   prefix: string;
   defaults: Partial<Defaults>;
+  region: Region;
 }) {
   return (
     <div className="grid gap-4 sm:grid-cols-2">
@@ -57,11 +60,15 @@ function CustomerFields({
           required
           maxLength={40}
           autoComplete="off"
-          placeholder="03XX XXXXXXX"
+          placeholder={phonePlaceholder(region)}
           defaultValue={defaults.phone ?? ""}
           className={inputClass}
         />
       </div>
+      {region === "PK" ? (
+        // Pakistan has no VAT: keep any saved TRN unchanged
+        <input type="hidden" name="trn" value={defaults.trn ?? ""} />
+      ) : (
       <div>
         <label htmlFor={`${prefix}-trn`} className={labelClass}>
           TRN (optional)
@@ -78,6 +85,7 @@ function CustomerFields({
           className={inputClass}
         />
       </div>
+      )}
       <div>
         <label htmlFor={`${prefix}-address`} className={labelClass}>
           Address (optional)
@@ -108,7 +116,7 @@ function CustomerFields({
   );
 }
 
-export function AddCustomerForm() {
+export function AddCustomerForm({ region }: { region: Region }) {
   const [state, action, pending] = useActionState(createCustomer, initialState);
   return (
     <section className={cardClass}>
@@ -122,7 +130,7 @@ export function AddCustomerForm() {
         </div>
       </div>
       <form action={action} className="space-y-4">
-        <CustomerFields prefix="add-customer" defaults={state.values ?? {}} />
+        <CustomerFields prefix="add-customer" defaults={state.values ?? {}} region={region} />
         {state.error && <Notice kind="error">{state.error}</Notice>}
         {state.success && <Notice kind="success">{state.success}</Notice>}
         <button type="submit" disabled={pending} className={primaryButtonClass + " w-full sm:w-auto"}>
@@ -136,15 +144,17 @@ export function AddCustomerForm() {
 export function EditCustomerForm({
   customer,
   cancelHref,
+  region,
 }: {
   customer: { id: string } & Defaults;
   cancelHref: string;
+  region: Region;
 }) {
   const [state, action, pending] = useActionState(updateCustomer, initialState);
   return (
     <form action={action} className="space-y-4">
       <input type="hidden" name="customer_id" value={customer.id} />
-      <CustomerFields prefix="edit-customer" defaults={state.values ?? customer} />
+      <CustomerFields prefix="edit-customer" defaults={state.values ?? customer} region={region} />
       {state.error && <Notice kind="error">{state.error}</Notice>}
       {state.success && <Notice kind="success">{state.success}</Notice>}
       <div className="flex flex-col gap-2 sm:flex-row">

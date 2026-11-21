@@ -1,9 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getMyPermissions } from "@/lib/permissions";
-import { todayInKarachi } from "@/lib/dashboard";
 import { EXPORT_TABLES } from "@/lib/backup";
 import { toCsv } from "@/lib/csv";
+import { todayIn } from "@/lib/dashboard";
+import { getBusinessTimeZone } from "@/lib/business";
 
 const PAGE = 1000;
 const MAX_ROWS = 200000;
@@ -31,7 +32,8 @@ export async function GET(request: NextRequest) {
   }
 
   const table = request.nextUrl.searchParams.get("table") ?? "";
-  const date = todayInKarachi();
+  const timeZone = await getBusinessTimeZone();
+  const date = todayIn(timeZone);
 
   if (table === "all") {
     const result: Record<string, Row[] | { error: string }> = {};
